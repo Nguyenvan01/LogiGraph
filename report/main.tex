@@ -1,0 +1,40 @@
+% Biên dịch trên Overleaf: Compiler = pdfLaTeX. Upload cả thư mục report/.
+\documentclass[conference]{IEEEtran}
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{cite}
+\usepackage{url}
+\graphicspath{{figures/}}
+\newtheorem{theorem}{Định lý}
+\newtheorem{lemma}{Bổ đề}
+
+\begin{document}
+
+\title{LogiGraph: Tối ưu hóa mạng lưới giao hàng và định tuyến vận tải đô thị\\
+trên dữ liệu bản đồ thực tế nội thành Hà Nội}
+
+\author{\IEEEauthorblockN{TV1 \quad TV2 \quad TV3 \quad TV4 \quad TV5}
+\IEEEauthorblockA{Học phần Cấu trúc dữ liệu và Giải thuật nâng cao\\
+Khoa Công nghệ Thông tin, Trường Đại học Công nghệ Kỹ thuật Hưng Yên}}
+
+\maketitle
+
+\input{sections/00-abstract}
+\input{sections/01-intro}
+\input{sections/02-graph}
+\input{sections/03-routing}
+\input{sections/04-network}
+\input{sections/05-dp}
+\input{sections/06-experiments}
+\input{sections/07-conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

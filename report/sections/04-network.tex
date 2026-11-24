@@ -1,0 +1,187 @@
+% TV3 -- Module M3: Disjoint Set, Kruskal, Prim, phân cụm, tính liên thông.
+% Mã nguồn: logigraph/core/dsu.py, logigraph/core/network.py; test: tests/test_dsu.py, tests/test_network.py.
+\section{Quy hoạch mạng lưới: Union-Find và Kruskal}
+\label{sec:network}
+
+Module M3 giải ba bài toán trên cùng một cấu trúc dữ liệu là Disjoint Set: (i) dựng Backbone Network nối 24 Hub với tổng chi phí nhỏ nhất, (ii) chia 400 Parcel thành $k$ Delivery Cluster, (iii) kiểm tra tính liên thông của Road Network và của từng phường. Từ ngày 1/7/2025 Việt Nam bỏ cấp quận/huyện, nên đơn vị hành chính trong dữ liệu là 24 phường mới của nội thành Hà Nội; trong mã nguồn, trường \texttt{district} lưu tên phường. Kruskal là ``sắp xếp cạnh cộng Disjoint Set'', còn phân cụm và kiểm tra liên thông là hai cách dùng khác của cùng vòng lặp hợp tập đó.
+
+\subsection{Biểu diễn Disjoint Set}
+
+Các phần tử là số nguyên liên tục $0..n-1$. Lớp \texttt{DisjointSet} biểu diễn họ tập rời nhau bằng một rừng cây hướng về gốc, mỗi cây là một tập và gốc là phần tử đại diện. Trạng thái gồm ba thành phần: mảng \texttt{parent} (Python \texttt{list} số nguyên, $\mathit{parent}[x]=x$ khi $x$ là gốc), mảng \texttt{rank} kiểu \texttt{bytearray} (một byte cho mỗi phần tử, đủ dùng vì rank không vượt $\lfloor\log_2 n\rfloor < 256$ theo Bổ đề~\ref{lem:nw-rank}), và biến \texttt{count} là số tập hiện có. Khởi tạo $n$ tập đơn tốn $O(n)$ thời gian và bộ nhớ. Không dùng \texttt{dict} hay \texttt{set}.
+
+Hai cờ \texttt{path\_compression} và \texttt{union\_by\_rank} tạo ra bốn biến thể để đo đạc. Baseline thứ năm là \texttt{QuickFind}: mảng \texttt{label}$[x]$ lưu tên tập của $x$, nên \texttt{find} là $O(1)$, còn \texttt{union} phải quét toàn bộ mảng để đổi nhãn, luôn tốn $\Theta(n)$.
+
+Thuật toán~\ref{alg:nw-dsu} là \texttt{find} và \texttt{union} trong mã nguồn. \texttt{find} viết dạng lặp hai lượt: lượt 1 đi theo \texttt{parent} lên tới gốc $r$, lượt 2 đi lại đúng đường đó và cho mọi nút trỏ thẳng về $r$. Kết quả giống hệt bản đệ quy, nhưng không phụ thuộc giới hạn đệ quy của Python (mặc định 1000 tầng); điều này cần thiết vì ở biến thể không tối ưu, cây có thể suy biến thành chuỗi dài $n-1$ với $n$ tới $10^6$. \texttt{union} gắn gốc có rank nhỏ hơn dưới gốc có rank lớn hơn; chỉ khi hai rank bằng nhau thì rank của gốc mới tăng 1. \texttt{union} trả về \textbf{false} khi $a, b$ đã cùng tập, và Kruskal dùng chính giá trị này để phát hiện chu trình. Biến \texttt{steps} đếm số lần nhảy con trỏ ở lượt 1, làm thước đo chi phí không phụ thuộc máy trong benchmark.
+
+\begin{algorithm}[t]
+\caption{\textsc{Find} hai lượt và \textsc{Union} by rank}
+\label{alg:nw-dsu}
+\begin{algorithmic}[1]
+\Function{Find}{$x$}
+  \State $r \gets x$
+  \While{$\mathit{parent}[r] \neq r$} \Comment{lượt 1: tìm gốc}
+    \State $r \gets \mathit{parent}[r]$
+  \EndWhile
+  \While{$\mathit{parent}[x] \neq r$} \Comment{lượt 2: nén đường}
+    \State $(\mathit{parent}[x],\, x) \gets (r,\, \mathit{parent}[x])$
+  \EndWhile
+  \State \Return $r$
+\EndFunction
+\Function{Union}{$a, b$}
+  \State $r_a \gets \Call{Find}{a}$;\ $r_b \gets \Call{Find}{b}$
+  \If{$r_a = r_b$}
+    \State \Return \textbf{false} \Comment{đã cùng tập}
+  \EndIf
+  \If{$\mathit{rank}[r_a] > \mathit{rank}[r_b]$}
+    \State đổi chỗ $r_a$ và $r_b$
+  \EndIf
+  \If{$\mathit{rank}[r_a] = \mathit{rank}[r_b]$}
+    \State $\mathit{rank}[r_b] \gets \mathit{rank}[r_b] + 1$
+  \EndIf
+  \State $\mathit{parent}[r_a] \gets r_b$;\ $\mathit{count} \gets \mathit{count} - 1$
+  \State \Return \textbf{true}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Phân tích độ phức tạp}
+
+\begin{lemma}\label{lem:nw-rank}
+Khi dùng union by rank (có hoặc không có path compression): (a) với mọi nút không phải gốc $x$, $\mathit{rank}[\mathit{parent}[x]] > \mathit{rank}[x]$, và rank của nút không phải gốc không bao giờ đổi; (b) một gốc có rank $r$ thì tập của nó có ít nhất $2^r$ phần tử; (c) có không quá $n/2^r$ phần tử có rank $r$. Do đó rank và chiều cao mọi cây không vượt $\lfloor\log_2 n\rfloor$.
+\end{lemma}
+
+\begin{proof}
+(a) \textsc{Union} chỉ ghi vào rank của gốc $r_b$, và chỉ gắn $r_a$ dưới $r_b$ khi $\mathit{rank}[r_a] \le \mathit{rank}[r_b]$; nếu bằng nhau thì $\mathit{rank}[r_b]$ tăng ngay, nên bất đẳng thức là nghiêm ngặt. Path compression đổi cha của $x$ thành gốc, là một tổ tiên của cha cũ, nên theo tính bắc cầu rank của cha mới vẫn lớn hơn.
+
+(b) Quy nạp theo số phép \textsc{Union}. Ban đầu mọi gốc có rank 0 và một phần tử. Một gốc chỉ tăng rank từ $r$ lên $r+1$ khi được hợp với một gốc khác cũng có rank $r$; theo giả thiết quy nạp mỗi tập có ít nhất $2^r$ phần tử nên tập mới có ít nhất $2^{r+1}$ phần tử. Path compression không đổi rank và không đổi tập nào, nên không phá vỡ tính chất.
+
+(c) Mỗi nút đạt rank $r$ khi đang là gốc của một tập có ít nhất $2^r$ phần tử. Hai nút khác nhau có cùng rank $r$ không thể cùng nhận một phần tử: nếu có, nút đạt rank $r$ sau sẽ là tổ tiên của nút kia, mâu thuẫn với (a). Vậy số nút rank $r$ không quá $n/2^r$.
+
+Từ (b), $2^r \le n$ nên $r \le \lfloor\log_2 n\rfloor$. Từ (a), rank tăng nghiêm ngặt dọc đường đi lên gốc, nên chiều cao cây không vượt rank gốc.
+\end{proof}
+
+Hệ quả là chỉ với union by rank, \textsc{Find} đã đạt $O(\log n)$ trong trường hợp xấu nhất. Sau khi nén đường, rank chỉ còn là cận trên của chiều cao: chiều cao giảm nhưng rank không được cập nhật lại, vì việc đó tốn thời gian và phép phân tích chỉ cần rank là cận trên.
+
+\paragraph*{Hàm Ackermann và hàm ngược} Theo cách trình bày của~\cite{clrs2022}, với $k \ge 0$, $j \ge 1$:
+\[
+A_k(j) =
+\begin{cases}
+j + 1, & k = 0,\\
+A_{k-1}^{(j+1)}(j), & k \ge 1,
+\end{cases}
+\]
+trong đó $f^{(i)}$ là hợp $i$ lần của $f$. Tính trực tiếp: $A_1(j) = 2j+1$, $A_2(j) = 2^{j+1}(j+1) - 1$, nên $A_0(1)=2$, $A_1(1)=3$, $A_2(1)=7$, $A_3(1)=A_2(7)=2047$, còn $A_4(1)=A_3(2047) > A_2(2047) > 2^{2048} \gg 10^{80}$. Hàm ngược được định nghĩa là
+\[
+\alpha(n) = \min\{\,k : A_k(1) \ge n\,\}.
+\]
+Vậy $\alpha(n) \le 3$ khi $n \le 2047$ và $\alpha(n) \le 4$ với mọi $n$ nhỏ hơn số nguyên tử trong vũ trụ quan sát được. $\alpha(n)$ không phải hằng số theo nghĩa toán học, nó vẫn tiến ra vô cùng, nhưng chậm hơn cả $\log^* n$.
+
+\begin{theorem}[Tarjan~\cite{tarjan1975}]\label{thm:nw-tarjan}
+Với rừng $n$ phần tử dùng đồng thời union by rank và path compression, một dãy $m$ phép \textsc{Find}/\textsc{Union} bất kỳ tốn tổng thời gian $O(n + m\,\alpha(n))$ trong trường hợp xấu nhất.
+\end{theorem}
+
+Tarjan phát biểu kết quả với hàm $\alpha(m,n)$ hai đối số và chứng minh cận này là chặt đối với chính thuật toán này~\cite{tarjan1975}; dạng một đối số ở trên lấy theo~\cite{clrs2022}. Chứng minh đầy đủ dùng hàm thế năng và dài, nên báo cáo trình bày cận yếu hơn nhưng dễ kiểm chứng.
+
+\paragraph*{Phác thảo chứng minh cận $O((m+n)\log^* n)$} Đặt $t_0 = 1$, $t_g = 2^{t_{g-1}}$ (dãy $1, 2, 4, 16, 65536, \dots$). Xếp các rank vào nhóm: nhóm 0 gồm rank $\{0,1\}$, nhóm $g \ge 1$ gồm rank trong $(t_{g-1}, t_g]$. Vì rank không vượt $\log_2 n$, có $O(\log^* n)$ nhóm. Xét một phép \textsc{Find} đi qua các nút $x$ ở lượt 1. Bước nhảy từ $x$ được tính cho \emph{phép toán} nếu cha của $x$ là gốc, hoặc cha của $x$ thuộc nhóm khác $x$. Theo Bổ đề~\ref{lem:nw-rank}(a) rank tăng nghiêm ngặt dọc đường đi, nên nhóm chỉ đổi $O(\log^* n)$ lần; mỗi phép toán chịu $O(\log^* n)$. Các bước còn lại được tính cho \emph{nút} $x$. Mỗi lần như vậy, path compression đổi cha của $x$ thành gốc có rank lớn hơn cha cũ, còn rank của $x$ cố định vì $x$ không còn là gốc. Một nút thuộc nhóm $g$ vì vậy bị tính không quá $t_g$ lần trước khi cha nó rời sang nhóm cao hơn, sau đó mọi bước nhảy từ $x$ đều tính cho phép toán. Theo Bổ đề~\ref{lem:nw-rank}(c), số nút có rank trong nhóm $g$ không quá $\sum_{r > t_{g-1}} n/2^r \le n/2^{t_{g-1}} = n/t_g$. Tổng chi phí tính cho các nút nhóm $g$ do đó không quá $n$, và cho mọi nhóm là $O(n\log^* n)$. Cộng hai phần được $O((m+n)\log^* n)$.
+
+\begin{table}[t]
+\caption{Độ phức tạp các biến thể Disjoint Set, $n$ phần tử}
+\label{tab:nw-dsu}
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Biến thể & \textsc{Find} & \textsc{Union} \\
+\midrule
+QuickFind (mảng nhãn) & $O(1)$ & $\Theta(n)$ \\
+Không tối ưu & $O(n)$ & $O(n)$ \\
+Chỉ union by rank & $O(\log n)$ & $O(\log n)$ \\
+Chỉ path compression & $O(\log n)^{*}$ & $O(\log n)^{*}$ \\
+Cả hai & $O(\alpha(n))^{*}$ & $O(\alpha(n))^{*}$ \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\footnotesize $^{*}$ Khấu hao trên dãy thao tác~\cite{clrs2022,tarjan1975}. Bộ nhớ mọi biến thể là $O(n)$.}
+\end{table}
+
+Bảng~\ref{tab:nw-dsu} tóm tắt năm biến thể. Benchmark thực hiện $n$ phép \textsc{Union} ngẫu nhiên, mỗi phép kèm một \textsc{Find}, tức $2n$ thao tác. Về định tính, khi bật cả hai tối ưu, số bước nhảy trung bình trên mỗi thao tác gần như không đổi từ $10^3$ đến $10^6$ phần tử; biến thể không tối ưu tăng theo $n$; QuickFind chậm hơn nhiều bậc độ lớn ngay từ $10^4$ phần tử. Số liệu chi tiết ở phần thực nghiệm.
+
+\subsection{Giới hạn: Disjoint Set không xóa được cạnh}
+
+Disjoint Set chỉ hợp tập. Để tách một tập khi một Road Segment bị Closure, cấu trúc phải biết cạnh đó có phải là cạnh duy nhất nối hai phần hay không, nhưng rừng \texttt{parent} không lưu cạnh nào đã gây ra phép hợp, và path compression còn xóa luôn cấu trúc cây ban đầu. Đây là bài toán decremental connectivity, cần cấu trúc dữ liệu khác và nằm ngoài phạm vi đồ án.
+
+Cách xử lý trong \texttt{connected\_components} là dựng lại Disjoint Set từ đầu mỗi khi trạng thái Closure thay đổi: duyệt mọi Road Segment có $\mathit{closed}[e] = 0$ và hợp hai đầu mút. Chi phí là $O(V + E\,\alpha(V))$; với $V = 38\,604$ và $E = 69\,411$ của dữ liệu Hà Nội, khoảng $10^5$ thao tác, chạy dưới 0,1 giây trên máy thử. Mức này chấp nhận được vì Closure là sự kiện hiếm so với truy vấn. Test kiểm tra đúng tình huống: cấm một chiều của cây cầu thì đồ thị vẫn liên thông yếu, cấm cả hai chiều thì tách thành hai thành phần, mở lại thì liên thông trở lại.
+
+\subsection{Thuật toán Kruskal}
+
+\texttt{kruskal\_mst} nhận đồ thị vô hướng dưới dạng danh sách cạnh $(w, u, v)$ (Thuật toán~\ref{alg:nw-kruskal})~\cite{kruskal1956}. Mảng chỉ số cạnh được sắp theo trọng số bằng \texttt{list.sort} (Timsort), sau đó duyệt tăng dần và nhận cạnh khi \textsc{Union} trả về \textbf{true}. Cạnh bị từ chối là cạnh có hai đầu đã cùng tập, tức sẽ tạo chu trình; khuyên $u = v$ bị loại tự nhiên theo cách này. Vòng lặp dừng sớm khi \texttt{count} $=1$. Nếu đồ thị không liên thông với $c$ thành phần, kết quả là rừng khung nhỏ nhất gồm $n - c$ cạnh.
+
+\begin{algorithm}[t]
+\caption{Kruskal trên danh sách cạnh}
+\label{alg:nw-kruskal}
+\begin{algorithmic}[1]
+\Function{Kruskal}{$n$, $E$}
+  \State sắp các chỉ số cạnh của $E$ theo $w$ tăng dần
+  \State $D \gets$ \Call{DisjointSet}{$n$};\ $T \gets \emptyset$;\ $W \gets 0$
+  \For{mỗi cạnh $e = (w, u, v)$ theo thứ tự đã sắp}
+    \If{$D.\Call{Union}{u, v}$} \Comment{$u, v$ khác tập}
+      \State $T \gets T \cup \{e\}$;\ $W \gets W + w$
+      \If{$D.\mathit{count} = 1$}
+        \State \textbf{break}
+      \EndIf
+    \EndIf
+  \EndFor
+  \State \Return $(W, T)$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{lemma}[Cut property]\label{lem:nw-cut}
+Cho $G$ vô hướng, liên thông, có trọng số; $A$ là tập con cạnh của một cây khung nhỏ nhất $T$. Gọi $(S, V\setminus S)$ là một lát cắt mà không cạnh nào của $A$ đi qua, và $e$ là cạnh nhẹ nhất đi qua lát cắt. Khi đó $A \cup \{e\}$ nằm trong một cây khung nhỏ nhất.
+\end{lemma}
+
+\begin{proof}
+Nếu $e \in T$ thì xong. Ngược lại, $T \cup \{e\}$ có đúng một chu trình, và chu trình này đi qua lát cắt ít nhất hai lần, nên chứa một cạnh $f \ne e$ khác cũng đi qua lát cắt. $f \notin A$ vì $A$ không có cạnh qua lát cắt. $T' = T \cup \{e\} \setminus \{f\}$ vẫn là cây khung, và $w(T') = w(T) + w(e) - w(f) \le w(T)$ vì $e$ nhẹ nhất. Vậy $T'$ là cây khung nhỏ nhất chứa $A \cup \{e\}$.
+\end{proof}
+
+\begin{theorem}
+Kruskal trả về một cây khung nhỏ nhất (rừng khung nhỏ nhất nếu $G$ không liên thông).
+\end{theorem}
+
+\begin{proof}
+Quy nạp: tập $A$ các cạnh đã nhận luôn nằm trong một cây khung nhỏ nhất. Khi cạnh $e = (u,v)$ được nhận, $u$ và $v$ ở hai tập khác nhau; đặt $S$ là tập chứa $u$. $S$ là một thành phần liên thông của $A$ nên không cạnh nào của $A$ đi qua $(S, V \setminus S)$. Mọi cạnh nhẹ hơn $e$ đã được xét trước; nếu một cạnh như vậy đi qua lát cắt thì lúc xét nó hai đầu mút đã thuộc hai tập khác nhau (các tập chỉ lớn dần, không tách), nên nó đã được nhận và nằm trong $A$, mâu thuẫn. Vậy $e$ là cạnh nhẹ nhất qua lát cắt và Bổ đề~\ref{lem:nw-cut} cho bước quy nạp. Cạnh bị từ chối tạo chu trình với $A$ nên không thể thuộc rừng. Với đồ thị không liên thông, áp dụng lập luận cho từng thành phần.
+\end{proof}
+
+\paragraph*{Độ phức tạp} Sắp xếp tốn $O(E\log E)$; với đồ thị đơn $E < V^2$ nên $\log E < 2\log V$, tức $O(E\log E) = O(E\log V)$. Phần Disjoint Set gồm tối đa $2E$ phép \textsc{Find}, tốn $O(V + E\,\alpha(V))$ theo Định lý~\ref{thm:nw-tarjan}. Tổng thời gian $O(E\log E)$, bộ nhớ $O(V + E)$. Như vậy chi phí chính của Kruskal nằm ở bước sắp xếp, không phải ở Disjoint Set.
+
+\subsection{Prim dùng mảng và đồ thị Hub đầy đủ}
+
+\texttt{prim\_mst\_array} là Prim~\cite{prim1957} không dùng heap. Ma trận \texttt{best}$[u][v]$ lưu chỉ số cạnh $u$--$v$ nhẹ nhất (xử lý luôn trường hợp có nhiều cạnh song song). Mỗi trong $V$ bước quét mảng \texttt{key} $O(V)$ để chọn đỉnh ngoài cây có khóa nhỏ nhất, rồi cập nhật khóa các đỉnh kề qua một hàng của ma trận. Thời gian $O(V^2 + E)$, bộ nhớ $O(V^2)$. Khi không còn đỉnh nào có khóa hữu hạn, đỉnh được chọn tiếp theo bắt đầu một cây mới, nên kết quả cũng là rừng khung nhỏ nhất.
+
+Trên đồ thị đầy đủ $E = V(V-1)/2 = \Theta(V^2)$, Prim mảng chạy $O(V^2)$, tuyến tính theo kích thước đầu vào và vì vậy tối ưu, vì thuật toán nào cũng phải đọc mọi cạnh. Kruskal trên cùng đồ thị tốn $O(V^2\log V)$ cho bước sắp xếp. Ngược lại, trên đồ thị đường bộ thưa ($E$ cỡ vài lần $V$) Kruskal chỉ tốn $O(V\log V)$ trong khi Prim mảng vẫn tốn $O(V^2)$ và ma trận $V^2$ không còn vừa bộ nhớ khi $V$ lớn. Benchmark xác nhận cả hai chiều: Kruskal nhanh hơn trên đồ thị thưa, Prim mảng nhanh hơn trên đồ thị đầy đủ. Hai thuật toán được đối chiếu chéo trong test trên 120 đồ thị ngẫu nhiên, cả liên thông lẫn không liên thông: tổng trọng số bằng nhau, và tập cạnh của mỗi bên đều là rừng khung có $n - c$ cạnh, không chu trình.
+
+\subsection{Backbone Network giữa các Hub}
+
+Mỗi phường đặt một Hub tại Intersection của phường đó gần nhất (theo tọa độ) với trọng tâm các Intersection của phường, được 24 Hub. Chi phí giữa hai Hub lấy từ ma trận Travel Time ngắn nhất $D = (d_{ij})$, tính bằng 24 lần Dijkstra ở phần định tuyến. Do có đường một chiều, $D$ bất đối xứng; trên dữ liệu demo, mọi cặp có thứ tự $(i, j)$, $i \ne j$, đều có $d_{ij} \ne d_{ji}$.
+
+Cây khung nhỏ nhất chỉ định nghĩa trên đồ thị vô hướng. Trên đồ thị có hướng, khái niệm tương ứng là cây khung có hướng nhỏ nhất từ một gốc, một bài toán khác và không giải được bằng Kruskal. Vì một tuyến Backbone được khai thác theo cả hai chiều, \texttt{hub\_backbone} dựng đồ thị Hub vô hướng đầy đủ với trọng số
+\[
+w_{ij} = \frac{d_{ij} + d_{ji}}{2},
+\]
+tức một nửa Travel Time của vòng đi và về giữa hai Hub. Trọng số này đối xứng theo cách xây dựng; cặp nào có một chiều không đi tới được ($d = \infty$) thì bỏ cạnh đó. Đồ thị có $\binom{24}{2} = 276$ cạnh, nên \texttt{hub\_backbone} gọi \texttt{prim\_mst\_array} theo phân tích ở trên, thời gian $O(H^2)$ với $H$ là số Hub. Kết quả là 23 tuyến, mỗi tuyến được vẽ trên bản đồ bằng Route ngắn nhất thực tế giữa hai Hub. Trên dữ liệu demo, \texttt{kruskal\_mst} cho cùng tập 23 tuyến và cùng tổng trọng số. Chi phí toàn bộ chức năng do bước tính ma trận quyết định, $O(H(V+E)\log V)$, còn bước MST không đáng kể.
+
+\subsection{Phân cụm giao hàng: single-linkage}
+
+\texttt{k\_clusters} là Kruskal dừng khi \texttt{count} $= k$: mỗi tập còn lại là một Delivery Cluster, nhãn được chuẩn hóa về $0..k-1$. Gower và Ross~\cite{gower1969} chỉ ra đây chính là single-linkage clustering: $k$ cụm thu được trùng với các thành phần còn lại khi bỏ $k-1$ cạnh nặng nhất khỏi cây khung nhỏ nhất. Phân hoạch này có khoảng cách nhỏ nhất giữa hai cụm khác nhau là lớn nhất trong mọi phân hoạch $k$ cụm. Lý do: gọi $d^*$ là trọng số cạnh tiếp theo mà Kruskal sẽ nhận, đây là khoảng cách nhỏ nhất giữa hai cụm của ta. Một phân hoạch $k$ cụm khác phải tách một cụm $C$ của ta ra hai phần; trong $C$ có đường đi gồm các cạnh nặng không quá $d^*$ nối hai phần đó, nên có một cạnh nặng không quá $d^*$ nối hai cụm của phân hoạch kia.
+
+Trong demo, 400 Parcel tạo đồ thị đầy đủ với trọng số là khoảng cách haversine giữa hai Delivery Point, $400 \cdot 399/2 = 79\,800$ cạnh. Thời gian $O(N^2\log N)$ và bộ nhớ $O(N^2)$ với $N$ là số Parcel, đủ nhanh ở quy mô này. Mỗi cụm sau đó được chuyển cho bước chọn kiện bằng Knapsack và sắp thứ tự giao bằng Held-Karp ở phần quy hoạch động.
+
+\paragraph*{Giới hạn: chaining} Single-linkage hợp hai cụm chỉ dựa vào cặp điểm gần nhất, nên một dãy điểm cách nhau ngắn sẽ kéo nhiều vùng thành một cụm. Khi thử với Parcel rải đều trên toàn bộ Road Network, kết quả là một cụm khổng lồ chứa phần lớn Parcel và vài cụm rất nhỏ ở rìa. Vì vậy demo sinh Parcel quanh 6 điểm nóng: chọn các Hub cách xa nhau bằng farthest-point, rồi lấy mẫu Intersection theo phân phối Gauss quanh điểm nóng gần nhất ($\sigma = 400$ m, cắt ở $2\sigma$). Đây là giả định về dữ liệu, không phải cải tiến thuật toán; với dữ liệu đơn hàng phân bố đều, cần phương pháp phân cụm khác hoặc thêm ràng buộc kích thước cụm.
+
+\subsection{Tính liên thông của Road Network}
+
+Road Network là đồ thị có hướng nên có hai khái niệm. Liên thông yếu: bỏ hướng cạnh thì đồ thị liên thông. Liên thông mạnh: với mọi $u, v$ có đường đi có hướng từ $u$ tới $v$ và từ $v$ về $u$. \textsc{Union} đối xứng, nên Disjoint Set chỉ tính được liên thông yếu; liên thông mạnh cần thuật toán dựa trên DFS. Liên thông yếu không bảo đảm có Route, ví dụ một đoạn đường một chiều dẫn vào khu vực không có lối ra.
+
+Vì vậy, ở bước chuẩn bị dữ liệu (\texttt{tools/prepare\_osm.py}, ngoài lõi), chỉ giữ thành phần liên thông mạnh lớn nhất, tìm bằng Kosaraju viết dạng lặp. Nhờ đó mọi truy vấn Route đều có đáp án và ma trận $D$ giữa các Hub hữu hạn. Ban đầu \texttt{connected\_components} trả về đúng một thành phần. Sau Closure, kết quả của Disjoint Set là điều kiện cần: nếu có nhiều hơn một thành phần yếu thì chắc chắn có vùng bị cô lập, còn một thành phần yếu chưa bảo đảm liên thông mạnh.
+
+\texttt{district\_components} phân tích liên thông nội bộ từng phường: chỉ hợp các Road Segment không bị Closure có hai đầu mút cùng phường. Một Disjoint Set chung cho cả 24 phường là đủ, vì không có phép hợp nào vượt ranh giới phường nên mỗi tập nằm gọn trong một phường. Với mỗi phường, hàm trả về số Intersection, số thành phần và kích thước thành phần lớn nhất, thời gian $O(V + E\,\alpha(V) + P)$ với $P$ là số phường. Trên dữ liệu thực, chỉ Bồ Đề và Hoàn Kiếm liên thông nội bộ; các phường còn lại tách thành 2 tới 22 mảnh. Vì toàn bộ Road Network liên thông mạnh, các mảnh này luôn nối được với nhau, nhưng phải đi qua đường của phường bên cạnh: ranh giới phường cắt ngang mạng đường. Có trường hợp đáng chú ý như Thanh Liệt, thành phần lớn nhất chỉ chiếm 1003 trên 1691 Intersection. Thông tin này cho biết Hub của một phường không phục vụ được toàn bộ phường nếu chỉ dùng đường nội bộ.

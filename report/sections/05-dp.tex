@@ -1,0 +1,168 @@
+\section{Tối ưu chuyến xe: Quy hoạch động}\label{sec:dp}
+
+Một Trip gồm hai quyết định: chọn Parcel nào lên Truck để tổng cước lớn nhất mà không vượt tải trọng, và đi qua các Delivery Point theo thứ tự nào để vòng xuất phát và quay về Hub ngắn nhất. Quyết định thứ nhất là bài toán 0/1 Knapsack, quyết định thứ hai là bài toán người du lịch (TSP). Cả hai đều NP-hard~\cite{clrs2022}. Nhóm giải cả hai bằng quy hoạch động: DP theo tải trọng cho Knapsack và DP trên tập con (Held-Karp~\cite{heldkarp1962}) cho TSP. Mỗi bài toán có thêm một baseline tham lam để đối chiếu, riêng Knapsack có thêm một lời giải Branch and Bound. Mã nguồn nằm trong \texttt{core/loading.py}, \texttt{core/tsp.py} và \texttt{core/trip.py}.
+
+\subsection{Bài toán 0/1 Knapsack}
+
+Cho $n$ Parcel, Parcel $i$ có khối lượng $w_i \in \mathbb{Z}_{>0}$ (đơn vị 0,1\,kg) và cước $v_i \ge 0$; Truck có tải trọng $W \in \mathbb{Z}_{\ge 0}$. Cần chọn $x_i \in \{0,1\}$ để
+\begin{equation}
+\max \sum_{i=1}^{n} v_i x_i \quad \text{với} \quad \sum_{i=1}^{n} w_i x_i \le W .
+\end{equation}
+Trong demo, Truck chở tối đa 1 tấn, tức $W = 10\,000$, và mỗi Parcel nặng từ 1 đến 80\,kg ($10 \le w_i \le 800$). Khối lượng phải là số nguyên vì DP dùng tải trọng làm chỉ số mảng. Hàm \texttt{\_check} từ chối khối lượng không nguyên hoặc không dương, cước âm và tải trọng âm hoặc không nguyên.
+
+\subsubsection{Cấu trúc con tối ưu và công thức truy hồi}
+Gọi $B[i][c]$ là tổng cước lớn nhất khi chỉ dùng $i$ Parcel đầu tiên và tải trọng $c$.
+
+\begin{lemma}\label{lem:knap}
+Gọi $S$ là một tập tối ưu cho $(i, c)$. Nếu $i \notin S$ thì $S$ tối ưu cho $(i-1, c)$. Nếu $i \in S$ thì $S \setminus \{i\}$ tối ưu cho $(i-1, c - w_i)$.
+\end{lemma}
+\begin{proof}
+Xét trường hợp $i \in S$. Giả sử có tập $T \subseteq \{1,\ldots,i-1\}$ với tổng khối lượng không quá $c - w_i$ và tổng cước lớn hơn $S \setminus \{i\}$. Khi đó $T \cup \{i\}$ hợp lệ cho $(i, c)$ và có tổng cước lớn hơn $S$, mâu thuẫn. Trường hợp $i \notin S$ chứng minh tương tự.
+\end{proof}
+
+Từ Bổ đề~\ref{lem:knap}, với $B[0][c] = 0$:
+\begin{equation}\label{eq:knap}
+B[i][c] =
+\begin{cases}
+B[i-1][c] & \text{nếu } w_i > c,\\
+\max\bigl(B[i-1][c],\; B[i-1][c-w_i] + v_i\bigr) & \text{nếu } w_i \le c.
+\end{cases}
+\end{equation}
+Đáp số là $B[n][W]$. Có $n(W+1)$ trạng thái, mỗi trạng thái tính trong $O(1)$, nên thời gian là $O(nW)$.
+
+\subsubsection{Mảng một chiều và chiều duyệt}
+Hàng $i$ của bảng chỉ phụ thuộc hàng $i-1$, nên \texttt{knapsack\_dp} chỉ giữ một mảng \texttt{best}$[0..W]$ và ghi đè tại chỗ. Với mỗi Parcel $i$, vòng lặp chạy $c$ từ $W$ \emph{xuống} $w_i$. Khi cập nhật \texttt{best}$[c]$, ô \texttt{best}$[c - w_i]$ có chỉ số nhỏ hơn nên chưa bị ghi trong lượt này và vẫn mang giá trị $B[i-1][c-w_i]$, đúng như~\eqref{eq:knap}. Nếu duyệt tăng dần thì \texttt{best}$[c - w_i]$ đã là $B[i][c-w_i]$, có thể đã chứa Parcel $i$, và Parcel $i$ bị lấy nhiều lần. Đó là công thức của Knapsack không giới hạn số lượng. Ví dụ với một Parcel $w = 2$, $v = 3$ và $W = 4$: duyệt tăng cho \texttt{best}$[4] = 6$, tức lấy Parcel hai lần, trong khi đáp số đúng là 3. Các ô $c < w_i$ giữ nguyên giá trị $B[i-1][c]$ nên vòng lặp dừng ở $w_i$.
+
+\subsubsection{Truy vết bằng bảng \texttt{keep}}
+Mảng một chiều làm mất các hàng cũ nên không truy vết được tập Parcel từ \texttt{best}. Code giữ thêm bảng \texttt{keep} kiểu \texttt{bytearray} kích thước $n(W+1)$: \texttt{keep}$[i][c] = 1$ khi lượt $i$ làm tăng \texttt{best}$[c]$, tức Parcel $i$ thuộc nghiệm tối ưu đã chọn cho $(i, c)$. Phép so sánh là \texttt{>} nên khi hai lựa chọn bằng nhau, code ưu tiên không lấy. Truy vết bắt đầu từ $c = W$, đi $i$ từ $n-1$ về $0$: nếu \texttt{keep}$[i][c] = 1$ thì lấy Parcel $i$ và giảm $c$ đi $w_i$. Theo Bổ đề~\ref{lem:knap}, mỗi bước đưa trạng thái $(i, c)$ về đúng trạng thái $(i-1, c')$ mà nghiệm tối ưu dựa vào. Thuật toán~\ref{alg:knap} tóm tắt toàn bộ.
+
+Bộ nhớ gồm $O(W)$ số cho \texttt{best} và $n(W+1)$ byte cho \texttt{keep}. Với $n = 1000$ và $W = 15\,000$, bảng \texttt{keep} chiếm khoảng 15\,MB. Nếu giữ nguyên bảng hai chiều $B$ bằng \texttt{list} của Python, mỗi ô tốn ít nhất một con trỏ 8 byte, tức lớn hơn ít nhất 8 lần.
+
+\begin{algorithm}[t]
+\caption{0/1 Knapsack bằng DP một chiều (\texttt{knapsack\_dp})}\label{alg:knap}
+\begin{algorithmic}[1]
+\Require $w[0..n-1]$, $v[0..n-1]$, tải trọng $W$
+\Ensure Tổng cước lớn nhất và tập Parcel được chọn
+\State $best[0..W] \gets 0$; \quad $keep[0..n-1][0..W] \gets 0$
+\For{$i \gets 0$ \textbf{to} $n-1$}
+  \For{$c \gets W$ \textbf{downto} $w[i]$}
+    \If{$best[c - w[i]] + v[i] > best[c]$}
+      \State $best[c] \gets best[c - w[i]] + v[i]$
+      \State $keep[i][c] \gets 1$
+    \EndIf
+  \EndFor
+\EndFor
+\State $chosen \gets \emptyset$; \quad $c \gets W$
+\For{$i \gets n-1$ \textbf{downto} $0$}
+  \If{$keep[i][c] = 1$}
+    \State $chosen \gets chosen \cup \{i\}$; \quad $c \gets c - w[i]$
+  \EndIf
+\EndFor
+\State \Return $best[W]$, $chosen$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Vì sao $O(nW)$ là pseudo-polynomial}
+$O(nW)$ trông giống đa thức, nhưng $W$ là một \emph{giá trị}. Trong input, $W$ được mã hóa bằng $O(\log W)$ bit, nên kích thước input là $O(n \log W)$ (cộng thêm phần mã hóa các $w_i$, $v_i$). Ta có $nW = n \cdot 2^{\log_2 W}$, tức hàm mũ theo độ dài mã hóa của $W$. Thuật toán chỉ đa thức theo độ lớn của các con số, nên gọi là pseudo-polynomial. Điều này không mâu thuẫn với việc 0/1 Knapsack là NP-hard~\cite{clrs2022}. Hệ quả thực tế: nếu đổi đơn vị khối lượng từ 0,1\,kg sang 0,01\,kg thì $W$ tăng 10 lần, cả thời gian lẫn bộ nhớ của \texttt{keep} cũng tăng 10 lần, dù số Parcel không đổi.
+
+\subsection{Branch and Bound với cận phân số}
+
+\texttt{knapsack\_bnb} là lời giải chính xác thứ hai, không phụ thuộc vào $W$. Các Parcel được sắp giảm dần theo tỉ lệ $v_i / w_i$. Cây tìm kiếm là cây nhị phân: nút ở mức $k$ đã quyết định $k$ Parcel đầu theo thứ tự này và lưu $(k, \mathit{value}, \mathit{room})$. Cận trên của một nút là nghiệm của bài toán nới lỏng phân số trên các Parcel còn lại: lấy lần lượt theo tỉ lệ giảm dần khi còn vừa, rồi lấy một phần của Parcel đầu tiên không vừa.
+
+\begin{lemma}\label{lem:bound}
+Cận phân số của một nút không nhỏ hơn tổng cước của bất kỳ nghiệm 0/1 nào mở rộng từ nút đó.
+\end{lemma}
+\begin{proof}
+Mọi cách hoàn thiện 0/1 của nút, với $x_i \in \{0,1\} \subset [0,1]$, đều là nghiệm hợp lệ của bài toán phân số trên các Parcel còn lại với sức chứa $\mathit{room}$. Với Knapsack phân số, lấy tham lam theo tỉ lệ giảm dần cho nghiệm tối ưu: nếu một nghiệm lấy phần của Parcel tỉ lệ thấp trong khi Parcel tỉ lệ cao hơn chưa lấy hết, đổi cùng một lượng khối lượng sang Parcel tỉ lệ cao hơn không làm giảm tổng cước~\cite{clrs2022}. Vậy cận phân số không nhỏ hơn giá trị của mọi cách hoàn thiện 0/1.
+\end{proof}
+
+Theo Bổ đề~\ref{lem:bound}, cắt một nhánh khi cận của nó không lớn hơn nghiệm tốt nhất đã biết là an toàn: nhánh đó không thể chứa nghiệm tốt hơn. Code duyệt sâu bằng stack tường minh thay cho đệ quy, nên không bị giới hạn độ sâu đệ quy của Python (test chạy với $n = 1000$). Tại mỗi nút, nhánh ``không lấy'' được đẩy vào stack trước, nhánh ``lấy'' đẩy sau nên được duyệt trước. Nhờ vậy nghiệm tham lam được tìm thấy sớm và làm mốc cắt nhánh ngay từ đầu. Mảng \texttt{take} $n$ byte ghi các quyết định trên đường đi hiện tại. Stack có tối đa $n+1$ nút vì mỗi mức chỉ để lại tối đa một nút anh em chờ duyệt.
+
+Mỗi nút tốn $O(n)$ để tính cận, cộng $O(n \log n)$ cho bước sắp xếp. Trường hợp xấu nhất, khi cận yếu (chẳng hạn các Parcel có tỉ lệ gần bằng nhau nên cận gần như không bao giờ thấp hơn nghiệm tốt nhất), số nút tăng theo $2^n$ và thời gian là $O(n \cdot 2^n)$; bộ nhớ $O(n)$. Branch and Bound phù hợp khi $W$ lớn, còn \texttt{plan\_trip} dùng DP vì $W = 10^4$ nhỏ và thời gian DP ổn định, không phụ thuộc vào dữ liệu.
+
+\subsection{Baseline tham lam theo tỉ lệ}
+
+\texttt{knapsack\_greedy} lấy Parcel theo tỉ lệ $v_i / w_i$ giảm dần, Parcel nào còn vừa thì lấy, tốn $O(n \log n)$. Cách này tối ưu cho Knapsack phân số nhưng không tối ưu cho 0/1. Với $w = (6, 5, 5)$, $v = (7, 5, 5)$ và $W = 10$, Parcel đầu có tỉ lệ cao nhất ($7/6$) nên được lấy trước; phần còn lại 4 đơn vị không vừa Parcel nào, tổng cước 7. Nghiệm tối ưu lấy hai Parcel sau với tổng cước 10. Giá trị của baseline là một cận dưới của nghiệm tối ưu; khoảng chênh trên dữ liệu thử được trình bày ở phần thực nghiệm.
+
+\subsection{Held-Karp cho bài toán ATSP}
+
+Gọi $h$ là Hub và $V'$ là tập Delivery Point của Trip, $n = |V'| + 1$ là số đỉnh tính cả Hub. Khoảng cách $d(u, v)$ là Travel Time ngắn nhất từ $u$ tới $v$, lấy từ Dijkstra. Road Network có hướng do có đường một chiều, nên nói chung $d(u, v) \ne d(v, u)$: đây là Asymmetric TSP (ATSP). Ô $d(u,v) = \infty$ nghĩa là không tới được. Cần tìm chu trình Hamilton qua $\{h\} \cup V'$, bắt đầu và kết thúc tại $h$, có tổng chi phí nhỏ nhất.
+
+\subsubsection{Trạng thái và công thức truy hồi}
+Với $S \subseteq V'$ và $j \in S$, gọi $C(S, j)$ là chi phí nhỏ nhất của một đường đi xuất phát từ $h$, thăm đúng các đỉnh của $S$ và kết thúc tại $j$. Trường hợp cơ sở và công thức truy hồi:
+\begin{align}
+C(\{j\}, j) &= d(h, j),\\
+C(S, j) &= \min_{k \in S \setminus \{j\}} \bigl[C(S \setminus \{j\}, k) + d(k, j)\bigr], \quad |S| \ge 2. \label{eq:hk}
+\end{align}
+Đáp số là
+\begin{equation}
+\mathrm{OPT} = \min_{j \in V'} \bigl[C(V', j) + d(j, h)\bigr].
+\end{equation}
+Cấu trúc con tối ưu: trong đường đi tối ưu cho $(S, j)$ có đỉnh liền trước $j$ là $k$, đoạn từ $h$ tới $k$ phải là đường đi tối ưu cho $(S \setminus \{j\}, k)$, nếu không thì thay đoạn đó bằng đoạn tốt hơn sẽ được đường đi tốt hơn. Chi phí phần còn lại chỉ phụ thuộc vào \emph{tập} đã thăm và đỉnh cuối, không phụ thuộc thứ tự thăm bên trong tập. Đây là điểm giúp giảm từ $(n-1)!$ thứ tự xuống $(n-1) \cdot 2^{n-1}$ trạng thái.
+
+\subsubsection{Cài đặt bằng bitmask}
+Đặt $m = n - 1$ và đánh số các đỉnh của $V'$ là $0..m-1$. Mỗi tập $S$ được biểu diễn bằng một số nguyên \texttt{mask} trong $[0, 2^m)$, bit $j$ bật khi đỉnh $j$ thuộc $S$. Cách này cho phép dùng tập làm chỉ số mảng, kiểm tra thuộc tập bằng phép dịch bit trong $O(1)$, và không cần \texttt{dict} hay \texttt{set}. Hai bảng \texttt{cost} và \texttt{parent} là \texttt{list} phẳng kích thước $m \cdot 2^m$, ô của $(S, j)$ ở vị trí $\texttt{mask}\cdot m + j$. Vòng ngoài duyệt \texttt{mask} tăng dần: mọi tập con thực sự của $T$ có giá trị nguyên nhỏ hơn $T$, nên khi dùng $C(S, \cdot)$ thì giá trị này đã cuối cùng. Code viết~\eqref{eq:hk} theo kiểu đẩy xuôi: từ trạng thái $(S, j)$ hữu hạn, thử mọi $k \notin S$ và cập nhật $(S \cup \{k\}, k)$, đồng thời ghi \texttt{parent} là $j$. Hai cách viết cho cùng kết quả. Để dựng tour, code chọn đỉnh cuối tốt nhất, sau đó lần theo \texttt{parent} và tắt dần bit của đỉnh vừa đi qua cho tới khi về $h$, cuối cùng đảo ngược dãy. Nếu mọi cách đóng vòng đều bằng $\infty$, hàm trả về $(\infty, [\,])$. Thuật toán~\ref{alg:hk} tóm tắt các bước.
+
+\begin{algorithm}[t]
+\caption{Held-Karp cho ATSP (\texttt{held\_karp})}\label{alg:hk}
+\begin{algorithmic}[1]
+\Require Ma trận $d$ kích thước $n \times n$, Hub $h$; $V' = \{u_0,\ldots,u_{m-1}\}$, $m = n-1$
+\Ensure Chi phí tour nhỏ nhất và tour
+\State $C[\cdot][\cdot] \gets \infty$; \quad $P[\cdot][\cdot] \gets -1$
+\For{$j \gets 0$ \textbf{to} $m-1$}
+  \State $C[\{j\}][j] \gets d(h, u_j)$
+\EndFor
+\For{$S \gets 1$ \textbf{to} $2^m - 1$} \Comment{tăng dần}
+  \For{$j \in S$ với $C[S][j] < \infty$}
+    \For{$k \notin S$}
+      \State $x \gets C[S][j] + d(u_j, u_k)$
+      \If{$x < C[S \cup \{k\}][k]$}
+        \State $C[S \cup \{k\}][k] \gets x$; \quad $P[S \cup \{k\}][k] \gets j$
+      \EndIf
+    \EndFor
+  \EndFor
+\EndFor
+\State $j^* \gets \arg\min_j \bigl(C[V'][j] + d(u_j, h)\bigr)$
+\State Lần theo $P$ từ $(V', j^*)$, bỏ dần $j$ khỏi $S$, đảo ngược dãy
+\State \Return chi phí, tour $h \to \cdots \to h$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Độ phức tạp}
+Có $m \cdot 2^m$ trạng thái, mỗi trạng thái thử $O(m)$ đỉnh kế tiếp, nên thời gian là $O(n^2 \cdot 2^n)$ và bộ nhớ là $O(n \cdot 2^n)$ cho hai bảng. Vét cạn (\texttt{tsp\_brute}, thuật toán Heap dạng lặp) duyệt $(n-1)!$ hoán vị, mỗi hoán vị tính chi phí trong $O(n)$, tức $O(n!)$. Bảng~\ref{tab:hk} so sánh bậc số phép toán. Held-Karp vẫn là hàm mũ, nhưng ở $n = 15$ số phép toán của nó nhỏ hơn vét cạn hơn $10^5$ lần. Bằng Python thuần, Held-Karp chạy được tới khoảng $n \approx 15$ (khoảng 0,3\,giây ở $n = 15$); mỗi khi $n$ tăng thêm 1, thời gian tăng hơn gấp đôi. Vì vậy \texttt{held\_karp} chỉ nhận $n \le 16$, \texttt{plan\_trip} giới hạn \texttt{max\_stops} trong $1..15$ (tối đa 16 đỉnh tính cả Hub), và demo dùng mặc định 12 điểm dừng ($n = 13$). Đây đúng là phạm vi ``TSP quy mô nhỏ'' của đề.
+
+\begin{table}[t]
+\centering
+\caption{Bậc số phép toán và bộ nhớ của Held-Karp so với vét cạn}\label{tab:hk}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$n$ & $n^2 2^n$ & $n 2^n$ & $n!$ \\
+\midrule
+10 & $1{,}02 \cdot 10^{5}$ & $1{,}02 \cdot 10^{4}$ & $3{,}63 \cdot 10^{6}$ \\
+15 & $7{,}37 \cdot 10^{6}$ & $4{,}92 \cdot 10^{5}$ & $1{,}31 \cdot 10^{12}$ \\
+20 & $4{,}19 \cdot 10^{8}$ & $2{,}10 \cdot 10^{7}$ & $2{,}43 \cdot 10^{18}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Ma trận không đối xứng}
+Công thức~\eqref{eq:hk} dùng $d(k, j)$ theo đúng chiều đi từ $k$ tới $j$ và không giả định $d(k,j) = d(j,k)$ ở bất kỳ bước nào, nên Held-Karp giải ATSP mà không cần thay đổi. Điều cần lưu ý là một tour và tour đi ngược của nó có chi phí khác nhau. Ví dụ trong test, với $d(0,1) = d(1,2) = d(2,0) = 1$ và mọi cung ngược bằng 50, tour $0 \to 1 \to 2 \to 0$ tốn 3, còn $0 \to 2 \to 1 \to 0$ tốn 150. Vì vậy không thể áp dụng mẹo cố định chiều đi để giảm một nửa không gian tìm kiếm như với TSP đối xứng.
+
+\subsection{Baseline nearest-neighbour}
+
+\texttt{nearest\_neighbour} xuất phát từ Hub, mỗi bước đi tới đỉnh chưa thăm có $d$ nhỏ nhất, tốn $O(n^2)$. Baseline này không tối ưu. Trên ma trận 4 đỉnh trong test, nó chọn $0 \to 1 \to 3 \to 2 \to 0$ với chi phí 12 vì cung đầu $d(0,1) = 1$ rẻ nhất, nhưng phải trả $d(2,0) = 9$ ở cuối; Held-Karp tìm được $0 \to 2 \to 1 \to 3 \to 0$ với chi phí 5. Ngoài ra, khi có cung bằng $\infty$, nearest-neighbour có thể bị kẹt dù tour vẫn tồn tại. Với $d(0,1) = 1$, $d(0,2) = 5$, $d(1,0) = 1$, $d(2,1) = 1$ và $d(1,2) = d(2,0) = \infty$, nó đi $0 \to 1$ rồi không còn cung hữu hạn tới đỉnh 2 và trả về $(\infty, [\,])$; Held-Karp tìm được $0 \to 2 \to 1 \to 0$ với chi phí 7.
+
+\subsection{Tích hợp trong \texttt{plan\_trip}}
+
+\texttt{plan\_trip} nối các bước trên thành một Trip:
+\begin{enumerate}
+\item Chạy \texttt{knapsack\_dp} trên các Parcel ứng viên với tải trọng $W$.
+\item Gom Parcel được chọn theo Delivery Point bằng mảng đánh dấu \texttt{slot} kích thước $V$ (không dùng \texttt{dict}). Nhiều Parcel cùng một Delivery Point chỉ tạo một điểm dừng, cước của điểm dừng là tổng cước các Parcel đó.
+\item Nếu số điểm dừng vượt \texttt{max\_stops}, giữ lại \texttt{max\_stops} điểm có tổng cước cao nhất và bỏ các Parcel thuộc những điểm còn lại.
+\item Với danh sách đỉnh $[h] + \text{stops}$, \texttt{distance\_matrix} chạy một Dijkstra đầy đủ từ mỗi đỉnh để có ma trận $k \times k$ không đối xứng.
+\item Chạy \texttt{held\_karp} trên ma trận này với Hub ở chỉ số 0.
+\item Mở rộng từng chặng: với mỗi cặp đỉnh liên tiếp trong tour, chạy lại Dijkstra có dừng sớm và lấy dãy Road Segment để vẽ tuyến.
+\end{enumerate}
+Tổng thời gian là $O(nW) + O(k (V+E) \log V) + O(k^2 2^k)$ với $k \le$ \texttt{max\_stops}$+1$.
+
+Giới hạn của cách làm này là hai bài toán được tối ưu tách rời. Knapsack chọn Parcel mà không biết vị trí, nên có thể chọn các Parcel nằm rải rác ở nhiều điểm. Khi bước 3 bỏ bớt điểm dừng, phần tải trọng vừa được giải phóng không được lấp lại, nên kết quả không phải là tối ưu của bài toán ``tối đa cước với tải trọng $W$ và không quá \texttt{max\_stops} điểm dừng''. Trong demo, ảnh hưởng này được giảm bớt vì Parcel ứng viên của mỗi Trip được lấy từ cùng một Delivery Cluster nên ở gần nhau. Tối ưu đồng thời việc chọn điểm và thứ tự đi, cân bằng giữa cước thu được và thời gian chạy, là bài toán Orienteering hoặc VRP. Các bài toán này cũng NP-hard và nằm ngoài phạm vi đề tài.

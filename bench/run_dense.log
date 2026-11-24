@@ -1,0 +1,16 @@
+sssp_dense adaptable 250 {'time_s': 0.0027255000022705644, 'peak_kb': 25.5341796875, 'n': 250, 'm': 15450, 'heap_peak': 233}
+sssp_dense lazy 250 {'time_s': 0.0038509169971803203, 'peak_kb': 27.2294921875, 'n': 250, 'm': 15450, 'heap_peak': 704}
+sssp_dense heapq_C 250 {'time_s': 0.0020592910004779696, 'peak_kb': 24.9296875, 'n': 250, 'm': 15450}
+sssp_dense array 250 {'time_s': 0.004902417000266723, 'peak_kb': 7.7451171875, 'n': 250, 'm': 15450}
+sssp_dense adaptable 500 {'time_s': 0.009989792000851594, 'peak_kb': 57.0126953125, 'n': 500, 'm': 62369, 'heap_peak': 477}
+sssp_dense lazy 500 {'time_s': 0.013330333000340033, 'peak_kb': 66.3408203125, 'n': 500, 'm': 62369, 'heap_peak': 1753}
+sssp_dense heapq_C 500 {'time_s': 0.008679541999299545, 'peak_kb': 61.84375, 'n': 500, 'm': 62369}
+sssp_dense array 500 {'time_s': 0.021902957996644545, 'peak_kb': 17.7548828125, 'n': 500, 'm': 62369}
+sssp_dense adaptable 1000 {'time_s': 0.03458554200187791, 'peak_kb': 128.5009765625, 'n': 1000, 'm': 249759, 'heap_peak': 979}
+sssp_dense lazy 1000 {'time_s': 0.04392350000125589, 'peak_kb': 274.0869140625, 'n': 1000, 'm': 249759, 'heap_peak': 3983}
+sssp_dense heapq_C 1000 {'time_s': 0.03198691699799383, 'peak_kb': 265.1953125, 'n': 1000, 'm': 249759}
+sssp_dense array 1000 {'time_s': 0.08747533299901988, 'peak_kb': 37.7744140625, 'n': 1000, 'm': 249759}
+sssp_dense adaptable 2000 {'time_s': 0.1236077089997707, 'peak_kb': 269.3115234375, 'n': 2000, 'm': 999516, 'heap_peak': 1974}
+sssp_dense lazy 2000 {'time_s': 0.14655683399905683, 'peak_kb': 747.4228515625, 'n': 2000, 'm': 999516, 'heap_peak': 8737}
+sssp_dense heapq_C 2000 {'time_s': 0.1123299169994425, 'peak_kb': 729.7421875, 'n': 2000, 'm': 999516}
+sssp_dense array 2000 {'time_s': 0.3510984999957145, 'peak_kb': 77.8134765625, 'n': 2000, 'm': 999516}

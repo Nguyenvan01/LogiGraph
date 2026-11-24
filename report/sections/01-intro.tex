@@ -1,0 +1,56 @@
+\section{Giới thiệu}\label{sec:intro}
+
+Giao hàng chặng cuối trong đô thị gồm nhiều bài toán con chạy trên cùng một mạng đường: tìm tuyến đi nhanh nhất giữa hai điểm, tính lại tuyến khi một đoạn đường bị tắc hoặc bị cấm, quy hoạch mạng tuyến nối các kho trung chuyển với chi phí nhỏ nhất, chọn kiện hàng lên xe theo tải trọng và sắp thứ tự các điểm giao. Mỗi bài toán con ứng với một cấu trúc dữ liệu hoặc giải thuật kinh điển: Dijkstra với hàng đợi ưu tiên~\cite{dijkstra1959,goodrich2013}, cây khung nhỏ nhất với Union-Find~\cite{kruskal1956,tarjan1975}, và quy hoạch động cho Knapsack và TSP~\cite{bellman1958,heldkarp1962}. Khó khăn khi đưa các giải thuật này vào một hệ thống là chúng phải dùng chung một biểu diễn đồ thị, chung một dữ liệu, và kết quả của bước này là đầu vào của bước sau.
+
+LogiGraph là đồ án nhóm của học phần Cấu trúc dữ liệu và Giải thuật nâng cao (Đề tài~4). Hệ thống cài đặt lại từ đầu các cấu trúc trên bằng Python thuần, chạy trên mạng đường ô tô nội thành Hà Nội lấy từ OpenStreetMap~\cite{osm} với 38.604 Intersection và 69.411 Road Segment, và có một ứng dụng web để trình diễn trực tiếp. Trong báo cáo, \emph{Intersection} là một đỉnh của đồ thị, \emph{Road Segment} là một cạnh có hướng, \emph{Travel Time} là trọng số tính bằng giây, \emph{Hub} là kho trung chuyển đặt tại một Intersection, \emph{Parcel} là kiện hàng và \emph{Trip} là một chuyến xe xuất phát và quay về một Hub.
+
+\subsection{Yêu cầu bài toán}
+
+Đề tài đặt ra năm yêu cầu chức năng:
+\begin{enumerate}
+\item[(R1)] Mô hình hóa mạng đường bằng đồ thị có hướng, có trọng số: đỉnh là giao lộ hoặc kho, cạnh là đoạn đường với trọng số quãng đường hoặc thời gian.
+\item[(R2)] Tìm đường ngắn nhất, cho phép cập nhật trọng số động (tắc đường, cấm đường) và tính lại tuyến ngay.
+\item[(R3)] Xây mạng xương sống chi phí nhỏ nhất giữa các Hub bằng Union-Find và Kruskal.
+\item[(R4)] Chọn kiện lên xe bằng 0/1 Knapsack và sắp thứ tự giao bằng TSP quy mô nhỏ, cả hai giải bằng quy hoạch động.
+\item[(R5)] Kiểm tra tính liên thông và phân vùng giao hàng theo đơn vị hành chính.
+\end{enumerate}
+Kèm theo là hai ràng buộc: các cấu trúc lõi phải tự cài đặt, không dùng \texttt{dict}/\texttt{set} dựng sẵn để thay thế; và phải có benchmark trên bản đồ thật từ 10.000 đỉnh trở lên, so sánh với các baseline cơ bản. Bảng~\ref{tab:req} ánh xạ từng yêu cầu tới cấu trúc dữ liệu, module và thành viên phụ trách.
+
+Có hai điểm chúng tôi làm khác với câu chữ của đề và nêu rõ ở đây. Thứ nhất, từ ngày 01/07/2025 Việt Nam bỏ cấp quận/huyện, nên trên OpenStreetMap ranh giới \texttt{admin\_level=6} tại Hà Nội nay là các phường mới. Hệ thống vì vậy phân vùng theo 24 phường giao với vùng bản đồ đã chọn thay cho quận (Mục~\ref{sec:graph}). Thứ hai, hàm dựng Backbone giữa các Hub (\texttt{hub\_backbone}) gọi Prim cài bằng mảng, độ phức tạp $O(H^2)$, vì đồ thị Hub là đồ thị đầy đủ; Kruskal với Union-Find được cài đặt, kiểm tra chéo với Prim trên đồ thị ngẫu nhiên (cùng tổng trọng số), đo trong benchmark và dùng cho phân cụm single-linkage~\cite{gower1969} (Mục~IV).
+
+\begin{table*}[t]
+\centering
+\caption{Ánh xạ yêu cầu chức năng tới cấu trúc dữ liệu, module và thành viên phụ trách}
+\label{tab:req}
+\begin{tabular}{@{}p{0.20\textwidth}p{0.40\textwidth}p{0.22\textwidth}c@{}}
+\toprule
+Yêu cầu & Cấu trúc dữ liệu / giải thuật & Module & Phụ trách \\
+\midrule
+(R1) Mạng đường và dữ liệu & Adjacency List trên id nguyên liên tục, mảng cạnh song song, cờ Closure \texttt{bytearray}; Kosaraju lặp khi chuẩn bị dữ liệu & \texttt{core/graph.py}, \texttt{tools/prepare\_osm.py} & TV1 \\
+(R2) Route và Reroute & Dijkstra với Adaptable Heap Priority Queue có Locator; mặt nạ \texttt{on\_route} cho quy tắc bỏ qua sự cố ngoài tuyến & \texttt{core/apq.py}, \texttt{core/routing.py} & TV2 \\
+(R3) Backbone giữa các Hub & Union-Find (path compression, union by rank), Kruskal; Prim mảng $O(H^2)$ & \texttt{core/dsu.py}, \texttt{core/network.py} & TV3 \\
+(R4) Xếp hàng và thứ tự giao & 0/1 Knapsack DP (kèm branch-and-bound), Held-Karp cho TSP bất đối xứng & \texttt{core/loading.py}, \texttt{core/tsp.py} & TV4 \\
+(R5) Liên thông và phân vùng & Union-Find trên đồ thị con trong từng phường; single-linkage bằng Kruskal dừng ở $k$ tập & \texttt{core/network.py} & TV3 \\
+Tích hợp Trip, demo & Knapsack $\rightarrow$ ma trận khoảng cách (Dijkstra) $\rightarrow$ Held-Karp; \texttt{http.server} và Leaflet & \texttt{core/trip.py}, \texttt{app/} & TV1 \\
+Benchmark & Bộ sinh đồ thị có seed, baseline lazy binary heap, hàng đợi mảng $O(V^2)$, Bellman-Ford; đo bằng \texttt{tracemalloc} & \texttt{bench/}, \texttt{core/heaps.py} & TV5 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Đóng góp}
+
+\begin{itemize}
+\item Một lõi cấu trúc dữ liệu và giải thuật khoảng 1.300 dòng Python thuần, chỉ dùng \texttt{list}, \texttt{bytearray} và tuple; quy tắc không dùng \texttt{dict}/\texttt{set} được kiểm tra tự động bằng một test duyệt AST.
+\item Một bộ dữ liệu mạng đường thật của nội thành Hà Nội, sinh lại được bằng một script: 38.604 Intersection, 69.411 Road Segment, có hướng theo thẻ một chiều của OSM, gắn nhãn theo 24 phường mới.
+\item Reroute khi có Traffic Incident, kèm quy tắc bỏ qua có chứng minh: nếu sự cố là Closure hoặc làm tăng Travel Time trên một Road Segment ngoài tuyến thì tuyến hiện tại vẫn tối ưu, kiểm tra trong $O(1)$ (Mục~III).
+\item Module tích hợp lập một Trip bằng cách nối Knapsack, Dijkstra và Held-Karp, cùng ứng dụng web chạy không cần framework.
+\item 79 test pytest, trong đó có các test đối chiếu với lời giải chuẩn: Dijkstra với Bellman-Ford, Kruskal với Prim, Union-Find với BFS, Knapsack và Held-Karp với vét cạn, Adaptable Heap với danh sách đã sắp xếp; cùng benchmark trên đồ thị thật và đồ thị sinh giả lập (Mục~VI).
+\end{itemize}
+
+\subsection{Kiến trúc hệ thống}
+
+Mã nguồn chia thành bốn phần theo hướng phụ thuộc một chiều. Thư mục \texttt{logigraph/core/} chứa toàn bộ cấu trúc dữ liệu và giải thuật: \texttt{graph.py}, \texttt{apq.py}, \texttt{heaps.py}, \texttt{routing.py}, \texttt{dsu.py}, \texttt{network.py}, \texttt{loading.py}, \texttt{tsp.py} và \texttt{trip.py}. Lõi không phụ thuộc thư viện ngoài. Test \texttt{tests/test\_core\_rules.py} phân tích AST mọi file trong \texttt{core/} và báo lỗi nếu gặp literal hoặc comprehension kiểu \texttt{dict}/\texttt{set}, lời gọi \texttt{dict()}, \texttt{set()}, \texttt{frozenset()}, hoặc import ngoài danh sách cho phép (\texttt{math}, \texttt{random}, \texttt{typing}, \texttt{dataclasses}, \texttt{csv}, \texttt{pathlib}); như vậy \texttt{heapq}, \texttt{collections} và \texttt{functools} đều bị chặn. Ba phần còn lại nằm ngoài lõi và chỉ gọi vào lõi: \texttt{tools/prepare\_osm.py} tải và làm sạch dữ liệu OSM một lần rồi ghi ra CSV; \texttt{bench/} sinh đồ thị và đo thời gian, bộ nhớ, mỗi phép đo chạy trong một subprocess riêng, có \texttt{heapq} làm đường tham chiếu; \texttt{app/} là server HTTP của thư viện chuẩn cùng một trang Leaflet. Vì quy tắc chỉ áp dụng cho lõi, các phần ngoài lõi được dùng \texttt{dict} khi cần, ví dụ để ánh xạ id OSM sang id liên tục.
+
+\subsection{Cấu trúc bài báo}
+
+Mục~II trình bày mô hình đồ thị, biểu diễn, quy trình chuẩn bị dữ liệu và module tích hợp Trip. Mục~III trình bày Adaptable Heap Priority Queue, Dijkstra và Reroute. Mục~IV trình bày Union-Find, Backbone và phân vùng. Mục~V trình bày quy hoạch động cho Knapsack và TSP. Mục~VI báo cáo kết quả thực nghiệm. Mục~VII tổng kết và nêu hướng phát triển.

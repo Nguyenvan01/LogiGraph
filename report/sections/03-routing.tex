@@ -1,0 +1,174 @@
+% TV2 -- M2: Adaptable Priority Queue, Dijkstra, Bellman-Ford, Reroute.
+% Mã nguồn: logigraph/core/apq.py, heaps.py, routing.py. Test: tests/test_apq.py, tests/test_routing.py.
+\section{Định tuyến động: Adaptable Priority Queue và Dijkstra}
+\label{sec:routing}
+
+Module định tuyến giải hai bài toán trên Road Network: tìm Route có tổng Travel Time nhỏ nhất giữa hai Intersection, và Reroute khi một Traffic Incident làm thay đổi Travel Time của một Road Segment trong lúc xe đang chạy. Cấu trúc dữ liệu trung tâm là Adaptable Priority Queue (APQ) cài đặt bằng binary heap trên mảng, mỗi phần tử có một Locator~\cite{goodrich2013}. Mục này trình bày APQ, ba biến thể Dijkstra~\cite{dijkstra1959} dùng cho benchmark, Bellman-Ford~\cite{bellman1958} làm lời giải đối chứng, và quy tắc Reroute.
+
+Ký hiệu: $V$, $E$ là số Intersection và số Road Segment; $w(e) \ge 0$ là Travel Time của Road Segment $e$; $\delta(s,v)$ là Travel Time nhỏ nhất từ $s$ tới $v$. Road Segment bị Closure được coi như không tồn tại.
+
+\subsection{Adaptable Priority Queue với Locator}
+
+\paragraph{Interface}
+\texttt{AdaptableHeapPQ} cung cấp \texttt{add(k,v)} trả về một Locator, \texttt{min()}, \texttt{remove\_min()}, \texttt{update(loc,k')} (tăng hoặc giảm khóa) và \texttt{remove(loc)} xóa một phần tử bất kỳ. Khác với priority queue thông thường, hai thao tác cuối tác động lên phần tử nằm ở giữa heap, nên cần biết phần tử đó đang ở ô nào của mảng.
+
+\paragraph{Biểu diễn}
+Heap là mảng $A[0..n-1]$ chứa các Locator; ô $j$ có cha $\lfloor (j-1)/2 \rfloor$ và hai con $2j+1$, $2j+2$. Mỗi Locator là một bộ ba (\texttt{key}, \texttt{value}, \texttt{index}), trong đó \texttt{index} là vị trí hiện tại của chính nó trong $A$. Cấu trúc duy trì hai Invariant:
+\begin{itemize}
+  \item[(I1)] Heap order: $A[\lfloor (j-1)/2 \rfloor].\mathit{key} \le A[j].\mathit{key}$ với mọi $j \ge 1$.
+  \item[(I2)] Locator nhất quán: $A[j].\mathit{index} = j$ với mọi $0 \le j < n$; Locator đã rời heap có $\mathit{index} = -1$.
+\end{itemize}
+Từ (I2), một Locator \texttt{loc} hợp lệ khi và chỉ khi $0 \le \mathit{loc.index} < n$ và $A[\mathit{loc.index}]$ chính là \texttt{loc} (so sánh bằng \texttt{is}). Phép kiểm tra này tốn $O(1)$ và loại được cả Locator đã bị lấy ra (stale Locator) lẫn Locator thuộc một heap khác; khi đó \texttt{update} và \texttt{remove} báo \texttt{ValueError}.
+
+\paragraph{Các thao tác}
+\texttt{add} ghi Locator mới vào cuối mảng rồi gọi upheap. \texttt{remove\_min} và \texttt{remove(loc)} cùng dùng thủ tục $\textsc{RemoveAt}(j)$: lấy phần tử cuối mảng ra, nếu $j$ không phải ô cuối thì đặt phần tử đó vào ô $j$ và gọi $\textsc{Bubble}(j)$, cuối cùng gán $\mathit{index}=-1$ cho phần tử bị xóa. $\textsc{Bubble}(j)$ gọi upheap nếu $j>0$ và khóa ở $j$ nhỏ hơn khóa của cha, ngược lại gọi downheap. \texttt{update} đổi khóa rồi gọi $\textsc{Bubble}$ (Algorithm~\ref{alg:apq-update}).
+
+Upheap và downheap dùng kỹ thuật dời lỗ: phần tử đang xét được giữ riêng, các phần tử cha (hoặc con nhỏ hơn) được dời vào ô trống và cập nhật \texttt{index} ngay khi dời, phần tử đang xét chỉ được ghi một lần ở ô cuối cùng. So sánh khóa dùng \texttt{<} nghiêm ngặt và khi hai con bằng nhau thì chọn con trái, nên cùng một dãy thao tác luôn cho cùng một kết quả.
+
+\begin{algorithm}[t]
+\caption{$\textsc{Update}(\mathit{loc}, k')$ của AdaptableHeapPQ}
+\label{alg:apq-update}
+\begin{algorithmic}[1]
+\Procedure{Update}{$\mathit{loc}, k'$}
+  \State $j \gets \mathit{loc.index}$
+  \If{$\neg(0 \le j < n \wedge A[j] \text{ là } \mathit{loc})$}
+    \State \textbf{raise} ValueError \Comment{stale Locator}
+  \EndIf
+  \State $\mathit{loc.key} \gets k'$
+  \If{$j > 0 \wedge k' < A[\lfloor (j-1)/2 \rfloor].\mathit{key}$}
+    \While{$j > 0$ \textbf{and} $k' < A[p].\mathit{key}$, $p = \lfloor (j-1)/2 \rfloor$}
+      \State $A[j] \gets A[p]$;\ $A[j].\mathit{index} \gets j$;\ $j \gets p$
+    \EndWhile
+  \Else
+    \Loop \Comment{downheap}
+      \State $c \gets 2j+1$; \textbf{if} $c \ge n$ \textbf{then break}
+      \If{$c+1 < n \wedge A[c+1].\mathit{key} < A[c].\mathit{key}$} \State $c \gets c+1$ \EndIf
+      \State \textbf{if} $\neg(A[c].\mathit{key} < k')$ \textbf{then break}
+      \State $A[j] \gets A[c]$;\ $A[j].\mathit{index} \gets j$;\ $j \gets c$
+    \EndLoop
+  \EndIf
+  \State $A[j] \gets \mathit{loc}$;\ $\mathit{loc.index} \gets j$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{lemma}\label{lem:apq-inv}
+Mỗi thao tác \texttt{add}, \texttt{remove\_min}, \texttt{update}, \texttt{remove} giữ nguyên (I1) và (I2).
+\end{lemma}
+\begin{proof}
+Trước thao tác, (I1) đúng ở mọi ô. Sau khi đổi khóa ở ô $j$ (hoặc đặt một phần tử mới vào $j$), chỉ có thể sai quan hệ giữa $j$ với cha hoặc giữa $j$ với các con. Nếu khóa mới nhỏ hơn khóa cha thì nó cũng nhỏ hơn khóa cũ của ô $j$, vốn $\le$ mọi khóa trong cây con gốc $j$; vậy quan hệ với các con vẫn đúng và chỉ cần upheap. Mỗi bước upheap dời cha xuống ô $j$; cha này $\le$ mọi phần tử trong cây con của nó nên (I1) đúng tại $j$. Ngược lại, quan hệ với cha đúng và chỉ quan hệ với con có thể sai; downheap đưa con nhỏ hơn lên, con này $\le$ con còn lại nên (I1) đúng tại ô vừa ghi. Vòng lặp dừng khi không còn vi phạm. Với $\textsc{RemoveAt}(j)$, phần tử cuối được đặt vào $j$ và đây chính là trường hợp vừa xét. Về (I2): mỗi lần một Locator được ghi vào ô $i$ thì \texttt{index} của nó được gán bằng $i$ trong cùng bước, và Locator bị xóa được gán $-1$.
+\end{proof}
+
+\begin{theorem}\label{thm:apq-cost}
+Với $n$ phần tử, \texttt{min} và \texttt{len} tốn $O(1)$; \texttt{add}, \texttt{remove\_min}, \texttt{update}, \texttt{remove} tốn $O(\log n)$ trong trường hợp xấu nhất (thêm/bớt ở cuối \texttt{list} là $O(1)$ khấu hao). Bộ nhớ $O(n)$.
+\end{theorem}
+\begin{proof}
+Mảng biểu diễn một cây nhị phân đầy đủ nên chiều cao là $\lfloor \log_2 n \rfloor$. Upheap đi lên mỗi bước một tầng, downheap đi xuống mỗi bước một tầng với tối đa hai phép so sánh, nên mỗi lần gọi có không quá $\lfloor \log_2 n \rfloor$ vòng lặp $O(1)$. $\textsc{Bubble}$ chỉ gọi một trong hai. Kiểm tra Locator là $O(1)$ nhờ (I2), không cần tìm kiếm. Mỗi phần tử chiếm một Locator có kích thước cố định (dùng \texttt{\_\_slots\_\_}).
+\end{proof}
+
+\paragraph{Vì sao cần Locator}
+Để \texttt{update} một phần tử ở giữa heap, ta phải biết vị trí của nó. Nếu không có thông tin này thì phải quét mảng, tốn $O(n)$, và decrease-key mất ưu điểm so với cài đặt bằng mảng. Cách thường gặp là giữ thêm một hash map từ phần tử sang vị trí; nhưng đề bài cấm dùng \texttt{dict}/\texttt{set} thay cho cấu trúc lõi, và quy tắc này được kiểm tra tự động bằng test quét AST thư mục \texttt{core/}. Locator giải quyết việc này mà không cần hash map: vị trí nằm ngay trong đối tượng mà người gọi đang giữ, đọc ra trong $O(1)$ trường hợp xấu nhất. Trong Dijkstra, vì Intersection được đánh số liên tục $0..V-1$, Locator của đỉnh $v$ được lưu ở \texttt{locs[v]}, một mảng thường. Chi phí phải trả là mỗi lần dời phần tử phải ghi thêm \texttt{index}, và mỗi phần tử tốn thêm một đối tượng Locator.
+
+\subsection{Dijkstra với decrease-key}
+
+Algorithm~\ref{alg:dijkstra} là biến thể \texttt{adaptable} trong \texttt{routing.py}. Mảng \texttt{done} đánh dấu đỉnh đã chốt; \texttt{locs[v]} giữ Locator của $v$ (rỗng nếu $v$ chưa từng vào heap). Khóa của mỗi Locator trong heap luôn bằng $\mathit{dist}[v]$ vì hai giá trị được gán cùng lúc.
+
+\begin{algorithm}[t]
+\caption{Dijkstra dùng AdaptableHeapPQ, dừng sớm tại $t$}
+\label{alg:dijkstra}
+\begin{algorithmic}[1]
+\Procedure{Dijkstra}{$G, s, t$}
+  \State $\mathit{dist}[\cdot] \gets \infty$;\ $\mathit{parent}[\cdot] \gets -1$;\ $\mathit{dist}[s] \gets 0$
+  \State $\mathit{locs}[s] \gets Q.\textsc{Add}(0, s)$
+  \While{$Q$ không rỗng}
+    \State $(d, u) \gets Q.\textsc{RemoveMin}()$;\ $\mathit{done}[u] \gets 1$
+    \State \textbf{if} $u = t$ \textbf{then return}
+    \For{$e \in \mathit{out}[u]$, $e$ không bị Closure}
+      \State $v \gets \mathit{head}[e]$; \textbf{if} $\mathit{done}[v]$ \textbf{then continue}
+      \If{$d + w(e) < \mathit{dist}[v]$}
+        \State $\mathit{dist}[v] \gets d + w(e)$;\ $\mathit{parent}[v] \gets e$
+        \If{$\mathit{locs}[v]$ rỗng}
+          \State $\mathit{locs}[v] \gets Q.\textsc{Add}(\mathit{dist}[v], v)$
+        \Else
+          \State $Q.\textsc{Update}(\mathit{locs}[v], \mathit{dist}[v])$ \Comment{decrease-key}
+        \EndIf
+      \EndIf
+    \EndFor
+  \EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{lemma}[Greedy choice]\label{lem:dijkstra}
+Nếu $w(e) \ge 0$ với mọi $e$ thì khi $u$ được lấy ra khỏi $Q$ với khóa $d$, ta có $d = \mathit{dist}[u] = \delta(s,u)$.
+\end{lemma}
+\begin{proof}
+Quy nạp theo thứ tự chốt; với $u=s$ thì $d=0$. Luôn có $\mathit{dist}[v] \ge \delta(s,v)$ vì $\mathit{dist}[v]$ là độ dài của một đường đi thật. Giả sử $u \ne s$ tới được từ $s$ và $P$ là một đường đi ngắn nhất $s \leadsto u$. Gọi $y$ là đỉnh đầu tiên trên $P$ chưa chốt và $x$ là đỉnh liền trước $y$ trên $P$ ($x$ đã chốt). Theo giả thiết quy nạp, $\mathit{dist}[x] = \delta(s,x)$, và lúc chốt $x$ cạnh $(x,y)$ đã được nới lỏng, nên $y$ nằm trong $Q$ với $\mathit{dist}[y] \le \delta(s,x) + w(x,y) = \delta(s,y)$. Đoạn $P$ từ $y$ tới $u$ có trọng số không âm, nên $\delta(s,y) \le \delta(s,u)$. Vì $u$ có khóa nhỏ nhất trong $Q$: $\mathit{dist}[u] \le \mathit{dist}[y] \le \delta(s,y) \le \delta(s,u) \le \mathit{dist}[u]$. Mọi bất đẳng thức đều là đẳng thức.
+\end{proof}
+
+Giả thiết $w \ge 0$ chỉ được dùng ở bước $\delta(s,y) \le \delta(s,u)$. Với trọng số âm, một cạnh âm phía sau $y$ có thể làm đường qua $y$ rẻ hơn $\mathit{dist}[u]$ sau khi $u$ đã bị chốt. Vì vậy giá trị âm bị chặn ngay ở biên dữ liệu: \texttt{add\_edge} và \texttt{set\_travel\_time} của \texttt{RoadNetwork} từ chối Travel Time âm (và NaN), còn Closure được biểu diễn bằng cờ \texttt{closed[e]} chứ không bằng một trọng số đặc biệt.
+
+\paragraph{Dừng sớm}
+Khi chỉ cần Route $s \to t$, thuật toán dừng ngay khi $t$ được lấy ra. Theo Bổ đề~\ref{lem:dijkstra}, $\mathit{dist}[t]$ lúc đó đã là $\delta(s,t)$. Chuỗi $\mathit{parent}$ từ $t$ về $s$ chỉ đi qua các đỉnh đã chốt (cạnh $\mathit{parent}[v]$ luôn xuất phát từ một đỉnh đã chốt, và $\mathit{parent}$ của đỉnh đã chốt không đổi nữa), nên Route dựng lại là chính xác. Các đỉnh chưa chốt chỉ có $\mathit{dist}$ là cận trên. Test đối chiếu kiểm tra $\mathit{dist}[t]$ và tổng Travel Time của Route khi dừng sớm bằng đúng kết quả chạy đầy đủ, với cả ba biến thể.
+
+\subsection{Ba biến thể hàng đợi và độ phức tạp}
+
+Ba biến thể chỉ khác nhau ở cách chọn đỉnh có $\mathit{dist}$ nhỏ nhất (Bảng~\ref{tab:sssp-cost}).
+
+\paragraph{Adaptable}
+Mỗi đỉnh được \textsc{Add} tối đa một lần (chỉ khi $\mathit{locs}[v]$ rỗng) và \textsc{RemoveMin} tối đa một lần. Mỗi Road Segment được xét đúng một lần, lúc đỉnh đầu của nó được chốt, nên có tối đa $E$ lần \textsc{Update}. Heap chứa không quá $V$ phần tử, nên theo Định lý~\ref{thm:apq-cost} tổng thời gian là $O((V+E)\log V)$, bộ nhớ $O(V)$ cho \texttt{locs} và các Locator.
+
+\paragraph{Lazy}
+Baseline \texttt{LazyBinaryHeap} là binary heap Python thuần, cùng kỹ thuật dời lỗ và cùng cách phá hòa như APQ nhưng không có decrease-key. Mỗi lần nới lỏng thành công, Dijkstra đẩy thêm một bản sao $(\mathit{dist}[v], v)$; khi lấy ra một đỉnh đã chốt thì bỏ qua (bản sao cũ). Thuật toán vẫn đúng: với mỗi đỉnh $v$ chưa chốt, heap luôn có bản sao mang khóa $\mathit{dist}[v]$ hiện tại và mọi bản sao khác của $v$ có khóa lớn hơn, nên bản sao chưa chốt được lấy ra đầu tiên mang đúng khóa nhỏ nhất như ở biến thể adaptable. Số lần đẩy không quá $E+1$, nên heap có tới $O(E)$ phần tử và tổng thời gian $O(E\log E)$. Với đồ thị không có Road Segment song song, $E \le V^2$ nên $\log E \le 2\log V$, do đó $O(E\log E) = O(E\log V)$: hai biến thể có cùng bậc thời gian, chỉ khác bộ nhớ heap ($O(V)$ so với $O(E)$).
+
+\paragraph{Array}
+Không dùng heap; mỗi vòng quét toàn bộ $\mathit{dist}$ để tìm đỉnh chưa chốt nhỏ nhất. Có tối đa $V$ vòng, mỗi vòng $O(V)$, cộng $O(E)$ lần nới lỏng: $O(V^2+E) = O(V^2)$.
+
+\begin{table}[t]
+\centering
+\caption{Độ phức tạp các thuật toán SSSP trong module}
+\label{tab:sssp-cost}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Biến thể & Thời gian & Cỡ heap \\
+\midrule
+Dijkstra + APQ & $O((V+E)\log V)$ & $\le V$ \\
+Dijkstra + lazy heap & $O(E\log E)$ & $\le E+1$ \\
+Dijkstra + mảng & $O(V^2)$ & --- \\
+Bellman-Ford & $O(VE)$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Khi nào dùng biến thể nào}
+Trên Road Network, $E = O(V)$ nên hai biến thể heap đều là $O(V\log V)$, nhỏ hơn nhiều so với $O(V^2)$ của biến thể mảng. Trên đồ thị dày $E = \Theta(V^2)$, biến thể mảng đạt $O(V^2)$, tốt hơn $O(V^2\log V)$ của heap. Giữa APQ và lazy heap, lý thuyết không phân thắng thua về thời gian; khác biệt nằm ở hằng số và bộ nhớ. Kết quả đo sơ bộ (chi tiết ở mục thực nghiệm) khớp với phân tích này. Trên đồ thị dạng đường bộ, frontier của Dijkstra hẹp: heap lớn nhất chỉ vài trăm phần tử kể cả ở 50.000 đỉnh, nên lazy heap không phình ra và hai biến thể chạy nhanh tương đương, lazy heap có khi nhanh hơn một chút vì mỗi bước dời phần tử không phải ghi thêm \texttt{index}. Biến thể APQ lại dùng nhiều bộ nhớ hơn, vì mỗi đỉnh đã tới được có một Locator và \texttt{locs} giữ các Locator này tới cuối lần chạy, trong khi các bộ \texttt{(key, value)} của lazy heap được giải phóng ngay khi lấy ra. Trên đồ thị dày ($E \approx V^2/4$), decrease-key xảy ra thường xuyên, lazy heap lớn hơn heap của APQ khoảng bốn lần và chạy chậm hơn. Ưu điểm chính của APQ trong hệ thống là bộ nhớ heap bị chặn bởi $V$ và khả năng \texttt{update}/\texttt{remove} một phần tử bất kỳ.
+
+Benchmark còn chạy một Dijkstra dùng \texttt{heapq}. Module này viết bằng C nên nhanh hơn mọi heap viết bằng Python thuần dù cùng thuật toán; vì vậy nó chỉ là đường tham chiếu, không phải baseline. \texttt{heapq} không được phép dùng trong \texttt{core/} và test quy tắc lõi chặn việc import nó.
+
+\subsection{Bellman-Ford làm lời giải đối chứng}
+
+\texttt{bellman\_ford} thực hiện tối đa $V-1$ lượt, mỗi lượt nới lỏng mọi Road Segment không bị Closure, và dừng ngay khi một lượt không thay đổi $\mathit{dist}$ nào. Sau lượt thứ $i$, $\mathit{dist}[v]$ không lớn hơn độ dài đường đi ngắn nhất dùng tối đa $i$ cạnh~\cite{clrs2022}; khi không có chu trình âm, mọi đường đi ngắn nhất là đường đơn có không quá $V-1$ cạnh, nên sau $V-1$ lượt kết quả là $\delta$. Nếu một lượt không đổi gì thì $\mathit{dist}$ đã là điểm bất động của phép nới lỏng, các lượt sau cũng không đổi, nên dừng sớm không làm sai kết quả. Thời gian xấu nhất $O(VE)$, tốt nhất $O(E)$, bộ nhớ $O(V)$.
+
+Lập luận trên không dựa vào việc chốt đỉnh theo thứ tự tham lam, nên Bellman-Ford vẫn đúng khi có trọng số âm, miễn là không có chu trình âm tới được từ $s$. Trong hệ thống, Travel Time luôn $\ge 0$ nên cài đặt không chạy lượt thứ $V$ để phát hiện chu trình âm. Bellman-Ford được dùng làm lời giải chuẩn có cách tiếp cận độc lập với Dijkstra: test đối chiếu so sánh $\mathit{dist}$ của cả ba biến thể với Bellman-Ford trên 150 đồ thị ngẫu nhiên có seed (có cạnh trọng số 0 và cạnh bị Closure), yêu cầu bằng nhau tuyệt đối.
+
+\subsection{Reroute khi Travel Time thay đổi}
+
+\texttt{Router} giữ Route hiện tại $R$ từ vị trí xe tới đích $t$ và một mặt nạ \texttt{bytearray} \texttt{on\_route[e]}. Khi có Traffic Incident trên Road Segment $e$ (Congestion với Travel Time mới, hoặc Closure) trong lúc xe đứng ở Intersection $a$ trên $R$, \texttt{incident} làm bốn bước: (1) cắt phần đã đi, giữ hậu tố của $R$ bắt đầu từ $a$; (2) ghi nhận sự cố có phải loại chỉ tăng hay không (Closure, hoặc Travel Time mới $\ge$ giá trị cũ), xét trước khi ghi vào đồ thị; (3) cập nhật đồ thị trong $O(1)$; (4) nếu sự cố chỉ tăng và \texttt{on\_route[e]} $= 0$ thì giữ nguyên Route, ngược lại chạy lại Dijkstra từ $a$, dừng sớm tại $t$.
+
+\begin{lemma}[Quy tắc bỏ qua]\label{lem:skip}
+Giả sử $R$ là Route tối ưu từ $a$ tới $t$ theo trọng số $w$. Trọng số mới $w'$ chỉ khác $w$ tại một Road Segment $e \notin R$, với $w'(e) \ge w(e)$ (Closure ứng với $w'(e) = \infty$). Khi đó $R$ vẫn tối ưu theo $w'$.
+\end{lemma}
+\begin{proof}
+Ký hiệu $c(P)$, $c'(P)$ là tổng trọng số của đường $P$ theo $w$ và $w'$. Vì $e \notin R$ nên $c'(R) = c(R)$. Với mọi đường $P$ từ $a$ tới $t$, $w'(f) \ge w(f)$ ở mọi cạnh $f$ nên $c'(P) \ge c(P)$; và $c(P) \ge c(R)$ do $R$ tối ưu theo $w$. Vậy $c'(P) \ge c'(R)$. Đường đi qua một cạnh bị Closure có $c' = \infty$, tức là bị loại khỏi tập ứng viên, nên không làm giảm giá trị tối ưu. Nếu $t$ không tới được từ $a$ ($c(R) = \infty$) thì việc chỉ tăng trọng số cũng không tạo ra đường mới.
+\end{proof}
+
+Bước (1) cũng giữ tính tối ưu: theo tính chất đường con tối ưu, nếu tồn tại đường $a \leadsto t$ rẻ hơn hậu tố của $R$ thì nối phần đầu $R$ từ nguồn tới $a$ với đường đó sẽ được một đường rẻ hơn $R$, mâu thuẫn. Kết hợp với Bổ đề~\ref{lem:skip}, quy nạp trên dãy sự cố cho Invariant: sau mỗi lần gọi \texttt{incident}, Route giữ trong \texttt{Router} là tối ưu từ vị trí xe theo trọng số hiện tại của đồ thị.
+
+Hai trường hợp còn lại không có đảm bảo tương tự. Nếu Travel Time của một cạnh ngoài $R$ giảm, một đường đi qua cạnh đó có thể trở nên rẻ hơn $R$. Nếu sự cố nằm trên chính $R$ thì $c'(R)$ tăng (hoặc $R$ không đi được nữa) trong khi đường khác giữ nguyên chi phí. Trong cả hai trường hợp \texttt{Router} chạy lại Dijkstra từ vị trí hiện tại của xe. Cách này bảo thủ: một sự cố tăng nhẹ trên $R$ có thể vẫn để $R$ tối ưu, nhưng muốn biết điều đó thì cũng phải tính lại. Các thuật toán incremental SSSP cập nhật cây đường đi ngắn nhất theo từng thay đổi nằm ngoài phạm vi đồ án.
+
+\paragraph{Chi phí}
+Kiểm tra $e \in R$ là $O(1)$ nhờ \texttt{on\_route}. Bước cắt phần đã đi tìm $a$ trên $R$ và cộng lại Travel Time của hậu tố (cộng theo đúng thứ tự như Dijkstra để tổng khớp tuyệt đối với một lần chạy mới), tốn $O(L)$ với $L$ là số Road Segment của $R$. Vậy một sự cố được bỏ qua tốn $O(L)$, còn một lần Reroute tốn $O((V+E)\log V)$ trong trường hợp xấu nhất. Trên bản đồ thực 38.604 Intersection, đo sơ bộ cho thấy một sự cố bỏ qua tốn khoảng 0,4~ms, so với khoảng 110~ms cho một lần tính lại. Test ngẫu nhiên áp dụng 25 sự cố liên tiếp (tăng, giảm, Closure, xe ở vị trí ngẫu nhiên trên Route) lên 40 đồ thị, và sau mỗi sự cố so sánh tổng Travel Time của Route với một lần Dijkstra mới từ vị trí xe.
+
+\subsection{Ma trận khoảng cách bất đối xứng}
+
+\texttt{distance\_matrix} chạy một Dijkstra đầy đủ từ mỗi điểm trong danh sách $k$ điểm, tốn $O(k(V+E)\log V)$ thời gian và $O(k^2+V)$ bộ nhớ. Vì Road Network có đường một chiều nên nói chung $d(i,j) \ne d(j,i)$. Ví dụ trên chu trình một chiều $0 \to 1 \to 2 \to 0$ với mỗi cạnh 10~s, ta có $d(0,1) = 10$ nhưng $d(1,0) = 20$. Hệ quả: bài toán thứ tự giao hàng trên ma trận này là TSP bất đối xứng, còn Backbone Network giữa các Hub dùng trọng số trung bình hai chiều $(d(i,j)+d(j,i))/2$ để có đồ thị vô hướng.

@@ -1,0 +1,114 @@
+sssp adaptable 1000 {'time_s': 0.0075494580014492385, 'peak_kb': 96.408203125, 'n': 961, 'm': 4805, 'heap_peak': 69}
+sssp lazy 1000 {'time_s': 0.0049469169971416704, 'peak_kb': 36.501953125, 'n': 961, 'm': 4805, 'heap_peak': 99}
+sssp heapq_C 1000 {'time_s': 0.001397333006025292, 'peak_kb': 27.9765625, 'n': 961, 'm': 4805}
+sssp array 1000 {'time_s': 0.048690709001675714, 'peak_kb': 36.212890625, 'n': 961, 'm': 4805}
+sssp bellman_ford 1000 {'time_s': 0.02006091600196669, 'peak_kb': 60.5234375, 'n': 961, 'm': 4805}
+sssp adaptable 2500 {'time_s': 0.010535208995861467, 'peak_kb': 254.2001953125, 'n': 2500, 'm': 12500, 'heap_peak': 174}
+sssp lazy 2500 {'time_s': 0.009435125000891276, 'peak_kb': 98.6845703125, 'n': 2500, 'm': 12500, 'heap_peak': 256}
+sssp heapq_C 2500 {'time_s': 0.0037983329966664314, 'peak_kb': 76.6328125, 'n': 2500, 'm': 12500}
+sssp array 2500 {'time_s': 0.3312585419989773, 'peak_kb': 97.8330078125, 'n': 2500, 'm': 12500}
+sssp bellman_ford 2500 {'time_s': 0.07555524999770569, 'peak_kb': 169.015625, 'n': 2500, 'm': 12500}
+sssp adaptable 5000 {'time_s': 0.01683858299657004, 'peak_kb': 500.2783203125, 'n': 4900, 'm': 24500, 'heap_peak': 139}
+sssp lazy 5000 {'time_s': 0.01786141599586699, 'peak_kb': 194.4580078125, 'n': 4900, 'm': 24500, 'heap_peak': 209}
+sssp heapq_C 5000 {'time_s': 0.006616708000365179, 'peak_kb': 151.3125, 'n': 4900, 'm': 24500}
+sssp array 5000 {'time_s': 1.2456037079973612, 'peak_kb': 193.9267578125, 'n': 4900, 'm': 24500}
+sssp bellman_ford 5000 {'time_s': 0.13896174999536015, 'peak_kb': 337.796875, 'n': 4900, 'm': 24500}
+sssp adaptable 10000 {'time_s': 0.0352551250034594, 'peak_kb': 1023.2587890625, 'n': 10000, 'm': 50000, 'heap_peak': 188}
+sssp lazy 10000 {'time_s': 0.038445291997049935, 'peak_kb': 398.3837890625, 'n': 10000, 'm': 50000, 'heap_peak': 279}
+sssp heapq_C 10000 {'time_s': 0.015133749999222346, 'peak_kb': 310.4140625, 'n': 10000, 'm': 50000}
+sssp array 10000 {'time_s': 5.141570040999795, 'peak_kb': 398.1259765625, 'n': 10000, 'm': 50000}
+sssp bellman_ford 10000 {'time_s': 0.45803445799538167, 'peak_kb': 696.546875, 'n': 10000, 'm': 50000}
+sssp adaptable 20000 {'time_s': 0.07522637500369456, 'peak_kb': 2036.666015625, 'n': 19881, 'm': 99405, 'heap_peak': 363}
+sssp lazy 20000 {'time_s': 0.0812976669985801, 'peak_kb': 793.986328125, 'n': 19881, 'm': 99405, 'heap_peak': 540}
+sssp heapq_C 20000 {'time_s': 0.030633375004981644, 'peak_kb': 619.171875, 'n': 19881, 'm': 99405}
+sssp bellman_ford 20000 {'time_s': 0.9641182080013095, 'peak_kb': 1391.4921875, 'n': 19881, 'm': 99405}
+sssp adaptable 50000 {'time_s': 0.19846104200405534, 'peak_kb': 5098.634765625, 'n': 49729, 'm': 248645, 'heap_peak': 462}
+sssp lazy 50000 {'time_s': 0.21051170799910324, 'peak_kb': 1989.080078125, 'n': 49729, 'm': 248645, 'heap_peak': 691}
+sssp heapq_C 50000 {'time_s': 0.0779229160034447, 'peak_kb': 1551.9296875, 'n': 49729, 'm': 248645}
+sssp_osm adaptable 0 {'time_s': 0.11526720800611656, 'peak_kb': 3956.3955078125, 'n': 38604, 'm': 69411, 'heap_peak': 276}
+sssp_osm lazy 0 {'time_s': 0.09450979200482834, 'peak_kb': 1543.5126953125, 'n': 38604, 'm': 69411, 'heap_peak': 289}
+sssp_osm heapq_C 0 {'time_s': 0.03570029099500971, 'peak_kb': 1204.140625, 'n': 38604, 'm': 69411}
+sssp_osm array 0 {'time_s': 'timeout'}
+sssp_osm bellman_ford 0 {'time_s': 2.9573555839961045, 'peak_kb': 2705.015625, 'n': 38604, 'm': 69411}
+dsu naive 1000 {'time_s': 0.004044041001179721, 'peak_kb': 29.1416015625, 'steps': 42878, 'ops': 2000}
+dsu rank 1000 {'time_s': 0.0010780000011436641, 'peak_kb': 29.1416015625, 'steps': 3102, 'ops': 2000}
+dsu compress 1000 {'time_s': 0.001249708999239374, 'peak_kb': 29.1416015625, 'steps': 3869, 'ops': 2000}
+dsu both 1000 {'time_s': 0.0011237500002607703, 'peak_kb': 29.1416015625, 'steps': 2342, 'ops': 2000}
+dsu quickfind 1000 {'time_s': 0.03774845800217008, 'peak_kb': 28.078125, 'steps': 60832, 'ops': 2000}
+dsu naive 10000 {'time_s': 0.24560112499602837, 'peak_kb': 389.4931640625, 'steps': 3248108, 'ops': 20000}
+dsu rank 10000 {'time_s': 0.010900042005232535, 'peak_kb': 389.4931640625, 'steps': 33999, 'ops': 20000}
+dsu compress 10000 {'time_s': 0.01291595899965614, 'peak_kb': 389.4931640625, 'steps': 43526, 'ops': 20000}
+dsu both 10000 {'time_s': 0.011179832996276673, 'peak_kb': 389.4931640625, 'steps': 23735, 'ops': 20000}
+dsu quickfind 10000 {'time_s': 3.817025000003923, 'peak_kb': 379.640625, 'steps': 5426694, 'ops': 20000}
+dsu naive 100000 {'time_s': 'timeout'}
+dsu rank 100000 {'time_s': 0.126697374995274, 'peak_kb': 3993.0087890625, 'steps': 339749, 'ops': 200000}
+dsu compress 100000 {'time_s': 0.15395937499852153, 'peak_kb': 3993.0087890625, 'steps': 499366, 'ops': 200000}
+dsu both 100000 {'time_s': 0.12605287499900442, 'peak_kb': 3993.0087890625, 'steps': 236773, 'ops': 200000}
+dsu rank 1000000 {'time_s': 1.7540429169966956, 'peak_kb': 40028.1650390625, 'steps': 3443964, 'ops': 2000000}
+dsu compress 1000000 {'time_s': 2.152713458999642, 'peak_kb': 40028.1650390625, 'steps': 5597987, 'ops': 2000000}
+dsu both 1000000 {'time_s': 1.675094333004381, 'peak_kb': 40028.1650390625, 'steps': 2370730, 'ops': 2000000}
+mst_sparse kruskal 1000 {'time_s': 0.003503415995510295, 'peak_kb': 241.0625, 'n': 961, 'm': 4805, 'total': 81416.001}
+mst_sparse prim_array 1000 {'time_s': 0.10519949999434175, 'peak_kb': 7371.447265625, 'n': 961, 'm': 4805, 'total': 81416.001}
+mst_sparse kruskal 10000 {'time_s': 0.04627670800255146, 'peak_kb': 2612.6640625, 'n': 10000, 'm': 50000, 'total': 845194.434}
+mst_sparse prim_array 10000 {'time_s': 'timeout'}
+mst_sparse kruskal 50000 {'time_s': 0.2681207500063465, 'peak_kb': 13056.859375, 'n': 49729, 'm': 248645, 'total': 4195790.951}
+mst_dense kruskal 50 {'time_s': 0.0003802089995588176, 'peak_kb': 55.984375, 'n': 50, 'm': 1225, 'total': 4.416}
+mst_dense prim_array 50 {'time_s': 0.0007012909991317429, 'peak_kb': 48.3544921875, 'n': 50, 'm': 1225, 'total': 4.416}
+mst_dense kruskal 100 {'time_s': 0.0012820830015698448, 'peak_kb': 259.5703125, 'n': 100, 'm': 4950, 'total': 7.018}
+mst_dense prim_array 100 {'time_s': 0.0027390830000513233, 'peak_kb': 226.3720703125, 'n': 100, 'm': 4950, 'total': 7.018}
+mst_dense kruskal 200 {'time_s': 0.005633957996906247, 'peak_kb': 1077.3671875, 'n': 200, 'm': 19900, 'total': 9.555}
+mst_dense prim_array 200 {'time_s': 0.010728708999522496, 'peak_kb': 936.5009765625, 'n': 200, 'm': 19900, 'total': 9.555}
+mst_dense kruskal 400 {'time_s': 0.024522374995285645, 'peak_kb': 4353.1796875, 'n': 400, 'm': 79800, 'total': 13.048}
+mst_dense prim_array 400 {'time_s': 0.04795208299765363, 'peak_kb': 3763.3837890625, 'n': 400, 'm': 79800, 'total': 13.048}
+knapsack dp 10 {'time_s': 0.001991791999898851, 'peak_kb': 95.3623046875, 'capacity': 2116, 'value': 1397}
+knapsack bnb 10 {'time_s': 5.812499875901267e-05, 'peak_kb': 0.6884765625, 'capacity': 2116, 'value': 1397}
+knapsack greedy 10 {'time_s': 6.374997610691935e-06, 'peak_kb': 0.375, 'capacity': 2116, 'value': 1315}
+knapsack brute 10 {'time_s': 0.0011478750020614825, 'peak_kb': 0.09375, 'capacity': 2116, 'value': 1397}
+knapsack dp 15 {'time_s': 0.005372375002480112, 'peak_kb': 176.68359375, 'capacity': 3380, 'value': 2434}
+knapsack bnb 15 {'time_s': 5.075000080978498e-05, 'peak_kb': 0.810546875, 'capacity': 3380, 'value': 2434}
+knapsack greedy 15 {'time_s': 8.33300146041438e-06, 'peak_kb': 0.421875, 'capacity': 3380, 'value': 2369}
+knapsack brute 15 {'time_s': 0.053100707998964936, 'peak_kb': 0.15625, 'capacity': 3380, 'value': 2434}
+knapsack dp 20 {'time_s': 0.00869504200090887, 'peak_kb': 230.9658203125, 'capacity': 4014, 'value': 3771}
+knapsack bnb 20 {'time_s': 5.658299778588116e-05, 'peak_kb': 0.9775390625, 'capacity': 4014, 'value': 3771}
+knapsack greedy 20 {'time_s': 1.0875002772081643e-05, 'peak_kb': 0.453125, 'capacity': 4014, 'value': 3724}
+knapsack brute 20 {'time_s': 2.226754333001736, 'peak_kb': 0.15625, 'capacity': 4014, 'value': 3771}
+knapsack dp 100 {'time_s': 0.1602423340009409, 'peak_kb': 2046.9423828125, 'capacity': 15000, 'value': 16171}
+knapsack bnb 100 {'time_s': 0.0006341249973047525, 'peak_kb': 3.7080078125, 'capacity': 15000, 'value': 16171}
+knapsack greedy 100 {'time_s': 4.5082997530698776e-05, 'peak_kb': 1.296875, 'capacity': 15000, 'value': 16089}
+knapsack dp 1000 {'time_s': 1.3438737079995917, 'peak_kb': 15236.9462890625, 'capacity': 15000, 'value': 53229}
+knapsack bnb 1000 {'time_s': 0.0033332919992972165, 'peak_kb': 64.9453125, 'capacity': 15000, 'value': 53229}
+knapsack greedy 1000 {'time_s': 0.00046829199709463865, 'peak_kb': 64.9140625, 'capacity': 15000, 'value': 53194}
+knapsack dp 5000 {'time_s': 6.329168667005433, 'peak_kb': 73840.7900390625, 'capacity': 15000, 'value': 101825}
+knapsack bnb 5000 {'time_s': 0.023169625004811678, 'peak_kb': 377.2109375, 'capacity': 15000, 'value': 101825}
+knapsack greedy 5000 {'time_s': 0.002475084002071526, 'peak_kb': 377.1796875, 'capacity': 15000, 'value': 101773}
+tsp held_karp 4 {'time_s': 1.274999522138387e-05, 'peak_kb': 0.46875, 'cost': 1.7924}
+tsp brute 4 {'time_s': 5.916997906751931e-06, 'peak_kb': 0.15625, 'cost': 1.7924}
+tsp nearest 4 {'time_s': 3.3340038498863578e-06, 'peak_kb': 0.1220703125, 'cost': 2.123}
+tsp held_karp 5 {'time_s': 3.14170029014349e-05, 'peak_kb': 1.140625, 'cost': 1.9489}
+tsp brute 5 {'time_s': 1.8665996321942657e-05, 'peak_kb': 0.1875, 'cost': 1.9489}
+tsp nearest 5 {'time_s': 4.1249950299970806e-06, 'peak_kb': 0.123046875, 'cost': 2.2794}
+tsp held_karp 6 {'time_s': 8.308300311909989e-05, 'peak_kb': 2.671875, 'cost': 2.3067}
+tsp brute 6 {'time_s': 9.816700185183436e-05, 'peak_kb': 0.2734375, 'cost': 2.3067}
+tsp nearest 6 {'time_s': 4.749999789055437e-06, 'peak_kb': 0.1240234375, 'cost': 2.4215}
+tsp held_karp 7 {'time_s': 0.00023158299882197753, 'peak_kb': 8.234375, 'cost': 2.8443}
+tsp brute 7 {'time_s': 0.0005555000025196932, 'peak_kb': 0.28125, 'cost': 2.8443}
+tsp nearest 7 {'time_s': 5.916997906751931e-06, 'peak_kb': 0.125, 'cost': 3.7251}
+tsp held_karp 8 {'time_s': 0.0006195000023581088, 'peak_kb': 22.2734375, 'cost': 2.8024}
+tsp brute 8 {'time_s': 0.00418391600396717, 'peak_kb': 0.3125, 'cost': 2.8024}
+tsp nearest 8 {'time_s': 7.374997949227691e-06, 'peak_kb': 0.1884765625, 'cost': 3.962}
+tsp held_karp 9 {'time_s': 0.0015460409995284863, 'peak_kb': 53.75, 'cost': 3.3839}
+tsp brute 9 {'time_s': 0.03560204200039152, 'peak_kb': 0.34375, 'cost': 3.3839}
+tsp nearest 9 {'time_s': 8.583003364037722e-06, 'peak_kb': 0.189453125, 'cost': 4.1229}
+tsp held_karp 10 {'time_s': 0.0038809159959782846, 'peak_kb': 123.7890625, 'cost': 3.3549}
+tsp brute 10 {'time_s': 0.3446491659997264, 'peak_kb': 0.4375, 'cost': 3.3549}
+tsp nearest 10 {'time_s': 9.999996109399945e-06, 'peak_kb': 0.1904296875, 'cost': 4.3588}
+tsp held_karp 11 {'time_s': 0.009534875003737397, 'peak_kb': 277.765625, 'cost': 4.0437}
+tsp nearest 11 {'time_s': 1.1457996151875705e-05, 'peak_kb': 0.19140625, 'cost': 4.4057}
+tsp held_karp 12 {'time_s': 0.023144708000472747, 'peak_kb': 613.7421875, 'cost': 4.0018}
+tsp nearest 12 {'time_s': 1.2874996173195541e-05, 'peak_kb': 0.1923828125, 'cost': 4.852}
+tsp held_karp 13 {'time_s': 0.054334375003236346, 'peak_kb': 1341.71875, 'cost': 4.1606}
+tsp nearest 13 {'time_s': 1.4917000953573734e-05, 'peak_kb': 0.193359375, 'cost': 4.8455}
+tsp held_karp 14 {'time_s': 0.125325500004692, 'peak_kb': 2909.6953125, 'cost': 4.046}
+tsp nearest 14 {'time_s': 1.654199877521023e-05, 'peak_kb': 0.1943359375, 'cost': 5.3271}
+tsp held_karp 15 {'time_s': 0.2925097920015105, 'peak_kb': 6269.671875, 'cost': 4.2475}
+tsp nearest 15 {'time_s': 1.8417005776427686e-05, 'peak_kb': 0.1953125, 'cost': 4.8053}
