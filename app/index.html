@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LogiGraph — Định tuyến giao hàng nội thành Hà Nội</title>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <link rel="stylesheet" href="/vendor/be-vietnam-pro.css">
 <link rel="stylesheet" href="/vendor/leaflet.css">
 <style>
@@ -214,7 +215,8 @@
 <script>
 const map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([21.02, 105.835], 14);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+// Một host HTTP/2 (OSM khuyến nghị) thay cho a/b/c; giữ tile quanh khung nhìn để kéo không bị trắng.
+const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, keepBuffer: 4, attribution: '© OpenStreetMap' }).addTo(map);
 const layers = { route: L.layerGroup().addTo(map), inc: L.layerGroup().addTo(map), bb: L.layerGroup().addTo(map), cl: L.layerGroup().addTo(map), trip: L.layerGroup().addTo(map) };
 const CLUSTER = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
 let net = null, picks = [], netLayer = null, lastKeep = null, lastReroute = null;
@@ -232,19 +234,22 @@ async function busy(btn, outId, fn) {
   finally { btn.disabled = false; }
 }
 
-api('/api/network').then(d => {
+// Mở trang chỉ cần vài số liệu; hình học mạng đường (~2 MB) chỉ tải khi bật lớp đó.
+api('/api/meta').then(d => {
   net = d;
   $('fN').textContent = num(d.n); $('fM').textContent = num(d.m); $('fD').textContent = d.districts;
-  // Các chuỗi đỉnh bậc 2 đã được server gộp thành polyline dài; smoothFactor lược bớt điểm khi zoom xa.
-  netLayer = L.polyline(d.lines, { color: '#94A3B8', weight: 1, opacity: .7, interactive: false, smoothFactor: 2 });
-  syncNet();
 });
 
-function nearest(lat, lon) {   // tìm Intersection gần nhất (duyệt tuyến tính phía client)
-  let best = 0, bd = Infinity;
-  for (let i = 0; i < net.n; i++) { const d = (net.lat[i] - lat) ** 2 + (net.lon[i] - lon) ** 2; if (d < bd) { bd = d; best = i; } }
-  return best;
+let netLoading = null;
+function loadNet() {
+  // Các chuỗi đỉnh bậc 2 đã được server gộp thành polyline dài; smoothFactor lược bớt điểm khi zoom xa.
+  netLoading ??= api('/api/network').then(d => {
+    netLayer = L.polyline(d.lines, { color: '#94A3B8', weight: 1, opacity: .7, interactive: false, smoothFactor: 2 });
+  });
+  return netLoading;
 }
+
+const nearest = async (lat, lon) => (await api(`/api/nearest?lat=${lat}&lon=${lon}`)).id;
 
 const pin = (p, color) => L.circleMarker(p, { radius: 7, color: '#fff', weight: 3, fillColor: color, fillOpacity: 1 });
 function drawRoute(d) {
@@ -262,9 +267,9 @@ async function route(s, t) {
   $('incStat').innerHTML = ''; lastKeep = lastReroute = null; $('pick').textContent = '';
 }
 
-map.on('click', e => {
+map.on('click', async e => {
   if (!net) return;
-  picks.push(nearest(e.latlng.lat, e.latlng.lng));
+  picks.push(await nearest(e.latlng.lat, e.latlng.lng));
   if (picks.length === 1) $('pick').textContent = 'Đã chọn điểm đi. Bấm điểm đến.';
   else { route(picks[0], picks[1]); picks = []; }
 });
@@ -329,7 +334,10 @@ $('reset').onclick = e => busy(e.currentTarget, 'routeStat', async () => {
 });
 
 // Có bản đồ nền thì mặc định ẩn lớp mạng đường (vẽ hàng chục nghìn đoạn làm kéo/zoom chậm); offline thì tự bật.
-function syncNet() { if (netLayer) $('netbox').checked ? netLayer.addTo(map) : map.removeLayer(netLayer); }
+async function syncNet() {
+  if ($('netbox').checked) { await loadNet(); if ($('netbox').checked) netLayer.addTo(map); }
+  else if (netLayer) map.removeLayer(netLayer);
+}
 $('tiles').onchange = e => {
   if (e.target.checked) { tiles.addTo(map); $('netbox').checked = false; }
   else { map.removeLayer(tiles); $('netbox').checked = true; }

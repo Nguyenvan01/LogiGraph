@@ -5,6 +5,7 @@ Server một luồng, trạng thái dùng chung cho một người demo. Mọi g
 
 from __future__ import annotations
 
+import gzip
 import json
 import math
 import random
@@ -33,6 +34,7 @@ class State:
     def __init__(self) -> None:
         self.reset()
         rnd = random.Random(2026)
+        self._network_gz = None
         self.hubs = self._hubs()
         self.parcels = self._hotspot_parcels(rnd)
         self.weights = [rnd.randint(10, 800) for _ in range(N_PARCELS)]   # 1–80 kg
@@ -80,6 +82,28 @@ class State:
         return self.path([start] + [self.g.head[e] for e in edges])
 
     # ---------- API ----------
+    def meta(self, _q) -> dict:
+        """Số liệu nhỏ để trang hiện ngay khi mở, không phải chờ tải hình học mạng đường."""
+        return {"n": self.g.n, "m": self.g.m, "districts": len(self.g.district_names)}
+
+    def nearest(self, q) -> dict:
+        """Intersection gần điểm bấm nhất. Duyệt tuyến tính O(V), khoảng 10 ms với 38.604 đỉnh."""
+        lat, lon = float(q["lat"]), float(q["lon"])
+        if not (math.isfinite(lat) and math.isfinite(lon)):
+            raise ValueError("Tọa độ không hợp lệ")
+        g, best, best_d = self.g, 0, math.inf
+        for u in range(g.n):
+            d = (g.lat[u] - lat) ** 2 + (g.lon[u] - lon) ** 2
+            if d < best_d:
+                best, best_d = u, d
+        return {"id": best}
+
+    def network_gz(self) -> bytes:
+        """Hình học mạng đường không đổi khi có sự cố, nên tính và nén gzip một lần rồi dùng lại."""
+        if self._network_gz is None:
+            self._network_gz = gzip.compress(json.dumps(self.network(None), separators=(",", ":")).encode(), 6)
+        return self._network_gz
+
     def network(self, _q) -> dict:
         """Chỉ phục vụ vẽ: gộp các chuỗi đỉnh bậc 2 thành polyline dài để trình duyệt vẽ ít đối tượng hơn."""
         g = self.g
@@ -109,8 +133,7 @@ class State:
             for b in nb[start]:
                 if (min(start, b), max(start, b)) not in seen:
                     walk(start, b)
-        return {"lat": [round(x, 5) for x in g.lat], "lon": [round(x, 5) for x in g.lon], "lines": lines,
-                "n": g.n, "m": g.m, "districts": len(g.district_names)}
+        return {"lines": lines}
 
     def route(self, q) -> dict:
         s, t = int(q["s"]), int(q["t"])
@@ -193,7 +216,7 @@ class State:
 
 
 STATE: State | None = None
-ROUTES = {"/api/network": "network", "/api/route": "route", "/api/incident": "incident", "/api/backbone": "backbone",
+ROUTES = {"/api/meta": "meta", "/api/nearest": "nearest", "/api/route": "route", "/api/incident": "incident", "/api/backbone": "backbone",
           "/api/clusters": "clusters", "/api/trip": "trip", "/api/districts": "districts", "/api/reset": "reset_api"}
 VENDOR = APP / "vendor"
 CTYPES = {".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".png": "image/png"}
@@ -208,7 +231,9 @@ class Handler(BaseHTTPRequestHandler):
             f = (VENDOR / url.path.removeprefix("/vendor/")).resolve()
             if not f.is_relative_to(VENDOR.resolve()) or not f.is_file() or f.suffix not in CTYPES:   # chặn ../
                 return self._send(404, b"not found", "text/plain")
-            return self._send(200, f.read_bytes(), CTYPES[f.suffix])
+            return self._send(200, f.read_bytes(), CTYPES[f.suffix], cache=True)
+        if url.path == "/api/network":
+            return self._send(200, STATE.network_gz(), "application/json", gzipped=True)
         if url.path not in ROUTES:
             return self._send(404, b"not found", "text/plain")
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
@@ -216,12 +241,22 @@ class Handler(BaseHTTPRequestHandler):
             body, code = getattr(STATE, ROUTES[url.path])(q), 200
         except (ValueError, IndexError, KeyError) as exc:   # lỗi dữ liệu vào: trả 400, server không dừng
             body, code = {"error": str(exc)}, 400
-        self._send(code, json.dumps(body).encode(), "application/json")
+        data = json.dumps(body, separators=(",", ":")).encode()
+        if len(data) > 8192 and "gzip" in self.headers.get("Accept-Encoding", ""):   # backbone, trip, districts
+            return self._send(code, gzip.compress(data, 6), "application/json", gzipped=True)
+        self._send(code, data, "application/json")
 
-    def _send(self, code: int, data: bytes, ctype: str) -> None:
+    def _send(self, code: int, data: bytes, ctype: str, cache: bool = False, gzipped: bool = False) -> None:
+        if gzipped and "gzip" not in self.headers.get("Accept-Encoding", ""):
+            data = gzip.decompress(data)
+            gzipped = False
         self.send_response(code)
         self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        if gzipped:
+            self.send_header("Content-Encoding", "gzip")
+        if cache:   # font, Leaflet, CSS không đổi trong buổi demo
+            self.send_header("Cache-Control", "public, max-age=86400")
         self.end_headers()
         self.wfile.write(data)
 
@@ -232,6 +267,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     t0 = time.perf_counter()
     STATE = State()
+    STATE.network_gz()   # tính sẵn để lần bật lớp mạng đường đầu tiên không phải chờ
     print(f"Nạp {STATE.g.n} Intersection, {STATE.g.m} Road Segment trong {time.perf_counter() - t0:.1f}s")
     print("Demo: http://localhost:8000")
     HTTPServer(("127.0.0.1", 8000), Handler).serve_forever()
