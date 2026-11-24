@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 02: /wayfinder & /research — Điều phối dự án lớn với Shared Map & Sub-agents
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 02 · /wayfinder & /research — Điều phối Dự án lớn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 1 · Bài 02</span>
+    <h1>/wayfinder & /research — Quản lý Phạm vi & Đọc Tài liệu bằng Sub-agents</h1>
+    <p class="subtitle">Cách lập Shared Map để quản lý các quyết định kỹ thuật và dùng Sub-agents tra cứu tài liệu độc
+      lập.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Hiểu cấu trúc Wayfinder Map, phân loại Decision Tickets (HITL vs AFK)
+      và áp dụng cho dự án VibeCoding ERP.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Xử lý bài toán giới hạn Context Window khi dự án mở rộng</div>
+      <p>Sau khi chốt logic kho ở Bài 01, dự án VibeCoding ERP cần phát triển tiếp các phần: <strong>Order
+          Lifecycle</strong>, <strong>Double-entry Ledger</strong> và <strong>Supabase RLS Policies</strong>. Một phiên
+        làm việc của mô hình AI bị giới hạn dung lượng Context Window. Nếu đưa toàn bộ chi tiết của cả hệ thống
+        vào một phiên trò chuyện, mô hình sẽ gặp hiện tượng <strong>Context Degradation</strong>: phản hồi kém chính
+        xác, dễ quên các quyết định đã thống nhất trước đó.</p>
+      <p>Matt Pocock giải quyết vấn đề này bằng hai công cụ: <code>/wayfinder</code> (lập danh sách các quyết định cần
+        làm theo dạng bản đồ công việc) và <code>/research</code> (chạy Sub-agents riêng biệt ở chế độ nền để đọc tài
+        liệu, không làm đầy Context Window của phiên làm việc chính).</p>
+    </div>
+
+    <h2>1. Cấu trúc của một Wayfinder Map</h2>
+    <p><code>/wayfinder</code> không sinh code trực tiếp, mà là một quy trình lập kế hoạch (<strong>Plan, don't
+        do</strong>). Mục tiêu là chuyển đổi một bài toán lớn thành một <strong>Shared Map</strong> (lưu trong file
+      Markdown hoặc issue) gồm 4 phần rõ ràng:</p>
+
+    <div class="callout why">
+      <div class="ct">💡 Bốn thành phần chính trong Wayfinder Map</div>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Destination:</strong> Trạng thái hoàn thành cụ thể của dự án (Definition of Done) mà mọi
+          quyết định đều hướng tới.</li>
+        <li><strong>Decisions so far:</strong> Tóm tắt ngắn gọn các phương án kỹ thuật đã được
+          thống nhất kèm đường dẫn tới tài liệu chi tiết. Không chép lại toàn bộ nội dung dài dòng vào đây.</li>
+        <li><strong>Not yet specified:</strong> Các hạng mục thuộc phạm
+          vi dự án nhưng hiện tại chưa thể chia nhỏ thành ticket cụ thể vì còn phụ thuộc vào kết quả của các quyết định
+          đi trước. Khi các quyết định phía trước được chốt, các mục này sẽ được làm rõ thành ticket.</li>
+        <li><strong>Out of scope:</strong> Các tính năng hoặc công nghệ được xác định rõ là không làm
+          trong phiên bản này, giúp tránh bị Scope Creep.</li>
+      </ol>
+    </div>
+
+    <h2>2. Cấu trúc Decision Ticket: Phân định HITL và AFK</h2>
+    <p>Thay vì tạo ra các task code khổng lồ, Wayfinder chia việc thành các <strong>Decision Tickets</strong> — mỗi
+      ticket giải quyết MỘT quyết định kỹ thuật cụ thể, vừa vặn trong dung lượng 1 session. Các ticket được phân thành 2
+      nhóm thực thi:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Loại Ticket</th>
+          <th>Cơ chế Thực thi</th>
+          <th>Đặc điểm & Ứng dụng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>research</code></td>
+          <td><strong>AFK</strong> — Agent chạy nền độc lập</td>
+          <td>Dành cho việc đọc official documentation, tra cứu APIs, RFC hoặc thư viện bên ngoài. Chạy bằng Sub-agent
+            riêng biệt để không tốn token của session chính.</td>
+        </tr>
+        <tr>
+          <td><code>prototype</code></td>
+          <td><strong>HITL</strong></td>
+          <td>Viết throwaway code để kiểm tra giao diện hoặc state model trước khi đưa vào
+            codebase chính.</td>
+        </tr>
+        <tr>
+          <td><code>grilling</code></td>
+          <td><strong>HITL</strong></td>
+          <td>Phỏng vấn phản biện trực tiếp với lập trình viên để chốt các quyết định nghiệp vụ và kiến trúc.</td>
+        </tr>
+        <tr>
+          <td><code>task</code></td>
+          <td><strong>AFK</strong> hoặc <strong>HITL</strong></td>
+          <td>Các thao tác chuẩn bị thực tế (manual work): lấy API credentials, chạy migration, tạo database.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Áp dụng thực tế: Thiết lập Wayfinder Map cho VibeCoding ERP</h2>
+    <p>Dưới đây là cấu trúc bản đồ điều phối được thiết lập cho dự án tại <code>docs/wayfinder-erp-map.md</code>:</p>
+
+    <div class="code-block">
+      <span class="code-label">docs/wayfinder-erp-map.md</span>
+      <pre><code><span class="cmt"># Wayfinder Map: VibeCoding ERP Mini (Next.js 15 + Supabase)</span>
+
+## Destination
+Hệ thống ERP Mini Full-stack hoàn chỉnh, gồm 3 domain liên kết:
+1. Inventory Core (Stock Reservation with TTL)
+2. Order Lifecycle Engine (State Machine)
+3. Double-entry Ledger (Tự động hạch toán Ghi Nợ/Có)
+Kèm REST API Server Actions và Web Dashboard realtime có test tự động xanh 100%.
+
+## Decisions so far
+- [Inventory Deduction Timing]: Áp dụng Stock Reservation with 15-min TTL (xem `docs/inventory-requirements.md`).
+- [Concurrency Control]: Database-level Atomic Update kết hợp Postgres Check Constraint trên Supabase.
+
+## Frontier (Các Decision Tickets có thể làm ngay)
+- [Ticket 01 - Research]: Chuẩn hóa Schema Kế toán kép (Double-entry Bookkeeping) phù hợp PostgreSQL.
+- [Ticket 02 - Prototype]: Prototype State Machine cho Order Lifecycle (Draft -> Paid -> Shipped).
+
+## Not yet specified
+- Cơ chế đối soát (Reconciliation) giữa hóa đơn thanh toán và các bút toán kế toán.
+- Chính sách phân quyền dữ liệu Row Level Security (RLS) cho Multi-tenant trên Supabase.
+
+## Out of scope
+- Tích hợp cổng thanh toán trực tiếp live-mode (Stripe / VNPay).
+- Kiến trúc Microservices phân tán nhiều databases.</code></pre>
+    </div>
+
+    <h2>4. Bản chất của skill /research: Nghiên cứu dựa trên Primary Sources</h2>
+    <p>Đối chiếu trực tiếp với mã nguồn của Matt Pocock tại <code>skills/research/SKILL.md</code>, skill
+      <code>/research</code> được định nghĩa chính xác gồm hai phần cốt lõi: <strong>Phương pháp nghiên cứu</strong> và
+      <strong>Cơ chế điều phối</strong>:
+    </p>
+
+    <div class="callout why">
+      <div class="ct">📖 Nguyên văn định nghĩa của Matt Pocock (skills/research/SKILL.md)</div>
+      <blockquote
+        style="margin: 8px 0; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--text-soft); font-style: italic;">
+        "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the
+        repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a
+        background agent.<br><br>
+        Spin up a background agent to do the research, so you keep working while it reads."
+      </blockquote>
+    </div>
+
+    <p>Cụ thể, quá trình nghiên cứu của Matt Pocock tuân thủ các nguyên tắc kỹ thuật sau:</p>
+    <ul>
+      <li><strong>Nghiên cứu một câu hỏi kỹ thuật cụ thể (Investigate a question):</strong> Không nghiên cứu chung
+        chung, mà tập trung làm sáng tỏ một sự thật kỹ thuật mà một quyết định kiến trúc đang chờ đợi (<em>"surface a
+          fact a decision waits on"</em>).</li>
+      <li><strong>Chỉ dựa vào High-trust Primary Sources:</strong> Bắt buộc đọc từ official
+        documentation, mã nguồn thư viện, RFC, first-party APIs. Tuyệt đối không đọc blog thứ cấp (secondary write-up)
+        hay suy đoán. Mọi khẳng định phải dẫn nguồn từ nơi trực tiếp sở hữu nó (<em>"Follow every claim back to the
+          source that owns it"</em>).</li>
+      <li><strong>Ủy quyền việc đọc cho Background Agent:</strong> Quá trình nghiên cứu đòi hỏi đọc khối lượng tài liệu
+        rất lớn (<em>reading legwork</em>). Nếu đọc trực tiếp trong session chính, lập trình viên sẽ bị tắc nghẽn
+        và hàng chục nghìn tokens tài liệu thô sẽ làm đầy Context Window dẫn đến Context Degradation. Vì vậy, Matt Pocock bắt
+        buộc khởi tạo một <strong>Background Agent</strong> đọc độc lập, để lập trình viên tiếp tục làm việc khác.</li>
+      <li><strong>Đầu ra là một File Markdown duy nhất:</strong> Toàn bộ kết quả nghiên cứu được cô đọng và ghi vào một
+        file Markdown duy nhất kèm trích dẫn nguồn (citations) và lưu vào repo để làm tài liệu tra cứu dùng chung.</li>
+    </ul>
+
+    <h3>Thực hành: Nghiên cứu mô hình Kế toán kép (Double-entry Bookkeeping) cho ERP</h3>
+    <p>Để giải quyết <strong>Ticket 01</strong> trong Frontier, chúng ta áp dụng <code>/research</code> để điều tra
+      nguyên lý hạch toán kế toán kép chuẩn cho database PostgreSQL:</p>
+
+    <div class="callout tip">
+      <div class="ct">📑 Kết quả trích xuất từ Sub-agent Research (Nguyên lý Double-entry)</div>
+      <p>Một giao dịch kinh tế không bao giờ chỉ tăng hoặc giảm một con số đơn lẻ. Nó luôn có 2 vế cân bằng:</p>
+      <ul>
+        <li><strong>Debit:</strong> Tài sản tăng lên (ví dụ: tiền gửi ngân hàng tăng) hoặc chi phí phát sinh tăng.</li>
+        <li><strong>Credit:</strong> Nguồn vốn tăng lên (ví dụ: doanh thu bán hàng tăng) hoặc tài sản giảm đi (ví dụ: xuất kho hàng hóa).</li>
+        <li><strong>Invariant:</strong> <code>SUM(Debit) === SUM(Credit)</code> trên mỗi giao dịch. Nếu tổng Debit khác tổng Credit, database sẽ từ chối ghi sổ.</li>
+      </ul>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Trong quy trình điều phối của /wayfinder, vì sao các tác vụ Research (tra cứu tài liệu) lại
+        được khuyến nghị chạy dưới dạng Sub-agent (AFK) thay vì chạy trực tiếp trong session hiện tại?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Mô hình chính hoàn toàn có khả năng đọc tài liệu, nhưng việc tải tài liệu thô vào context sẽ gây tốn token không cần thiết.">A.
+        Vì mô hình AI chính không có quyền truy cập vào mạng Internet hoặc file hệ thống.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Đọc tài liệu thô dài dòng sẽ nhanh chóng làm đầy Context Window và gây suy giảm chất lượng phản hồi do Context Degradation. Sub-agent xử lý việc đọc ở môi trường riêng và chỉ trả về bản tóm tắt súc tích cho session chính.">B.
+        Để bảo vệ Context Window của session chính, tránh việc các tài liệu thô dài dòng làm đầy context và làm giảm độ
+        chính xác của mô hình.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Phân chia ticket nhằm mục đích quản lý ngữ cảnh và tối ưu hiệu suất làm việc của AI và con người.">C.
+        Để đảm bảo mọi tác vụ đều có sự phê duyệt thủ công của lập trình viên.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được</div>
+      <ul class="checklist">
+        <li>Nắm vững phương pháp lập bản đồ dự án lớn bằng <code>/wayfinder</code>: Destination, Decisions so far, Not yet specified, Out of scope.</li>
+        <li>Phân biệt rõ ràng giữa các loại Ticket: <code>research</code> (AFK), <code>prototype</code> (HITL),
+          <code>grilling</code> (HITL).
+        </li>
+        <li>Thiết lập bản đồ kiến trúc toàn dự án tại <code>docs/wayfinder-erp-map.md</code>.</li>
+        <li>Trích xuất thành công Double-entry Invariant để chuẩn bị cho Module Kế toán sau này.
+        </li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 03)</h2>
+    <p>Nhìn vào Frontier của Wayfinder Map, chúng ta có <strong>Ticket 02</strong>: <em>Thiết kế State Machine cho vòng
+        đời Đơn hàng (Order Lifecycle)</em>.</p>
+    <p>Nếu bạn lập tức viết code production đầy đủ cho Order (kèm kết nối DB, API, validate), bạn sẽ mất rất nhiều thời
+      gian. Nếu sau đó phát hiện luồng chuyển trạng thái bị kẹt hoặc sai logic, chi phí đập đi xây lại là rất lớn.</p>
+    <p><em>Làm thế nào để tạo ra một Throwaway Prototype giúp bạn kiểm chứng tính đúng đắn của
+        State Machine chỉ trong 5 phút trước khi tích hợp vào codebase chính?</em></p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 03 · /prototype — Xây dựng Prototype độc lập để kiểm chứng State Machine Đơn hàng</div>
+      <p class="nd">Kỹ thuật xây dựng Throwaway Prototype để giải tỏa sự mơ hồ trong thiết
+        kế logic phức tạp.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0001-grilling-inventory-requirements.html">← Bài 01</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0003-prototype-order-state-machine.html">Sau →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy kiểm tra file <code>docs/wayfinder-erp-map.md</code> vừa được
+      tạo trong dự án của bạn để thấy bức tranh toàn cảnh của hệ thống ERP.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

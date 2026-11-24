@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 09: /git-guardrails-claude-code & /handoff — Cơ chế An toàn Git và Giao thức Bàn giao Ngữ cảnh
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; thuật ngữ chuyên ngành chuẩn mực.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 11 · /git-guardrails-claude-code — Thiết Lập Hàng Rào An Toàn Git</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 11</span>
+    <h1>/git-guardrails-claude-code — Thiết Lập Hàng Rào An Toàn Git Cho AI Agent</h1>
+    <p class="subtitle">Ngăn chặn triệt để nguy cơ mất mát mã nguồn: Thiết lập PreToolUse Hook để phát hiện và chặn đứng các lệnh Git phá hoại trước khi chuyển xuống shell.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/git-guardrails-claude-code</code> của Matt Pocock, triển khai script hook chặn các lệnh phá hoại (<code>push</code>, <code>reset --hard</code>, <code>clean -fd</code>, <code>branch -D</code>) và kiểm chứng với Exit code 2.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Nền tảng Vận hành An toàn trước khi bước vào Module Capstone</div>
+      <p>Sau khi hoàn thành hiện thực hóa <code>InventoryService</code> bằng TDD ở Bài 08, dự án chuyển tiếp sang <strong>Module 4 (Capstone)</strong> — giai đoạn tích hợp kế toán hạch toán kép, Server Actions và giao diện Dashboard. Tại đây, mức độ can thiệp của AI Agent vào hệ thống tệp và terminal sẽ tăng lên đáng kể.</p>
+      <p>Khi cấp quyền thực thi shell cho Agent, nếu thiếu cơ chế kiểm soát biên (Guardrails), một thao tác nhầm lẫn như <code>git reset --hard</code> hoặc <code>git push --force</code> có nguy cơ làm mất các thay đổi chưa được ghi nhận trên git. Đồng thời, việc kéo dài một phiên làm việc khiến Agent bị <strong>Context Degradation</strong>, làm suy giảm khả năng chú ý và độ chính xác của suy luận. Bài học này thiết lập hai cơ chế vận hành: PreToolUse Hooks để bảo vệ mã nguồn, và Handoff Protocol để chuyển giao trạng thái làm việc có cấu trúc.</p>
+    </div>
+
+    <h2>1. Git Guardrails: Kiểm soát An toàn với PreToolUse Hook</h2>
+    <p>Kỹ năng <code>/git-guardrails-claude-code</code> xử lý bài toán an toàn khi trao quyền cho AI Agent trong môi trường dòng lệnh: <strong>ngăn chặn việc vô tình thực thi các destructive operations làm mất mã nguồn</strong>.</p>
+
+    <div class="callout why">
+      <div class="ct">💡 Nguyên lý hoạt động của PreToolUse Hook</div>
+      <p>Trước khi câu lệnh được gửi xuống shell của hệ điều hành qua công cụ <code>Bash</code>, hệ thống kích hoạt một interceptor. Interceptor này nhận chuỗi lệnh đầu vào, đối sánh với danh mục các mẫu lệnh không an toàn. Nếu phát hiện trùng khớp, script lập tức trả về <strong>Exit code 2</strong> kèm thông báo lỗi ra <code>stderr</code>, từ chối thực thi câu lệnh.</p>
+    </div>
+
+    <h3>Phân loại các lệnh Git cần kiểm soát:</h3>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Lệnh Git</th>
+          <th>Phạm vi ảnh hưởng</th>
+          <th>Rủi ro kỹ thuật</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>git push</code> (bao gồm <code>--force</code>)</td>
+          <td>Remote Repository</td>
+          <td>Nguy cơ ghi đè commit trên remote hoặc đẩy mã nguồn chưa qua kiểm duyệt lên nhánh chính.</td>
+        </tr>
+        <tr>
+          <td><code>git reset --hard</code></td>
+          <td>Working Directory</td>
+          <td>Xóa bỏ toàn bộ các thay đổi chưa commit trên working tree mà không thể hoàn tác qua git reflog thông thường.</td>
+        </tr>
+        <tr>
+          <td><code>git clean -f</code> / <code>git clean -fd</code></td>
+          <td>Untracked Files</td>
+          <td>Xóa bỏ vĩnh viễn các file mới tạo chưa được git theo dõi.</td>
+        </tr>
+        <tr>
+          <td><code>git checkout .</code> / <code>git restore .</code></td>
+          <td>Tracked Files</td>
+          <td>Hủy bỏ các chỉnh sửa cục bộ trên các file đã được git theo dõi.</td>
+        </tr>
+        <tr>
+          <td><code>git branch -D</code></td>
+          <td>Branch Metadata</td>
+          <td>Xóa nhánh cục bộ cưỡng bức mà chưa kiểm tra trạng thái tích hợp vào nhánh chính.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Cấu hình thực tế trong Dự án ERP:</h3>
+    <p>Script kiểm tra được đặt tại <a href="../.claude/hooks/block-dangerous-git.sh" target="_blank"><code>.claude/hooks/block-dangerous-git.sh</code></a> và đăng ký trong <a href="../.claude/settings.json" target="_blank"><code>.claude/settings.json</code></a>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>.claude/settings.json — Đăng ký PreToolUse Hook</span></div>
+      <pre><code>{
+  <span class="str">"hooks"</span>: {
+    <span class="str">"PreToolUse"</span>: [
+      {
+        <span class="str">"matcher"</span>: <span class="str">"Bash"</span>,
+        <span class="str">"hooks"</span>: [
+          {
+            <span class="str">"type"</span>: <span class="str">"command"</span>,
+            <span class="str">"command"</span>: <span class="str">"\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-dangerous-git.sh"</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label"><span>terminal (bash) — Kiểm tra thực tế cơ chế đánh chặn</span></div>
+      <pre><code><span class="cmt"># 1. Kiểm tra với câu lệnh thuộc danh mục bị chặn</span>
+$ echo '{"tool_input":{"command":"git push origin main"}}' | ./.claude/hooks/block-dangerous-git.sh
+BLOCKED: 'git push origin main' matches dangerous pattern 'git push'. Destructive git operations are restricted by project guardrails.
+(Exit code: 2)
+
+<span class="cmt"># 2. Kiểm tra với câu lệnh đọc an toàn</span>
+$ echo '{"tool_input":{"command":"git status"}}' | ./.claude/hooks/block-dangerous-git.sh
+(Exit code: 0 — Cho phép thực thi)</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <h2>2. Câu hỏi Trắc nghiệm Kiểm tra Nhận thức Kỹ thuật</h2>
+    <div class="quiz">
+      <div class="q"><strong>Câu 1:</strong> PreToolUse Hook trong kỹ năng <code>/git-guardrails-claude-code</code> ngăn chặn câu lệnh nguy hiểm tại tầng nào?</div>
+      <div class="opt" data-correct="false" data-explain="Sai. PreToolUse hook chạy trước khi câu lệnh được chuyển tới shell của hệ điều hành, không phải post-commit hook.">A. Chạy sau khi lệnh git đã thực thi để tự động phát hiện và rollback commit.</div>
+      <div class="opt" data-correct="true" data-explain="Chính xác! Script kiểm tra tham số đầu vào của tool Bash trước khi gửi xuống shell, trả về Exit code 2 để hủy thực thi nếu phát hiện lệnh nguy hiểm.">B. Chặn lệnh ngay tại tầng trung gian của tool Bash trước khi chuyển xuống shell hệ điều hành, trả về Exit code 2 nếu lệnh trùng khớp mẫu nguy hiểm.</div>
+      <div class="opt" data-correct="false" data-explain="Sai. Hook bảo vệ repository chứ không can thiệp xóa metadata của git.">C. Tự động thu hồi quyền ghi của người dùng đối với thư mục .git.</div>
+
+      <div class="q"><strong>Câu 2:</strong> Khi phát hiện lệnh nguy hiểm như <code>git reset --hard</code>, mã thoát (Exit code) nào bắt buộc phải trả về để công cụ Bash hủy thao tác?</div>
+      <div class="opt" data-correct="false" data-explain="Sai. Exit code 0 biểu thị lệnh thành công, hook sẽ cho phép lệnh thực thi bình thường.">A. Exit code 0</div>
+      <div class="opt" data-correct="false" data-explain="Sai. Exit code 1 thường chỉ lỗi runtime thông thường.">B. Exit code 1</div>
+      <div class="opt" data-correct="true" data-explain="Chính xác! Exit code 2 là mã tiêu chuẩn của Claude Code để báo hiệu việc chủ động chặn công cụ (Tool Use Blocked).">C. Exit code 2</div>
+    </div>
+
+    <h2>3. Tiêu chí Nghiệm thu Kỹ thuật (Checklist)</h2>
+    <div class="callout why">
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li>✅ <strong>PreToolUse Hook script</strong>: Triển khai và cấp quyền thực thi cho <code>.claude/hooks/block-dangerous-git.sh</code>.</li>
+        <li>✅ <strong>Cấu hình Settings</strong>: Đăng ký thành công hook trong <code>.claude/settings.json</code> với matcher <code>Bash</code>.</li>
+        <li>✅ <strong>Kiểm thử đánh chặn</strong>: Xác nhận các lệnh <code>git push</code> và <code>git reset --hard</code> đều bị chặn và trả về Exit code 2.</li>
+        <li>✅ <strong>Cho phép lệnh an toàn</strong>: Xác nhận các lệnh đọc trạng thái như <code>git status</code>, <code>git diff</code> vẫn thực thi với Exit code 0.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 12 -->
+    <h2>4. Câu hỏi tư duy (Bắc cầu sang Bài 12)</h2>
+    <p>Kho lưu trữ đã được bảo vệ an toàn tuyệt đối trước các thao tác phá hoại của AI. Tuy nhiên, sau nhiều giờ làm việc liên tục, Context Window của Agent bắt đầu đầy nghẽn, dẫn đến hiện tượng <strong>Context Degradation</strong> (suy giảm độ chính xác và chú ý).</p>
+    <p><em>Làm thế nào để đóng gói toàn bộ trạng thái làm việc vào một Handoff Artifact sạch sẽ, reset ngữ cảnh sang một phiên mới mà không làm mất bất kỳ quyết định quan trọng nào?</em></p>
+    <p>Đó là trọng tâm của Bài 12 với bộ kỹ năng: <code>/handoff</code>, <code>/claude-handoff</code>, và <code>/loop-me</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 12 · /handoff & /loop-me — Quản Lý Ngữ Cảnh, Bàn Giao Phiên & Duy Trì Human-in-the-loop</div>
+      <p class="nd">Khắc phục Context Degradation, lưu trữ Single Source of Truth (.scratch/handoff.md), tự động hóa bàn giao với Loop Lens và duy trì con người trong vòng lặp.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0010-implement-and-tdd-inventory.html">← Bài 10</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0012-context-management-and-handoff.html">Bài 12 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử chạy lệnh <code>echo '{"tool_input":{"command":"git push"}}' | ./.claude/hooks/block-dangerous-git.sh</code> để quan sát hook chặn lệnh trực tiếp trong terminal.</p>
+
+  </div>
+
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

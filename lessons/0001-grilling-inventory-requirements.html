@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 01: /grill-me & /grilling — Stress-test yêu cầu nghiệp vụ & Làm rõ Silent Assumptions
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài 01 · /grill-me & /grilling — Stress-test Yêu cầu Nghiệp vụ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lesson.css">
+</head>
+<body>
+<div class="wrap">
+
+  <span class="lesson-tag">Module 1 · Bài 01</span>
+  <h1>/grill-me & /grilling — Stress-test Yêu cầu & Loại bỏ Silent Assumptions</h1>
+  <p class="subtitle">Kỹ thuật phỏng vấn đa vòng nhằm phát hiện edge cases và thống nhất trade-offs trước khi viết code.</p>
+  <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Nắm vững cơ chế Grilling, vận hành một phiên chất vấn thực tế để chốt logic Inventory cho VibeCoding ERP.</p>
+
+  <!-- BẮC CẦU -->
+  <div class="callout bridge">
+    <div class="ct">🌉 Bối cảnh kỹ thuật: Từ prompt mơ hồ sang quy trình làm rõ yêu cầu có cấu trúc</div>
+    <p>Khi làm việc với AI coding, rủi ro lớn nhất thường xuất hiện khi lập trình viên đưa ra yêu cầu quá ngắn gọn (ví dụ: <em>"Hãy viết module quản lý kho"</em>). AI sẽ tự động bổ sung silent assumptions để sinh code. Khi đưa vào chạy thực tế, hệ thống dễ phát sinh lỗi logic nghiêm trọng do các edge cases chưa được tính đến: race conditions khi đặt hàng đồng thời, overselling, hoặc tồn kho ảo do đơn hàng bị bỏ dở.</p>
+    <p>Skill <code>/grill-me</code> (và <code>grilling</code>) giải quyết vấn đề này bằng một quy trình làm rõ yêu cầu có hệ thống: <strong>Không triển khai code khi các quyết định kiến trúc và nghiệp vụ cốt lõi chưa được thống nhất</strong>.</p>
+  </div>
+
+  <h2>1. Bản chất của Grilling: Design Tree và Frontier</h2>
+  <p>Khi kích hoạt <code>/grill-me</code>, Agent sẽ đặt câu hỏi lần lượt theo từng bước để làm rõ các điểm chưa chắc chắn và thống nhất giải pháp trước khi code. Cơ chế này vận hành theo 3 nguyên tắc kỹ thuật:</p>
+
+  <div class="callout why">
+    <div class="ct">💡 Ba nguyên tắc cốt lõi của Grilling</div>
+    <ol style="margin: 8px 0; padding-left: 20px;">
+      <li><strong>Mô hình hóa bài toán thành Design Tree:</strong> Mỗi quyết định lớn sẽ phân nhánh thành các quyết định kỹ thuật phụ thuộc.</li>
+      <li><strong>Chỉ đặt câu hỏi tại Frontier:</strong> <em>Frontier</em> là tập hợp các câu hỏi đã có đầy đủ tiền đề để trả lời. Agent không hỏi đón đầu hoặc suy đoán câu trả lời cho các nhánh chưa được chốt.</li>
+      <li><strong>Phân định rõ Facts và Decisions:</strong> Facts (cấu trúc thư mục, dependencies, schema hiện tại) là trách nhiệm của AI phải tự dùng tools tra cứu. Decisions (mục tiêu nghiệp vụ, chấp nhận trade-offs) thuộc quyền quyết định của con người.</li>
+    </ol>
+  </div>
+
+  <h2>2. Cấu trúc chuẩn của một Grill Round</h2>
+  <p>Mỗi vòng phỏng vấn được đánh số thứ tự, nêu rõ bối cảnh kỹ thuật, phân tích các phương án đánh đổi và <strong>luôn đưa ra recommended answer</strong>:</p>
+
+  <div class="code-block">
+    <span class="code-label">Cấu trúc chuẩn của một câu hỏi Grill</span>
+<pre><code>❓ **Q1** - **&lt;Tiêu đề câu hỏi&gt;**: &lt;Mô tả bài toán, phân tích các lựa chọn và trade-offs liên quan&gt;
+
+➡️ &lt;Khuyến nghị kỹ thuật của Agent kèm lý do cụ thể&gt;
+---</code></pre>
+  </div>
+
+  <p>Mỗi khi bạn trả lời một round, các quyết định đó sẽ mở khóa nhánh tiếp theo. Agent cập nhật lại <code>Design Tree</code>, tính toán lại <code>Frontier</code> và chuyển sang round tiếp theo. Quá trình Grilling kết thúc khi <strong>Frontier rỗng</strong> (tất cả các nhánh quyết định đã được làm rõ).</p>
+
+  <h2>3. Áp dụng thực tế: Grilling Module Inventory cho VibeCoding ERP</h2>
+  <p>Dưới đây là một phiên Grilling thực tế khi thiết kế Module Inventory trên nền tảng Next.js & Supabase:</p>
+
+  <div class="callout warn">
+    <div class="ct">📋 Phiên Grilling thực tế: Thiết kế logic Inventory và Concurrency Control</div>
+    
+    <p><strong>❓ Q1 — Stock Deduction Timing:</strong> Khi user tạo đơn hàng, hệ thống nên trừ tồn kho tại thời điểm nào?</p>
+    <ul>
+      <li><em>Phương án A: Deduct on order creation —</em> Trừ kho ngay khi tạo đơn. Ưu điểm: Tránh overselling. Nhược điểm: Dễ phát sinh tồn kho ảo nếu user không hoàn tất thanh toán.</li>
+      <li><em>Phương án B: Deduct on payment completion —</em> Chỉ trừ kho khi thanh toán thành công. Ưu điểm: Không giữ hàng ảo. Nhược điểm: Dễ gặp race condition khi nhiều user thanh toán cùng lúc ở món hàng cuối cùng.</li>
+      <li><em>Phương án C: Stock Reservation with TTL —</em> Tạm giữ hàng trong một khoảng thời gian nhất định (ví dụ: 15 phút TTL). Nếu quá hạn chưa thanh toán, hệ thống tự động giải phóng reservation.</li>
+    </ul>
+    <p>➡️ <strong>Khuyến nghị của Agent:</strong> Chọn <strong>Phương án C</strong>. Đây là pattern tiêu chuẩn của các hệ thống E-commerce và ERP lớn, cân bằng giữa việc chống overselling và tránh tồn kho ảo.</p>
+    <hr style="border:none; border-top:1px dashed var(--border); margin:16px 0;">
+
+    <p><strong>❓ Q2 — Concurrency Control trên Supabase PostgreSQL:</strong> Khi có nhiều request đồng thời cùng thao tác trên 1 sản phẩm, làm thế nào để đảm bảo số lượng tồn kho không bị âm?</p>
+    <ul>
+      <li><em>Phương án A: Application-level check —</em> Kiểm tra số lượng tồn kho trong Node.js Server Action trước khi gọi <code>UPDATE</code> — dễ phát sinh Race Condition khi có concurrent requests.</li>
+      <li><em>Phương án B: Database-level Atomic Update & Check Constraint —</em> Sử dụng câu lệnh SQL nguyên tử: <code>UPDATE products SET stock = stock - 1 WHERE id = $1 AND stock >= 1</code> kết hợp PostgreSQL Check Constraint: <code>CHECK (stock >= 0)</code>.</li>
+    </ul>
+    <p>➡️ <strong>Khuyến nghị của Agent:</strong> Chọn <strong>Phương án B</strong>. Đảm bảo tính toàn vẹn dữ liệu ở tầng Database Engine (ACID), không phụ thuộc vào trạng thái runtime của ứng dụng.</p>
+  </div>
+
+  <h2>4. Kỹ Năng Nắn Chỉnh AI Bằng `/wait-what` & Bảng Hỏi `/to-questionnaire`</h2>
+  <div class="callout tip">
+    <div class="ct">🛑 /wait-what — Chiếc Phanh Gấp Khi AI Bắt Đầu Lan Man Hoặc Dùng Thuật Ngữ Đao To Búa Lớn</div>
+    <p>Trong quá trình Grilling, đôi khi AI bắt đầu suy đoán vô căn cứ, đưa ra các câu hỏi quá trừu tượng hoặc lạm dụng thuật ngữ kỹ thuật xa vời. Đây là lúc bạn kích hoạt <code>/wait-what</code>:</p>
+    <div class="code-block">
+      <span class="code-label">Prompt gọi /wait-what</span>
+<pre><code>/wait-what "Khoan đã, đoạn giải thích về cơ chế phân bổ tồn kho vừa rồi quá phức tạp. Hãy giải thích lại bằng ví dụ đời thường và chỉ ra đúng 2 lựa chọn cụ thể cho tôi."</code></pre>
+    </div>
+    <p>Skill <code>/wait-what</code> đóng vai trò là một <strong>Communication Reset</strong>: Nó ngay lập tức ngắt chuỗi suy nghĩ phức tạp của model, đưa agent quay trở lại điểm chốt vững chắc gần nhất, giải thích bằng ngôn ngữ giản dị và chỉ đưa ra những câu hỏi cốt lõi.</p>
+    <p>Nếu bạn muốn chuyển toàn bộ các câu hỏi còn tồn đọng trong Frontier thành một biểu mẫu trả lời một lượt thay vì phỏng vấn từng câu, hãy gọi <code>/to-questionnaire</code> để sinh file markdown tổng hợp.</p>
+  </div>
+
+  <h2>5. Sản phẩm đầu ra: `docs/inventory-requirements.md`</h2>
+  <p>Sau khi kết thúc phiên Grilling, các quyết định được tổng hợp thành tài liệu tại <code>docs/inventory-requirements.md</code>. File này đóng vai trò là <strong>Single Source of Truth</strong> để các skill tiếp theo (<code>/to-spec</code> và <code>/to-tickets</code>) bám sát khi thiết kế kiến trúc và triển khai code.</p>
+
+  <!-- QUIZ TƯƠNG TÁC -->
+  <div class="quiz">
+    <h3>🧠 Trắc nghiệm củng cố</h3>
+    <div class="q">Câu 1. Trong quy trình Grilling của Matt Pocock, hành vi nào sau đây vi phạm nguyên tắc thiết kế?</div>
+    <button class="opt" data-correct="false" data-explain="Sai. Agent được yêu cầu phải đưa ra khuyến nghị kèm phân tích trade-offs để người dùng có cơ sở lựa chọn.">A. Agent đề xuất phương án khuyến nghị kèm phân tích trade-offs.</button>
+    <button class="opt" data-correct="true"  data-explain="Chính xác! Facts (thông tin trong code, database, file config) là trách nhiệm của Agent phải tự dùng tool tra cứu. Hỏi người dùng những thứ máy tính có thể tự đọc được sẽ làm lãng phí thời gian và tăng Cognitive Load không cần thiết.">B. Agent hỏi người dùng những thông tin kỹ thuật (Facts) mà Agent hoàn toàn có thể tự dùng tools tra cứu trong codebase.</button>
+    <button class="opt" data-correct="false" data-explain="Sai. Đây là cách làm chuẩn để quản lý phạm vi và thứ tự ưu tiên của các câu hỏi.">C. Agent gom các câu hỏi thuộc Frontier thành từng Round rõ ràng.</button>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ct">✅ Kết quả đạt được</div>
+    <ul class="checklist">
+      <li>Nắm vững cơ chế vận hành của <code>/grill-me</code>: Xây dựng <code>Design Tree</code> và xử lý theo từng <code>Frontier</code>.</li>
+      <li>Hiểu rõ ranh giới: AI tự tra cứu Facts, con người ra quyết định về Decisions & Trade-offs.</li>
+      <li>Thống nhất thiết kế logic Inventory cho VibeCoding ERP: <strong>Stock Reservation with TTL</strong> và <strong>Database-level Concurrency Control</strong> trên Supabase.</li>
+    </ul>
+  </div>
+
+  <!-- CÂU HỎI TƯ DUY BẮC CẦU -->
+  <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 02)</h2>
+  <p>Sau khi làm rõ nghiệp vụ Inventory, hệ thống ERP còn cần mở rộng sang các domain tiếp theo: <strong>Order Processing</strong> và <strong>Double-entry Ledger</strong>. Khối lượng công việc này vượt qua giới hạn dung lượng của một Context Window.</p>
+  <p><em>Làm thế nào để duy trì một Shared Map giữa lập trình viên và AI qua nhiều phiên làm việc mà không gặp hiện tượng Context Degradation đối với các quyết định đã chốt?</em></p>
+
+  <!-- XEM TRƯỚC BÀI SAU -->
+  <div class="next-box">
+    <div class="nl">→ Bài tiếp theo</div>
+    <div class="nt">Bài 02 · /wayfinder & /research — Điều phối dự án lớn với Shared Map & Sub-agents</div>
+    <p class="nd">Cách sử dụng /wayfinder để quản lý Decision Tickets xuyên qua Fog of War và huy động Sub-agents chạy research song song.</p>
+  </div>
+
+  <!-- THANH ĐIỀU HƯỚNG -->
+  <div class="navbar">
+    <a href="0000-setup-nextjs-supabase-erp.html">← Bài 00</a>
+    <a href="index.html">🏠 Mục lục</a>
+    <a href="0002-wayfinder-and-research.html">Sau →</a>
+  </div>
+
+  <p class="try-it">💬 <strong>Thực hành:</strong> Khi bắt đầu một tính năng mới trong dự án thực tế, bạn có thể gõ <code>/grill-me</code> để kích hoạt phiên phỏng vấn làm rõ yêu cầu trước khi viết code.</p>
+
+</div>
+<script src="lesson-enhance.js"></script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 22: /writing-for-agents — Kỹ Nghệ Viết Tài Liệu Cho AI Agent
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 22 · /writing-for-agents — Kỹ Nghệ Viết Cho Agent: Context Load, Pointers & Pruning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 22 (Meta-Skills)</span>
+    <h1>/writing-for-agents — Kỹ Nghệ Viết Cho Agent: Context Load, Pointers & Pruning</h1>
+    <p class="subtitle">Phương pháp luận của Matt Pocock trong việc thiết kế tài liệu để AI Agent thực thi: Quản trị Token Budget qua The Two Loads, cấu trúc Information Hierarchy, kỹ thuật Context Pointers và kỷ luật Pruning.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/writing-for-agents</code>, hiểu bản chất cách LLMs đọc và hành động theo tài liệu (AGENTS.md, CLAUDE.md, SKILL.md), và biết cách tối ưu hóa văn bản để Agent thi công không ảo giác.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Bước vào Tầng Meta-Skills của Matt Pocock</div>
+      <p>Sau khi hoàn thành vòng đời phát triển dự án ERP Mini từ Bài 00 đến Bài 21, bạn đã sử dụng hàng chục kỹ năng chuyên sâu. Nhưng có bao giờ bạn tự hỏi: <em>"Tại sao các skill của Matt Pocock lại khiến Claude Code và các Agent khác tuân thủ chính xác mà không bị ảo giác hay sinh code ẩu?"</em></p>
+      <p>Bí quyết không nằm ở những câu lệnh "Hãy là một chuyên gia..." sáo rỗng. Nó nằm ở một hệ thống kỹ thuật viết tài liệu được thiết kế riêng cho cách hoạt động của Large Language Models. Bài học này sẽ mổ xẻ mã nguồn và triết lý của <code>writing-for-agents</code>.</p>
+    </div>
+
+    <!-- THE TWO LOADS -->
+    <h2>1. Khái Niệm "The Two Loads": Quản Trị Ngân Sách Ngữ Cảnh</h2>
+    <p>Mỗi khi bạn thêm một dòng tài liệu vào dự án, bạn đang tiêu tốn một trong hai loại ngân sách:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bản chất The Two Loads trong Kỹ nghệ Agent</span></div>
+      <pre><code>THE TWO LOADS
+┌───────────────────────────────────────┬───────────────────────────────────────┐
+│       1. CONTEXT LOAD (Chi phí AI)    │      2. COGNITIVE LOAD (Chi phí Người) │
+├───────────────────────────────────────┼───────────────────────────────────────┤
+│ - Chi phí token luôn nằm trong bộ nhớ │ - Chi phí trí óc mà con người phải    │
+│   của Agent ở MỌI LƯỢT CHAT.          │   ghi nhớ xem tài liệu nào tồn tại    │
+│ - Ví dụ: File AGENTS.md, mô tả skill. │   và khi nào cần gọi đến.             │
+│ - Hậu quả nếu quá tải: Attention bị   │ - Không phải chi phí cần triệt tiêu:  │
+│   pha loãng, Agent bị lú lẫn.         │   Đó là giá của quyền chủ động người! │
+└───────────────────────────────────────┴───────────────────────────────────────┘</code></pre>
+    </div>
+
+    <ul>
+      <li><strong>Context Load:</strong> Những thứ được tự động nạp vào ngữ cảnh mỗi turn. Càng nhồi nhét nhiều thông tin nền vào đây, Agent càng dễ bỏ sót các quy tắc quan trọng.</li>
+      <li><strong>Cognitive Load:</strong> Những thứ tài liệu chỉ được mở ra khi người dùng chủ động yêu cầu. Hãy đầu tư vào đây ở những nơi cần phán đoán chuyên gia của con người.</li>
+    </ul>
+
+    <!-- INFORMATION HIERARCHY -->
+    <h2>2. Thang Bậc Information Hierarchy & Progressive Disclosure</h2>
+    <p>Một tài liệu chất lượng cao luôn phân định rạch ròi giữa <strong>Steps</strong> (các bước hành động tuần tự) và <strong>Reference</strong> (các định nghĩa, quy tắc tra cứu). Nó được sắp xếp trên 3 nấc thang:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Thang bậc 3 tầng: Information Hierarchy Ladder</span></div>
+      <pre><code>[Nấc 1: In-file Step]       ──► Hành động tuần tự bắt buộc Agent thực thi ngay (Checklist, Recipe)
+        │
+        ▼
+[Nấc 2: In-file Reference]  ──► Danh mục quy tắc phẳng, tra cứu tại chỗ khi cần (Coding standards)
+        │
+        ▼
+[Nấc 3: Disclosed Reference]──► Đẩy sang file vệ tinh độc lập, chỉ gọi qua Context Pointer khi trúng nhánh rẽ!</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Progressive Disclosure</div>
+      <p>Đừng bao giờ nhồi toàn bộ tài liệu hướng dẫn vào một file duy nhất. Hãy giữ file chính thật gọn gàng và đẩy các tài liệu chuyên biệt ra các file vệ tinh. Khi Agent gặp đúng trường hợp rẽ nhánh (branch), con trỏ ngữ cảnh mới kích hoạt việc đọc file đó.</p>
+    </div>
+
+    <!-- CONTEXT POINTERS & LEADING WORDS -->
+    <h2>3. Context Pointers & Leading Words</h2>
+    <p>Làm thế nào để Agent biết khi nào cần kích hoạt một kỹ năng hay đọc một tài liệu?</p>
+
+    <h3>Context Pointers:</h3>
+    <p>Một <strong>Context Pointer</strong> là một đoạn mô tả ngắn gọn giúp Agent nhận diện điều kiện kích hoạt:</p>
+    <ul>
+      <li><strong>Front-load the leading word:</strong> Đặt từ khóa cốt lõi ngay đầu câu mô tả.</li>
+      <li><strong>One trigger per branch:</strong> Mỗi nhánh rẽ chỉ cần đúng một điều kiện kích hoạt rõ ràng, không dùng các từ đồng nghĩa thừa thãi.</li>
+      <li><strong>Cắt bỏ thông tin nhận diện lặp lại:</strong> Không nhắc lại tên file hay tên skill trong phần mô tả.</li>
+    </ul>
+
+    <h3>Leading Words:</h3>
+    <p>Một <strong>Leading Word</strong> là một khái niệm cô đọng đã có sẵn trong dữ liệu pretraining của mô hình (ví dụ: <em>tight loop</em>, <em>fog of war</em>, <em>tracer bullets</em>, <em>seam</em>). Khi bạn dùng đúng từ này, Agent lập tức kích hoạt toàn bộ mạng lưới tri thức liên quan mà bạn không tốn thêm token để giải thích dài dòng.</p>
+
+    <div class="callout warn">
+      <div class="ct">⚠️ Bẫy Negation (Câu lệnh cấm đoán phản tác dụng)</div>
+      <p>Khi bạn ra lệnh: <em>"Đừng nghĩ về con voi màu hồng"</em>, thứ duy nhất xuất hiện trong đầu bạn chính là con voi màu hồng! Trong LLMs cũng vậy: Khi bạn cấm đoán bằng câu phủ định (ví dụ: <em>"Không được viết code dài dòng"</em>), từ khóa bị cấm sẽ kích hoạt mạnh mẽ trong bộ nhớ. <strong>Luôn hướng dẫn bằng hành động khẳng định (Prompt the positive):</strong> <em>"Hãy viết các hàm dưới 15 dòng lệnh"</em>.</p>
+    </div>
+
+    <!-- PRUNING SEDIMENT -->
+    <h2>4. Kỷ Luật Pruning & Loại Bỏ No-ops</h2>
+    <p>Theo thời gian, các tài liệu hướng dẫn thường tích tụ cặn lắng (sediment) — những quy tắc cũ không còn áp dụng nhưng không ai dám xóa vì sợ hỏng code:</p>
+
+    <ul>
+      <li><strong>Môi trường là Single Source of Truth:</strong> Những thứ máy tính có thể tự đọc được (như scripts trong <code>package.json</code>, options trong <code>--help</code>) thì <strong>tuyệt đối không chép lại vào tài liệu</strong>. Tài liệu chỉ lưu trữ những thứ máy tính không thể tự suy ra: lý do kiến trúc, quy ước bất thành văn và các cạm bẫy tiềm ẩn.</li>
+      <li><strong>Săn lùng No-ops:</strong> Một câu lệnh mà Agent vốn dĩ đã tự động tuân thủ theo mặc định (ví dụ: <em>"Hãy viết code sạch sẽ"</em>) là một <em>No-op</em> vô giá trị. Khi phát hiện một câu No-op, hãy xóa nguyên câu đó thay vì tỉa tót câu từ.</li>
+    </ul>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>5. Hộp Prompt Thực Chiến: Tối Ưu Hóa File AGENTS.md</h2>
+    <p>Để tối ưu hóa file hướng dẫn Agent trong dự án hiện tại, bạn có thể gọi skill <code>/writing-for-agents</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /writing-for-agents</div>
+      <pre><code>/writing-for-agents "Rà soát lại toàn bộ nội dung file AGENTS.md và các file trong docs/agents/.
+Hãy áp dụng nguyên tắc The Two Loads và Pruning:
+1. Phát hiện và loại bỏ các câu lệnh No-ops hoặc cấm đoán mang tính Negation.
+2. Kiểm tra các Context Pointers xem đã đặt Leading Words lên đầu và đúng 1 trigger per branch chưa.
+3. Đảm bảo cấu trúc Information Hierarchy không làm tràn Context Load của phiên làm việc."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Tại sao việc đưa quá nhiều tài liệu hướng dẫn chi tiết vào file luôn được tải (như AGENTS.md) lại gây hại cho Agent?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Dung lượng ổ đĩa không phải vấn đề đối với file text.">A. Vì làm tăng dung lượng file trên ổ cứng.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Điều này làm bùng nổ Context Load. Bộ nhớ của mô hình bị tràn ngập thông tin nền ở mọi lượt chat, dẫn đến hiện tượng Attention Dilution và làm Agent dễ quên các chỉ đạo cốt lõi của người dùng.">B. Làm bùng nổ Context Load, khiến attention của mô hình bị phân tán và dễ bỏ sót các chỉ thị quan trọng trong phiên làm việc.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. LLMs có thể đọc hiểu ngôn ngữ tự nhiên bình thường.">C. Vì LLMs không có khả năng đọc các đoạn văn dài hơn 100 chữ.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Trong kỹ thuật viết cho Agent, tại sao chúng ta nên ưu tiên dùng các "Leading Words" có sẵn trong pretraining thay vì tự bịa ra từ ngữ mới?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Từ ngữ có sẵn trong pretraining tận dụng được hàng tỷ tham số tri thức đã có trong mô hình mà không tốn token định nghĩa, giúp neo hành vi một cách ổn định và tiết kiệm nhất.">A. Vì các từ có sẵn trong pretraining kích hoạt ngay lập tức mạng lưới tri thức sẵn có của mô hình mà không tốn thêm token để định nghĩa lại.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Trình biên dịch không kiểm tra ngữ nghĩa của từ ngữ trong prompt.">B. Vì trình biên dịch TypeScript sẽ báo lỗi nếu gặp từ tự tạo.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 22</div>
+      <ul class="checklist">
+        <li>Hiểu sâu bản chất The Two Loads: Phân định Context Load (chi phí của AI) và Cognitive Load (chi phí của người).</li>
+        <li>Nắm vững thang bậc 3 tầng của Information Hierarchy và nghệ thuật Progressive Disclosure.</li>
+        <li>Biết cách đặt Context Pointers sắc lẹm, sử dụng Leading Words và né tránh cạm bẫy Negation.</li>
+        <li>Làm chủ kỹ thuật Pruning Sediment: Loại bỏ No-ops và bảo vệ tính Single Source of Truth.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 23 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Bài 23)</h2>
+    <p>Bạn đã biết cách viết tài liệu chỉ thị cho AI Agent. Nhưng khi bạn chuẩn bị viết một bài viết kỹ thuật lớn (Tech Blog, Architecture Whitepaper, hoặc Giáo trình), giai đoạn đầu tiên luôn đầy rẫy sự hỗn loạn: Ý tưởng nảy ra vụn vặt, manh mún và chưa có cấu trúc.</p>
+    <p><em>Làm thế nào để mở rộng không gian khám phá (Explore), xả hết mọi ý tưởng thô (Fragments) ra giấy mà không bị áp lực về dàn ý hay mục lục kìm hãm sự sáng tạo?</em></p>
+    <p>Đó là trọng tâm của Bài 23 với kỹ năng: <code>/writing-fragments</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 23)</div>
+      <div class="nt">Bài 23 · /writing-fragments — Thu Thập & Khai Thác Ý Tưởng Thô Giai Đoạn Explore</div>
+      <p class="nd">Tư duy giai đoạn "Explore" thuần khiết, nhật ký tiểu thuyết gia (The Novelist's Diary), phỏng vấn không cấu trúc để săn tìm Noticings và đúc kết Leading Words.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0021-pr-and-retrospective.html">← Bài 21</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0023-writing-fragments-raw-explore.html">Bài 23 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở file <code>.agents/skills/writing-for-agents/SKILL.md</code> trong repo để tự mình chiêm ngưỡng một văn bản mẫu mực được viết theo đúng triết lý này.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

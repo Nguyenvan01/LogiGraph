@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 12: Tầng Ứng Dụng: Setup Server Actions, Thiết Lập Lá Chắn Zod & Tích Hợp Supabase
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; hướng dẫn từ sơ khai đến nâng cao.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình: Setup src/actions -> Zod Shield -> Multi-domain Action -> Supabase RLS.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 16 · Next.js Server Actions, Lá Chắn Zod & Supabase RLS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 16 (Capstone Chặng 4)</span>
+    <h1>Next.js Server Actions, Lá Chắn Zod & Supabase RLS</h1>
+    <p class="subtitle">Chặng 4 Dự án Capstone ERP Mini: Khởi tạo cấu trúc src/actions/, chỉ thị 'use server', lá chắn safeParse, điều phối Kho - Kế toán nguyên tử, khóa quyền UPDATE/DELETE bằng PostgreSQL RLS.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Làm chủ kỹ năng xây dựng Server Actions chuẩn mực trong Next.js 15 App Router, đảm bảo an toàn dữ liệu từ client xuống cơ sở dữ liệu và kiểm chứng 4 test cases pass trong 15ms.</p>
+
+    <!-- BẮC CẦU TỪ BÀI 11 -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh thực tế: Vì Sao Core Service Không Thể Gọi Trực Tiếp Từ Trình Duyệt?</div>
+      <p>Ở Bài 11, chúng ta đã có <code>LedgerService</code> và ở Module 3 chúng ta có <code>InventoryService</code>. Cả hai service này đều chạy rất nhanh và an toàn trong môi trường kiểm thử.</p>
+      <p>Tuy nhiên, trên trình duyệt web của người dùng, bạn <strong>tuyệt đối không thể import và gọi trực tiếp các service này</strong>. Trình duyệt là môi trường công cộng của người dùng cuối. Nếu gọi trực tiếp, bạn sẽ làm lộ các khóa bảo mật bí mật của Supabase, và người dùng có thể dùng công cụ Inspect để sửa đổi số tiền thanh toán từ 2.500$ thành 1$! Chúng ta cần một <strong>Tầng Ứng Dụng (Application Layer)</strong> làm nhiệm vụ kiểm soát an ninh trên máy chủ.</p>
+    </div>
+
+    <!-- GIAI ĐOẠN 1: SETUP CẤU TRÚC SRC/ACTIONS/ -->
+    <h2>1. Giai đoạn 1: Setup Cấu Trúc Thư Mục Tầng Ứng Dụng (`src/actions/`)</h2>
+    <p>Trong Next.js 15 App Router, toàn bộ các hàm xử lý phía máy chủ được tổ chức trong thư mục <code>src/actions/</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Terminal: Khởi tạo cấu trúc thư mục actions</span></div>
+      <pre><code>mkdir -p src/actions
+touch src/actions/schemas.ts
+touch src/actions/billing.ts
+touch src/actions/actions.test.ts</code></pre>
+    </div>
+
+    <p>Ý nghĩa và nhiệm vụ cụ thể của từng file:</p>
+    <div class="callout why">
+      <div class="ct">📁 Phân công trách nhiệm trong thư mục `src/actions/`</div>
+      <ul>
+        <li><strong><code>schemas.ts</code> (Cổng kiểm tra an ninh):</strong> Nơi định nghĩa các luật kiểm tra dữ liệu đầu vào bằng thư viện Zod. Bất kỳ dữ liệu nào gửi lên đều phải qua đây soi xét trước.</li>
+        <li><strong><code>billing.ts</code> (Người điều phối):</strong> Hàm Server Action chạy trên máy chủ backend (chỉ thị <code>'use server'</code>), phối hợp gọi <code>InventoryService</code> và <code>LedgerService</code> theo thứ tự chuẩn xác.</li>
+        <li><strong><code>actions.test.ts</code> (Kiểm thử tự động):</strong> Kiểm tra xem Server Action có bắt đúng lỗi khi nhận dữ liệu giả mạo hay không.</li>
+      </ul>
+    </div>
+
+    <!-- GIAI ĐOẠN 2: LÁ CHẮN ZOD -->
+    <h2>2. Giai đoạn 2: Thiết Lập Lá Chắn Zod (Zod Shield Pattern)</h2>
+    <p>Nguyên tắc cốt lõi của bảo mật ứng dụng web: <strong>Không bao giờ tin tưởng dữ liệu gửi từ client</strong>.</p>
+
+    <p>Mở file <a href="../src/actions/schemas.ts" target="_blank"><code>src/actions/schemas.ts</code></a> và cùng xem cách Zod bảo vệ hệ thống:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/actions/schemas.ts — Khởi tạo Zod Schemas</span></div>
+      <pre><code><span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>;
+
+<span class="cmt">// Định nghĩa cấu trúc hợp lệ duy nhất của yêu cầu thanh toán đơn hàng</span>
+<span class="kw">export const</span> <span class="tbl">ProcessOrderPaymentSchema</span> = z.<span class="fn">object</span>({
+  orderId: z.<span class="fn">string</span>().<span class="fn">min</span>(<span class="num">1</span>, <span class="str">'Mã đơn hàng không được để trống'</span>),
+  amount: z.<span class="fn">number</span>().<span class="fn">positive</span>(<span class="str">'Số tiền thanh toán phải lớn hơn 0'</span>),
+  reservationId: z.<span class="fn">string</span>().<span class="fn">min</span>(<span class="num">1</span>, <span class="str">'Mã giữ kho không được để trống'</span>),
+  taxAmount: z.<span class="fn">number</span>().<span class="fn">nonnegative</span>(<span class="str">'Thuế không được âm'</span>).<span class="fn">optional</span>(),
+});
+
+<span class="cmt">// Tự động xuất kiểu dữ liệu TypeScript tương ứng</span>
+<span class="kw">export type</span> <span class="tbl">ProcessOrderPaymentInput</span> = z.<span class="tbl">infer</span>&lt;<span class="kw">typeof</span> <span class="tbl">ProcessOrderPaymentSchema</span>&gt;;</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Kỹ thuật chuẩn: Dùng `safeParse` thay vì `parse`</div>
+      <p>Nếu dùng <code>Schema.parse()</code>, khi client gửi dữ liệu sai, Zod sẽ quăng lỗi văng ra ngoài làm sập trang web. Khi dùng <code>Schema.safeParse()</code>, Zod trả về kết quả an toàn:</p>
+      <ul>
+        <li>Nếu hợp lệ: <code>{ success: true, data: ... }</code></li>
+        <li>Nếu có lỗi: <code>{ success: false, error: ... }</code> giúp server phản hồi thông báo nhẹ nhàng về giao diện mà không bị crash.</li>
+      </ul>
+    </div>
+
+    <!-- GIAI ĐOẠN 3: ĐIỀU PHỐI SERVER ACTION -->
+    <h2>3. Giai đoạn 3: Điều Phối Multi-domain Server Action Giữa Kho & Kế Toán</h2>
+    <p>Khi người dùng bấm "Thanh toán", hai sự kiện phải diễn ra đồng thời: <strong>Kho phải chốt trừ hàng</strong> và <strong>Kế toán phải ghi nhận tiền</strong>.</p>
+
+    <h3>Hộp Prompt Mẫu Chỉ Đạo AI Viết Server Action:</h3>
+    <div class="code-block">
+      <div class="code-label"><span>Prompt chỉ đạo AI tạo Server Action</span></div>
+      <pre><code>Hãy viết Server Action processOrderPaymentAction tại file src/actions/billing.ts:
+
+1. Đặt chỉ thị 'use server' ở đầu file.
+2. Tham số input nhận vào kiểu unknown để ép buộc phải kiểm tra an ninh qua ProcessOrderPaymentSchema.safeParse().
+3. Điều phối theo đúng chu trình 3 bước:
+   - Bước 1: Cấp hóa đơn chính thức (ledgerService.createInvoice).
+   - Bước 2: Chốt giữ hàng sang tồn kho vật lý (inventoryService.settleReservation(reservationId, 'COMMIT')).
+   - Bước 3: Hạch toán dòng tiền (ledgerService.recordOrderPayment: Nợ 112, Có 511).
+4. Bọc toàn bộ trong try/catch và trả về cấu trúc thống nhất { success: boolean; data?: ...; error?: string }.</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/actions/billing.ts — Hiện thực hóa Server Action</span></div>
+      <pre><code><span class="str">'use server'</span>;
+
+<span class="kw">export async function</span> <span class="fn">processOrderPaymentAction</span>(
+  input: <span class="kw">unknown</span>,
+  inventoryService: <span class="tbl">InventoryService</span>,
+  ledgerService: <span class="tbl">LedgerService</span>
+): <span class="tbl">Promise</span>&lt;<span class="tbl">ActionResult</span>&lt;<span class="tbl">PaymentSuccessData</span>&gt;&gt; {
+  <span class="cmt">// 1. Soi an ninh dữ liệu</span>
+  <span class="kw">const</span> parsed = ProcessOrderPaymentSchema.<span class="fn">safeParse</span>(input);
+  <span class="kw">if</span> (!parsed.success) {
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: parsed.error.issues.<span class="fn">map</span>(i =&gt; i.message).<span class="fn">join</span>(<span class="str">'; '</span>) };
+  }
+
+  <span class="kw">const</span> { orderId, amount, reservationId, taxAmount } = parsed.data;
+
+  <span class="kw">try</span> {
+    <span class="cmt">// 2. Bước 1: Cấp hóa đơn</span>
+    <span class="kw">const</span> invoice = <span class="kw">await</span> ledgerService.<span class="fn">createInvoice</span>({
+      orderId,
+      subtotal: amount,
+      taxAmount: taxAmount ?? <span class="num">0</span>,
+    });
+
+    <span class="cmt">// 3. Bước 2: Chốt kho (Physical Stock giảm đi)</span>
+    <span class="kw">await</span> inventoryService.<span class="fn">settleReservation</span>(reservationId, <span class="str">'COMMIT'</span>);
+
+    <span class="cmt">// 4. Bước 3: Hạch toán Sổ cái Kế toán (Nợ 112 Tiền gửi, Có 511 Doanh thu)</span>
+    <span class="kw">const</span> { transaction } = <span class="kw">await</span> ledgerService.<span class="fn">recordOrderPayment</span>(
+      orderId,
+      invoice.totalAmount,
+      invoice.id
+    );
+
+    invoice.status = <span class="str">'PAID'</span>;
+
+    <span class="kw">return</span> { success: <span class="kw">true</span>, data: { invoice, transactionId: transaction.id } };
+  } <span class="kw">catch</span> (err: <span class="kw">any</span>) {
+    <span class="kw">return</span> { success: <span class="kw">false</span>, error: err.message || <span class="str">'Lỗi xử lý thanh toán đơn hàng'</span> };
+  }
+}</code></pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 4: SUPABASE RLS -->
+    <h2>4. Giai đoạn 4: Cưỡng Chế Append-only Bằng Supabase Row Level Security (RLS)</h2>
+    <p>Để ngăn chặn bất kỳ ai can thiệp trực tiếp vào database để sửa hoặc xóa số tiền, chúng ta thiết lập chính sách RLS tại tầng PostgreSQL:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>PostgreSQL Migration — Khóa chặt bảng ledger_entries</span></div>
+      <pre><code><span class="cmt">-- 1. Bật tính năng Row Level Security</span>
+<span class="kw">ALTER TABLE</span> ledger_entries <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="cmt">-- 2. Chỉ cho phép THÊM MỚI bút toán</span>
+<span class="kw">CREATE POLICY</span> <span class="str">"Cho phep them moi but toan"</span> <span class="kw">ON</span> ledger_entries
+    <span class="kw">FOR INSERT WITH CHECK</span> (true);
+
+<span class="cmt">-- 3. Chỉ cho phép ĐỌC để xem báo cáo</span>
+<span class="kw">CREATE POLICY</span> <span class="str">"Cho phep doc but toan"</span> <span class="kw">ON</span> ledger_entries
+    <span class="kw">FOR SELECT USING</span> (true);
+
+<span class="cmt">-- TUYỆT ĐỐI KHÔNG TẠO POLICY CHO UPDATE HAY DELETE!</span>
+<span class="cmt">-- Bất kỳ lệnh sửa hoặc xóa nào đều sẽ bị PostgreSQL từ chối thẳng thừng.</span></code></pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 5: KIỂM CHỨNG BẰNG TEST -->
+    <h2>5. Giai đoạn 5: Kiểm Chứng Toàn Diện Bằng Vitest</h2>
+    <p>Chạy file kiểm thử tầng Application trong terminal:</p>
+    <div class="code-block">
+      <div class="code-label"><span>Terminal Command</span></div>
+      <pre><code>npx vitest run src/actions/actions.test.ts</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label"><span>Kết quả thực thi Vitest</span></div>
+      <pre><code> ✓ src/actions/actions.test.ts (4 tests) 15ms
+   ✓ Suite Server Actions: Payment, Fulfillment & Cancellation
+     ✓ Case 1: Thẩm định thất bại khi input không hợp lệ (Zod Guard)
+     ✓ Case 2: Thanh toán thành công (Cấp hóa đơn, Commit kho, Ghi sổ Nợ 112 / Có 511)
+     ✓ Case 3: Xuất kho thành công (Ghi nhận Giá vốn Nợ 632 / Có 156)
+     ✓ Case 4: Hủy đơn & Hoàn tiền (Đảo chiều dòng tiền và khôi phục tồn kho)
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Duration  160ms (tests 15ms)</code></pre>
+    </div>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Tại sao Server Action không nên chọc trực tiếp vào database bằng câu lệnh SQL thô mà phải gọi qua các Core Services (InventoryService, LedgerService)?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Viết trực tiếp câu lệnh SQL không giúp tăng tính bảo mật.">A. Vì PostgreSQL cấm viết câu lệnh SQL trong Next.js.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Tách biệt tầng giúp tái sử dụng các quy tắc kiểm tra bất biến đã được test kỹ ở Bài 11, giữ cho Server Action tinh gọn chỉ làm nhiệm vụ điều phối.">B. Để bảo toàn ranh giới kiến trúc sạch: Logic nghiệp vụ và kiểm tra bất biến thuộc về Core Service, Server Action chỉ đóng vai trò người điều phối an toàn.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Hiệu năng của hai cách tương đương nhau.">C. Vì gọi qua service sẽ giúp câu truy vấn chạy nhanh hơn gấp 10 lần.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi chính sách RLS trên bảng `ledger_entries` chỉ cho phép INSERT và SELECT, điều gì xảy ra nếu một quản trị viên chạy lệnh SQL `DELETE FROM ledger_entries`?</div>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Khi không có policy cho lệnh DELETE, PostgreSQL sẽ mặc định từ chối tất cả các yêu cầu xóa dữ liệu, bảo đảm tính bất biến vĩnh cửu của Sổ cái.">A. Câu lệnh DELETE sẽ bị PostgreSQL từ chối thẳng thừng vì không có quyền, bảo vệ dấu vết kiểm toán không thể bị can thiệp.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. PostgreSQL sẽ chặn lệnh ngay lập tức chứ không tự động sao lưu.">B. PostgreSQL sẽ tự động sao lưu dữ liệu trước khi xóa.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- KẾT QUẢ ĐẠT ĐƯỢC -->
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Chặng 4 (Bài 16)</div>
+      <ul class="checklist">
+        <li>Setup cấu trúc thư mục <code>src/actions/</code> chuẩn mực cho tầng ứng dụng.</li>
+        <li>Tạo lá chắn Zod validation thẩm định an toàn mọi dữ liệu từ client gửi lên.</li>
+        <li>Điều phối thành công chu trình đa nghiệp vụ: Hóa đơn &rarr; Chốt kho &rarr; Ghi nhận dòng tiền.</li>
+        <li>Bảo vệ cơ sở dữ liệu với chính sách Supabase RLS Append-only và hoàn thành 4 test cases trong 15ms.</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG BÀI 17 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Chặng 5: Bài 17)</h2>
+    <p>Backend và Server Actions đã sẵn sàng. Toàn bộ logic đã được bảo vệ vững chắc. Bước tiếp theo để hoàn thành ứng dụng là đưa mọi dữ liệu lên màn hình Web Dashboard.</p>
+    <p><em>Làm thế nào để điều phối AI dựng nên một giao diện người dùng trực quan, minh bạch dữ liệu theo nguyên lý "Surface the State", để khách hàng tự tay bấm đặt hàng, thanh toán và quan sát số tiền nhảy múa trong thời gian thực?</em></p>
+    <p>Đó là nội dung của <strong>Chặng 5 (Bài 17): Dựng Web Dashboard Tương Tác Theo Nguyên Lý "Surface the State"</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 17 · Dựng Web Dashboard Tương Tác Theo Nguyên Lý "Surface the State"</div>
+      <p class="nd">Chặng 5 Capstone: Khởi tạo thư mục dashboard/, phân rã 4 panels hiển thị trạng thái và kết nối reactive wiring với các Server Actions.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0015-tdd-ledger-core-service.html">← Bài 15</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0017-web-dashboard-realtime-erp.html">Bài 17 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <a href="../src/actions/billing.ts" target="_blank"><code>src/actions/billing.ts</code></a> và xem cách 3 bước điều phối được thực hiện tuần tự như thế nào.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

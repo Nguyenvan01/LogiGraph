@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 27: /scaffold-exercises — Tự Động Hóa Dựng Khung Bài Tập Lập Trình
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  BÀI HỌC CUỐI CÙNG: KHÉP LẠI TOÀN BỘ 38 SKILLS CỦA MATT POCOCK!
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 27 · /scaffold-exercises — Tự Động Hóa Dựng Khung Bài Tập Thực Hành Lập Trình</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 27 (Tổng Kết Toàn Khóa)</span>
+    <h1>/scaffold-exercises — Tự Động Hóa Dựng Khung Bài Tập Thực Hành Lập Trình</h1>
+    <p class="subtitle">Khép lại trọn vẹn 38 kỹ năng của Matt Pocock: Tự động hóa sinh cấu trúc bài tập thực hành 3 phần (problem/ TODOs, solution/ chuẩn, explainer/ lý thuyết), quy trình kiểm chuẩn Linter và quản lý lịch sử commit bằng git mv.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/scaffold-exercises</code>, biết cách biến một dàn bài giáo trình thành hàng chục bài tập lập trình chuẩn mực, và tổng kết toàn bộ hành trình 28 bài học VibeCoding ERP.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Từ Khung Sư Phạm Sang Bài Tập Thực Hành Thật</div>
+      <p>Ở Bài 26, chúng ta đã nắm được kiến trúc không gian học tập có trạng thái với <code>/teach</code>. Tuy nhiên, cách tốt nhất để một lập trình viên học sâu một công nghệ (như TypeScript hay Next.js) không phải là đọc văn bản, mà là <strong>tự tay giải quyết các bài tập code thực tế</strong>.</p>
+      <p>Nếu bạn phải tự tay gõ lệnh tạo thư mục cho 50 bài tập, tạo file <code>problem/</code>, <code>solution/</code>, <code>readme.md</code> thủ công, bạn sẽ mất hàng tuần trời cho những thao tác lặp đi lặp lại. Kỹ năng <code>/scaffold-exercises</code> của Matt Pocock giải quyết việc này chỉ trong vài giây thông qua quy trình <strong>Plan-to-Scaffold</strong> tự động.</p>
+    </div>
+
+    <!-- CẤU TRÚC 3 THƯ MỤC CHUẨN MỰC -->
+    <h2>1. Cấu Trúc 3 Thư Mục Tiêu Chuẩn Cho Mọi Bài Tập</h2>
+    <p>Matt Pocock quy chuẩn mỗi bài tập lập trình thực hành luôn được tổ chức thành 3 thư mục con chuyên biệt:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Cấu trúc Exercise Variants</span></div>
+      <pre><code>exercises/
+└── 01-inventory-fundamentals/                 # Thư mục Section: XX-section-name
+    └── 01.01-stock-reservation-ttl/           # Thư mục Exercise: XX.YY-exercise-name
+        ├── problem/                           # KHÔNG GIAN HỌC VIÊN: Chứa code có TODOs và test case FAIL
+        │   ├── main.ts
+        │   └── readme.md
+        ├── solution/                          # LỜI GIẢI THAM CHIẾU: Code hoàn chỉnh đạt 100% test PASS
+        │   ├── main.ts
+        │   └── readme.md
+        └── explainer/                         # GIẢI THÍCH LÝ THUYẾT: Tài liệu phân tích nguyên lý, không có TODOs
+            └── readme.md</code></pre>
+    </div>
+
+    <ul>
+      <li><strong><code>problem/</code>:</strong> Nơi học viên mở ra để làm bài. Luôn chứa các đoạn code còn dang dở (<code>// TODO: Implement stock reservation logic</code>) và các bài test đang ở trạng thái FAIL.</li>
+      <li><strong><code>solution/</code>:</strong> Mã nguồn giải pháp chuẩn mực của tác giả. Học viên có thể tham chiếu khi bị bế tắc để so sánh với cách giải của mình.</li>
+      <li><strong><code>explainer/</code>:</strong> Tài liệu lý thuyết ngắn gọn giải thích lý do tại sao giải pháp đó lại tối ưu (Trade-offs, Invariants, Performance).</li>
+    </ul>
+
+    <!-- QUY TRÌNH PLAN TO SCAFFOLD -->
+    <h2>2. Quy Trình Plan-to-Scaffold: Từ Dàn Bài Đến Mã Nguồn Trong 5 Bước</h2>
+    <p>Khi bạn cung cấp một dàn bài văn bản (Plan), <code>/scaffold-exercises</code> thực thi tuần tự 5 bước tự động:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Quy trình 5 bước Plan-to-Scaffold</span></div>
+      <pre><code>[1. Parse Plan] ──► [2. mkdir -p] ──► [3. Stub Readmes] ──► [4. Run Linter] ──► [5. Git Commit]
+ Trích xuất tên      Tự động tạo       Sinh file readme      Kiểm tra vi phạm      Bảo toàn lịch sử
+ sections & bài tập  cây thư mục       và main.ts stubs      theo bộ quy tắc       bằng git commit</code></pre>
+    </div>
+
+    <ol style="margin: 8px 0; padding-left: 20px;">
+      <li><strong>Parse the plan:</strong> Trích xuất tên section (<code>01-inventory</code>), tên bài tập (<code>01.01-ttl</code>) và các biến thể cần tạo.</li>
+      <li><strong>Create directories:</strong> Chạy lệnh <code>mkdir -p</code> tạo hàng loạt thư mục chỉ trong một tích tắc.</li>
+      <li><strong>Create stub readmes:</strong> Sinh file <code>readme.md</code> tối thiểu có tiêu đề và mô tả ngắn gọn (không để file rỗng).</li>
+      <li><strong>Run lint:</strong> Chạy công cụ kiểm chuẩn nội bộ để đảm bảo không có file rác (như <code>.gitkeep</code>), không có link hỏng.</li>
+      <li><strong>Fix & Commit:</strong> Tự động sửa các lỗi linter phát hiện và lưu commit sạch sẽ vào Git.</li>
+    </ol>
+
+    <!-- NGHỆ THUẬT QUẢN LÝ BẰNG GIT MV -->
+    <h2>3. Nghệ Thuật Đổi Số Bài Tập Bằng `git mv`</h2>
+    <p>Khi bạn cần chèn thêm một bài học mới vào giữa khóa học (ví dụ chèn Bài 01.02 vào giữa 01.01 và 01.02 cũ), nếu dùng lệnh <code>mv</code> thông thường, Git sẽ hiểu là bạn xóa thư mục cũ và tạo thư mục mới, làm mất toàn bộ lịch sử commit trước đó!</p>
+
+    <div class="code-block">
+      <div class="code-label">terminal (bash) — Quy chuẩn đổi số bài tập</div>
+      <pre><code><span class="cmt"># ❌ SAI: Dùng mv thông thường làm mất git history</span>
+mv exercises/01-inventory/01.02-state-machine exercises/01-inventory/01.03-state-machine
+
+<span class="cmt"># ✅ ĐÚNG: Luôn dùng git mv để bảo toàn 100% lịch sử commit và diffs</span>
+git mv exercises/01-inventory/01.02-state-machine exercises/01-inventory/01.03-state-machine</code></pre>
+    </div>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>4. Hộp Prompt Thực Chiến: Dựng Khung Bài Tập TDD</h2>
+    <p>Bạn ra lệnh cho AI dựng khung hàng loạt bài tập cho một phân hệ mới:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /scaffold-exercises</div>
+      <pre><code>/scaffold-exercises "Dựng khung các bài tập thực hành cho Section 02: Double-Entry Ledger:
+- 02.01 Basic Account Invariants (problem + solution + explainer)
+- 02.02 Debit Credit Balance Verification (problem + solution)
+- 02.03 Compensatory Reversal Mechanism (explainer)
+Tạo đầy đủ readme.md và main.ts stubs, sau đó chạy kiểm chuẩn linter và commit bằng git."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Tại sao mỗi thư mục bài tập của học viên (problem/) bắt buộc phải có test case ở trạng thái FAIL khi mới bắt đầu?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Trình biên dịch không bắt buộc test phải fail.">A. Vì trình biên dịch TypeScript không cho phép nộp bài nếu test xanh.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Học viên bắt đầu từ trạng thái Red (FAIL) sẽ hiểu rõ yêu cầu cần đạt được. Khi tự tay viết code biến test từ FAIL sang PASS, học viên nhận được phản hồi trực tiếp và cảm giác hoàn thành mục tiêu rõ ràng.">B. Để học viên có mục tiêu rõ ràng (Red), tự tay viết code hoàn thiện logic và trải nghiệm cảm giác đạt chuẩn khi test chuyển sang trạng thái Green (PASS).</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Test fail là chủ đích sư phạm, không phải lỗi của tác giả.">C. Vì tác giả khóa học chưa kịp viết xong mã nguồn giải pháp.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi cần đánh số lại hoặc di chuyển các bài tập trong khóa học, tại sao bắt buộc phải dùng `git mv` thay vì `mv` thông thường?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! git mv bảo toàn lịch sử theo dõi của Git, giúp việc đối soát diffs và lịch sử commit của bài tập qua các phiên bản không bị gián đoạn.">A. Để bảo tồn toàn bộ lịch sử commit và dấu vết thay đổi của Git trên từng file bài tập.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Tốc độ di chuyển file của hai lệnh trên ổ cứng là như nhau.">B. Vì git mv chạy nhanh hơn lệnh mv thông thường gấp 10 lần.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- TỔNG KẾT TOÀN BỘ 38 SKILLS -->
+    <div class="callout tip">
+      <div class="ct">🏆 BẠN ĐÃ HOÀN THÀNH TOÀN BỘ 38 SKILLS CỦA MATT POCOCK!</div>
+      <p>Trải qua <strong>28 bài học đơn nhiệm chuẩn mực</strong> (từ Bài 00 đến Bài 27), bạn đã làm chủ trọn vẹn bộ kỹ năng của Matt Pocock (`mattpocock/skills`) kết hợp dự án thực tế VibeCoding ERP Mini:</p>
+      <ul class="checklist">
+        <li><strong>Module 0 (Setup & Router):</strong> <code>/ask-matt</code>, <code>/setup-matt-pocock-skills</code>, <code>/setup-pre-commit</code>, <code>/wizard</code>.</li>
+        <li><strong>Module 1 (Discovery & Khởi động):</strong> <code>/grill-me</code>, <code>/grilling</code>, <code>/wait-what</code>, <code>/to-questionnaire</code>, <code>/wayfinder</code>, <code>/research</code>, <code>/prototype</code>.</li>
+        <li><strong>Module 2 (Domain & Đặc tả):</strong> <code>/domain-modeling</code>, <code>/to-spec</code>, <code>/to-tickets</code>, <code>/triage</code>.</li>
+        <li><strong>Module 3 (Kiến trúc & Thi công chuẩn):</strong> <code>/codebase-design</code>, <code>/setup-ts-deep-modules</code>, <code>/improve-codebase-architecture</code>, <code>/implement-spec</code>, <code>/implement</code>, <code>/tdd</code>, <code>/migrate-to-shoehorn</code>, <code>/git-guardrails-claude-code</code>, <code>/handoff</code>, <code>/claude-handoff</code>, <code>/loop-me</code>.</li>
+        <li><strong>Module 4 (Capstone ERP Mini 6 chặng):</strong> <code>/grill-with-docs</code>, Server Actions, Zod, Supabase RLS, Web Dashboard, End-to-End Verification & Trial Balance Audit.</li>
+        <li><strong>Module 5 (Debug & Release):</strong> <code>/diagnosing-bugs</code>, <code>/code-review</code>, <code>/resolving-merge-conflicts</code>, <code>/pr</code>, <code>/retro</code>.</li>
+        <li><strong>Module 6 (Meta-Skills Sư phạm & Viết lách):</strong> <code>/writing-for-agents</code>, <code>/writing-fragments</code>, <code>/writing-beats</code>, <code>/writing-shape</code>, <code>/teach</code>, <code>/scaffold-exercises</code>.</li>
+      </ul>
+      <p style="margin-top: 10px; font-weight: 600; color: #166534;">
+        🎯 Bạn không chỉ học cách "chat với AI", mà đã hình thành tư duy của một Lead Engineer biết cách điều phối AI một cách có kỷ luật, bài bản và hiệu quả!
+      </p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG CUỐI CÙNG -->
+    <div class="navbar">
+      <a href="0026-teach-ai-pedagogy-workspace.html">← Bài 26: /teach</a>
+      <a href="index.html" style="font-weight: 700; color: var(--accent);">🏠 Về Mục Lục Toàn Khóa (28 Bài Học)</a>
+      <a href="#" class="disabled">Hoàn Tất Khóa Học 🏆</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Chúc mừng bạn!</strong> Hãy quay trở lại trang chủ <a href="index.html"><code>Mục lục Khóa học</code></a> để ngắm nhìn lại lộ trình 28 bài học rực rỡ mà bạn đã chinh phục!</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

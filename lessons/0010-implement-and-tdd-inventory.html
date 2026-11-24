@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 08: /tdd & /migrate-to-shoehorn — Hiện thực hóa Inventory Core qua Chu trình Red - Green - Refactor
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh; dùng tiếng Anh chuyên ngành chuẩn, tiếng Việt tự nhiên, không lạm dụng song ngữ ngoặc đơn.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 10 · /implement & /tdd — Thi Công Mã Nguồn Bằng Kỷ Luật TDD (Red - Green - Refactor)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 10</span>
+    <h1>/implement & /tdd — Thi Công Mã Nguồn Bằng Kỷ Luật TDD (Red - Green - Refactor)</h1>
+    <p class="subtitle">Ứng dụng TDD theo chuẩn Matt Pocock: Thi công từng Vertical Slice qua Seam, tránh Anti-pattern Horizontal Slicing và quản lý Test Fixtures với Shoehorn.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Áp dụng kỹ năng <code>/implement</code>, <code>/tdd</code> và <code>/migrate-to-shoehorn</code>, thực hiện chu trình Red &rarr; Green trên từng Vertical Slice, xử lý ràng buộc 15-minute TTL và loại bỏ type assertion <code>as</code> trong test.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Chuyển tiếp từ Thiết kế Deep Module sang Kiểm chứng Thực thi</div>
+      <p>Ở Bài 07, chúng ta đã thiết lập Deep Module cho <code>InventoryService</code> với public interface gồm 3 phương thức (<code>getAvailableStock</code>, <code>reserveStock</code>, <code>settleReservation</code>) tách biệt khỏi tầng lưu trữ qua Seam <code>IInventoryRepository</code>.</p>
+      <p>Tuy nhiên, interface và types mới chỉ xác lập cấu trúc ở compile-time. Các quy tắc nghiệp vụ quan trọng — như tính toán Available Stock, kiểm soát 15-minute TTL, và đảm bảo Anti-overselling — cần được kiểm chứng chặt chẽ ở runtime. Thay vì viết mã nguồn trước rồi kiểm thử thủ công sau, chúng ta áp dụng <strong>TDD</strong> để hiện thực hóa từng Vertical Slice có kiểm soát.</p>
+    </div>
+
+    <h2>1. Bản chất của TDD theo Kỹ nghệ Agent của Matt Pocock</h2>
+    <p>Trong quy trình pair-programming cùng AI Agent, Matt Pocock định nghĩa TDD là <strong>"a loop you believe in"</strong>. Khi sở hữu test suite chạy trong mili-giây, Agent có thể tự kiểm tra tính đúng đắn của logic sau mỗi lần sửa mã nguồn mà không cần kiểm thử thủ công.</p>
+
+    <div class="callout why">
+      <div class="ct">💡 Nguyên tắc Behavior Verification</div>
+      <p><strong>"Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't."</strong><br>
+        <em>(Kiểm thử cần xác nhận hành vi thông qua public interface, không phụ thuộc vào implementation details. Cấu trúc bên trong có thể refactor toàn diện, nhưng các bài kiểm thử hành vi vẫn phải giữ nguyên giá trị.)</em>
+      </p>
+      <p>Một bài test tốt đóng vai trò như tài liệu đặc tả kỹ thuật: tên ca kiểm thử <code>it('prevents overselling across consecutive reservations')</code> phản ánh trực tiếp năng lực nghiệp vụ mà hệ thống cung cấp.</p>
+    </div>
+
+    <h3>Vị trí kiểm thử: Seams</h3>
+    <p>Quy tắc cốt lõi của <code>/tdd</code> là <strong>Test only at pre-agreed seams</strong>: Không kiểm thử private methods hay can thiệp vào internal state.</p>
+    <ul>
+      <li><strong>Seam kiểm thử:</strong> Lớp <code>InventoryService</code> nhận adapter triển khai interface <code>IInventoryRepository</code>.</li>
+      <li><strong>Môi trường thực thi:</strong> <code>InMemoryInventoryRepository</code> vận hành trên in-memory <code>Map</code>, cho phép toàn bộ 16 bài kiểm thử hoàn tất trong khoảng 10ms mà không phụ thuộc vào database bên ngoài.</li>
+    </ul>
+
+    <h2>2. Ba Anti-patterns trong TDD Cần Phòng tránh</h2>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Anti-pattern</th>
+          <th>Dấu hiệu nhận biết</th>
+          <th>Hậu quả kỹ thuật & Giải pháp</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Implementation-coupled</strong></td>
+          <td>Lạm dụng mock các collaborator nội bộ, kiểm tra private methods, hoặc kiểm tra biến thay vì kết quả trả về của interface.</td>
+          <td>Test bị vỡ khi refactor thuật toán dù hành vi bên ngoài không đổi. <strong>Giải pháp:</strong> Chỉ assert trên dữ liệu đầu ra và exceptions ném ra từ public interface.</td>
+        </tr>
+        <tr>
+          <td><strong>Tautological</strong></td>
+          <td>Câu lệnh assertion tính toán lại kết quả kỳ vọng bằng chính logic của hàm cần test (ví dụ: <code>expect(fn(a, b)).toBe(a + b)</code>).</td>
+          <td>Test luôn pass do tính toán đồng nhất, không phát hiện được lỗi logic. <strong>Giải pháp:</strong> Giá trị kỳ vọng phải lấy từ known-good literal đã quy định trong Spec.</td>
+        </tr>
+        <tr>
+          <td><strong>Horizontal Slicing</strong></td>
+          <td>Viết trước hàng loạt bài test cho toàn bộ tính năng, sau đó mới viết mã nguồn hàng loạt để đáp ứng.</td>
+          <td>Test dễ mang tính suy đoán, thiếu độ nhạy với phản hồi thực tế trong quá trình code. <strong>Giải pháp:</strong> Triển khai theo <strong>Vertical Slices</strong> (1 test &rarr; 1 đoạn mã tối thiểu để pass &rarr; lặp lại).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Quản lý Test Fixtures với <code>@total-typescript/shoehorn</code></h2>
+    <p>Khi viết Unit Test cho một entity có cấu trúc lớn như <code>Product</code> (chứa các trường <code>id</code>, <code>name</code>, <code>sku</code>, <code>price</code>, <code>physicalStock</code>), phần lớn test case trừ kho chỉ quan tâm đến hai trường <code>id</code> và <code>physicalStock</code>.</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>So sánh: Type Assertion 'as' vs Utility 'fromPartial'</span></div>
+      <pre><code><span class="cmt">// ❌ Cách tiếp cận thiếu an toàn: Sử dụng 'as Product'</span>
+repository.seedProduct({
+  id: 'prod-iphone',
+  physicalStock: 10,
+} <span class="kw">as</span> <span class="tbl">Product</span>); <span class="cmt">// Trình biên dịch bỏ qua type check; dễ phát sinh lỗi runtime nếu truy cập trường thiếu</span>
+
+<span class="cmt">// ✅ Chuẩn kỹ nghệ Matt Pocock: Sử dụng fromPartial từ @total-typescript/shoehorn</span>
+<span class="kw">import</span> { fromPartial } <span class="kw">from</span> <span class="str">'@total-typescript/shoehorn'</span>;
+
+repository.seedProduct(
+  fromPartial&lt;<span class="tbl">Product</span>&gt;({
+    id: 'prod-iphone',
+    physicalStock: 10,
+  })
+);</code></pre>
+    </div>
+
+    <p>Lợi ích của <code>fromPartial</code> trong test code:</p>
+    <ul>
+      <li>Tránh phải tạo mock data cho các trường không liên quan đến ca kiểm thử.</li>
+      <li>Duy trì tính năng autocomplete của IDE cho các trường hợp lệ của đối tượng.</li>
+      <li>Khi schema của <code>Product</code> bổ sung thêm trường mới, các unit test hiện tại không bị compile error ngoài ý muốn.</li>
+    </ul>
+
+    <h2>4. Hiện thực hóa 4 Vertical Slices cho InventoryService</h2>
+
+    <h3>Slice 1: <code>getAvailableStock</code> và bất biến Available Stock</h3>
+    <p>Mục tiêu: Đảm bảo Available Stock tuân thủ bất biến <code>Available Stock = Physical Stock - Active Reservations</code>.</p>
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/inventory/inventory.test.ts (Trích đoạn Slice 1)</span></div>
+      <pre><code>it(<span class="str">'calculates available stock by subtracting active reservations from physical stock'</span>, <span class="kw">async</span> () =&gt; {
+  repository.seedProduct(
+    fromPartial&lt;<span class="tbl">Product</span>&gt;({
+      id: <span class="str">'prod-macbook-m3'</span>,
+      physicalStock: <span class="num">10</span>,
+    })
+  );
+
+  <span class="cmt">// Thực hiện đặt trước 3 sản phẩm</span>
+  <span class="kw">await</span> service.reserveStock(<span class="str">'prod-macbook-m3'</span>, <span class="num">3</span>, <span class="str">'order-001'</span>);
+
+  <span class="cmt">// Available Stock phải là 10 - 3 = 7</span>
+  <span class="kw">const</span> available = <span class="kw">await</span> service.getAvailableStock(<span class="str">'prod-macbook-m3'</span>);
+  expect(available).toBe(<span class="num">7</span>);
+
+  <span class="cmt">// Physical Stock trong kho không thay đổi tại bước đặt trước</span>
+  <span class="kw">const</span> balance = <span class="kw">await</span> repository.getStockBalance(<span class="str">'prod-macbook-m3'</span>);
+  expect(balance?.physicalStock).toBe(<span class="num">10</span>);
+});</code></pre>
+    </div>
+
+    <h3>Slice 2: <code>reserveStock</code> và 15-minute TTL</h3>
+    <p>Mục tiêu: Đảm bảo thời điểm hết hạn được thiết lập chính xác sau 15 phút, và ném lỗi <code>InsufficientStockError</code> khi số lượng yêu cầu vượt quá Available Stock.</p>
+
+    <h3>Slice 3: <code>settleReservation('COMMIT')</code> và chu trình Red &rarr; Green khi TTL hết hạn</h3>
+    <p>Minh họa thực tế cho giá trị của TDD trong việc phát hiện thiếu sót logic khi viết test case thanh toán cho phiên đặt trước đã hết hạn:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Test case phát hiện reservation đã hết hạn TTL</span></div>
+      <pre><code>it(<span class="str">'rejects committing an expired reservation whose 15-minute TTL has elapsed'</span>, <span class="kw">async</span> () =&gt; {
+  vi.useFakeTimers();
+  <span class="kw">const</span> startTime = <span class="kw">new</span> Date(<span class="str">'2026-09-28T08:00:00Z'</span>);
+  vi.setSystemTime(startTime);
+
+  repository.seedProduct(
+    fromPartial&lt;<span class="tbl">Product</span>&gt;({ id: <span class="str">'prod-logitech-keyboard'</span>, physicalStock: <span class="num">6</span> })
+  );
+
+  <span class="kw">const</span> res = <span class="kw">await</span> service.reserveStock(<span class="str">'prod-logitech-keyboard'</span>, <span class="num">2</span>, <span class="str">'order-late'</span>);
+
+  <span class="cmt">// Giả lập thời gian tiến thêm 16 phút (vượt quá 15 phút TTL)</span>
+  vi.setSystemTime(<span class="kw">new</span> Date(<span class="str">'2026-09-28T08:16:00Z'</span>));
+
+  <span class="cmt">// Yêu cầu commit khi đã quá hạn phải bị từ chối</span>
+  <span class="kw">await</span> expect(
+    service.settleReservation(res.id, <span class="str">'COMMIT'</span>)
+  ).rejects.toThrowError(InvalidReservationStateError);
+});</code></pre>
+    </div>
+
+    <div class="callout bridge">
+      <div class="ct">🔴 &rarr; 🟢 Diễn biến chu trình Red &rarr; Green</div>
+      <p><strong>Pha RED:</strong> Ở lần chạy đầu tiên, bài kiểm thử thất bại:</p>
+      <code>AssertionError: promise resolved "undefined" instead of rejecting</code>
+      <p>Nguyên nhân: Phương thức <code>commitReservation</code> ban đầu chỉ kiểm tra <code>res.status !== 'ACTIVE'</code> mà chưa đối soát mốc thời gian <code>res.expiresAt &lt;= now</code>.</p>
+      <p><strong>Pha GREEN:</strong> Bổ sung điều kiện kiểm tra thời hạn vào <code>InMemoryInventoryRepository</code> và <code>SupabaseInventoryRepository</code>:</p>
+      <div class="code-block">
+        <div class="code-label"><span>Kiểm tra thời hạn trong commitReservation</span></div>
+        <pre><code><span class="kw">if</span> (res.expiresAt.getTime() &lt;= <span class="kw">new</span> Date().getTime()) {
+  res.status = <span class="str">'EXPIRED'</span>;
+  res.updatedAt = <span class="kw">new</span> Date();
+  <span class="kw">throw new</span> InvalidReservationStateError(reservationId, <span class="str">'EXPIRED'</span>, <span class="str">'COMMIT'</span>);
+}</code></pre>
+      </div>
+      <p>Sau khi cập nhật, toàn bộ 16 bài kiểm thử đều chuyển sang trạng thái pass.</p>
+    </div>
+
+    <h3>Slice 4: <code>settleReservation('RELEASE')</code> và khôi phục Available Stock</h3>
+    <p>Mục tiêu: Đảm bảo khi đặt trước bị hủy hoặc hệ thống quét hết hạn, trạng thái chuyển tương ứng sang <code>RELEASED</code> hoặc <code>EXPIRED</code> và Available Stock được hoàn trả đầy đủ cho các giao dịch tiếp theo.</p>
+
+    <h2>5. Kết quả Kiểm thử Hệ thống</h2>
+    <div class="code-block">
+      <div class="code-label"><span>terminal (bash) — Kết quả chạy Vitest</span></div>
+      <pre><code>$ npm test
+
+ RUN  v4.1.11 /home/tinhnq/project/vibecoding_erp
+
+ ✓ src/modules/inventory/inventory.test.ts (16 tests) 9ms
+   ✓ InventoryService — TDD Test Suite at Seam (IInventoryRepository) (16)
+     ✓ Slice 1: getAvailableStock (Query Available Balance) (4)
+     ✓ Slice 2: reserveStock (Hold Stock with 15-Minute TTL) (4)
+     ✓ Slice 3: settleReservation — COMMIT (Payment Confirmed) (4)
+     ✓ Slice 4: settleReservation — RELEASE (Cancellation & Restoring Available Stock) (4)
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Duration  260ms (tests 9ms)</code></pre>
+    </div>
+
+    <h2>6. Câu hỏi Trắc nghiệm Kỹ thuật</h2>
+    <div class="quiz">
+      <div class="q"><strong>Câu 1:</strong> Trong phương pháp <code>/tdd</code> của Matt Pocock, mục đích của việc chỉ kiểm thử tại Seam là gì?</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Kiểm thử hàm private làm tăng độ phụ thuộc vào implementation details, khiến test dễ gãy khi refactor.">
+        A. Cho phép test can thiệp vào các phương thức private để kiểm tra biến nội bộ của lớp.</div>
+      <div class="opt" data-correct="true"
+        data-explain="Chính xác! Kiểm thử tại public interface giúp test xác nhận hành vi mà không phụ thuộc vào chi tiết cài đặt bên trong, bảo đảm test không bị ảnh hưởng khi refactor.">
+        B. Đảm bảo bài test chỉ kiểm chứng hành vi quan sát được qua public interface, giúp code bên trong có thể refactor mà không làm gãy test.</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Truy vấn trực tiếp cơ sở dữ liệu làm tăng độ trễ và vi phạm nguyên tắc cô lập kiểm thử tầng domain.">C.
+        Bắt buộc mọi ca kiểm thử phải gửi truy vấn trực tiếp vào PostgreSQL để kiểm tra từng dòng dữ liệu.</div>
+
+      <div class="q"><strong>Câu 2:</strong> Hàm <code>fromPartial</code> của <code>@total-typescript/shoehorn</code> giải quyết vấn đề kỹ thuật nào trong Unit Tests?</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Shoehorn không can thiệp vào runtime performance, mục tiêu chính là type safety khi khởi tạo fixtures.">A.
+        Tối ưu hóa thời gian thực thi của test runner nhờ chuyển đổi sang WebAssembly.</div>
+      <div class="opt" data-correct="true"
+        data-explain="Chính xác! fromPartial cho phép truyền các trường cần thiết mà không phải khởi tạo mock data cho toàn bộ schema, duy trì type safety thay cho ép kiểu 'as'.">
+        B. Cho phép khởi tạo test fixture chỉ với các thuộc tính cần thiết mà vẫn bảo đảm type safety, tránh dùng type assertion 'as' và tránh lỗi khi schema mở rộng.</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Shoehorn chỉ dùng cho test code, không dùng trong production code.">
+        C. Đảm bảo dữ liệu được serialize tự động khi gửi qua HTTP request giữa client và server.</div>
+
+      <div class="q"><strong>Câu 3:</strong> Hạn chế kỹ thuật của Horizontal Slicing trong TDD là gì?</div>
+      <div class="opt" data-correct="true"
+        data-explain="Chính xác! Viết toàn bộ test trước khi code khiến thiết kế bị đóng băng sớm, thiếu độ thích ứng với các yêu cầu kỹ thuật phát sinh trong quá trình triển khai thực tế.">
+        A. Viết trước hàng loạt bài kiểm thử mang tính suy đoán, làm khóa chặt cấu trúc kiểm thử trước khi hiểu rõ các điều kiện thực tế của implementation.</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Đây là vấn đề thiếu mock mạng, không phải khái niệm Horizontal Slicing.">B. Triển khai các lời gọi API tới dịch vụ bên ngoài mà không cấu hình mock phù hợp.</div>
+      <div class="opt" data-correct="false"
+        data-explain="Sai. Refactoring là bước tiêu chuẩn trong chu trình TDD khi test đang ở trạng thái Green.">C. Thực hiện refactor mã nguồn trong khi các bài kiểm thử đang ở trạng thái xanh.</div>
+    </div>
+
+    <h2>7. Checklist Nghiệm thu Kỹ thuật</h2>
+    <div class="callout why">
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li>✅ <strong>Vitest Test Suite</strong>: 16 tests kiểm tra đầy đủ 4 nhóm hành vi (Available Stock, Reserve 15-min TTL, Commit, Release).</li>
+        <li>✅ <strong>Thời gian thực thi</strong>: 16 bài kiểm thử chạy hoàn tất trong khoảng 10ms trên Seam <code>InMemoryInventoryRepository</code>.</li>
+        <li>✅ <strong>Test Fixtures type-safe</strong>: Sử dụng <code>fromPartial</code> từ <code>@total-typescript/shoehorn</code>, loại bỏ type assertion <code>as</code>.</li>
+        <li>✅ <strong>Kiểm soát 15-minute TTL</strong>: Xác nhận từ chối các yêu cầu commit khi reservation đã quá hạn 15 phút.</li>
+        <li>✅ <strong>Typecheck</strong>: Lệnh <code>npm run typecheck</code> đạt kết quả sạch 100%, không lỗi biên dịch.</li>
+      </ul>
+    </div>
+
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 11 · /git-guardrails-claude-code — Thiết Lập Hàng Rào An Toàn Git</div>
+      <p class="nd">Thiết lập PreToolUse hook bảo vệ repo, chặn đứng các lệnh Git phá hoại (push, reset --hard, clean, branch -D) trước khi thực thi.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0009-implement-spec-task-graph.html">← Bài 09</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0011-git-guardrails-claude-code.html">Bài 11 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử chạy lệnh <code>npx vitest run src/modules/inventory</code> để xác nhận toàn bộ 16 tests đều pass.</p>
+
+  </div>
+
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

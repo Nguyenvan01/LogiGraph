@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 16: Đóng gói Bản phát hành Release v1.0 & Retrospective Đúc kết Kinh nghiệm
+  Kỹ năng Matt Pocock: /pr, /retro
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; thuật ngữ chuyên ngành chuẩn mực.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 21 · /pr & /retro — Đóng Gói Bản Phát Hành Release v1.0 & Retrospective Đúc Kết</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 5 · Bài 21</span>
+    <h1>/pr & /retro — Đóng Gói Bản Phát Hành Release v1.0 & Retrospective Đúc Kết</h1>
+    <p class="subtitle">Hoàn tất Module 5: Soạn thảo Pull Request chất lượng cao theo chuẩn Matt Pocock (Summary, Evidence, Merge Danger), quản lý phiên bản với Semantic Versioning và tiến hành Retrospective cải tiến môi trường làm việc cho coding agent.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Nắm vững kỹ thuật viết PR body súc tích, phân định rủi ro One-way và Two-way Door, quản lý Changelog chuyên nghiệp và vận hành quy trình Retrospective để liên tục nâng cấp năng lực làm việc cùng AI.</p>
+
+    <!-- BẮC CẦU TỪ BÀI 15 SANG BÀI 16 -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Khép lại Module 5 & Sẵn sàng Phát hành Sản phẩm</div>
+      <p>Sau khi hoàn thành hai bước quan trọng: xử lý Race Condition ở Bài 14 và Senior Code Review 2 trục độc lập ở Bài 15, hệ thống VibeCoding ERP Mini đã sẵn sàng để phát hành phiên bản chính thức đầu tiên: <strong>Release v1.0</strong>.</p>
+      <p>Tuy nhiên, một chu trình kỹ thuật phần mềm chuẩn mực không kết thúc khi code đã chạy xong. Hai bước cuối cùng để hoàn thiện vòng đời phát triển là:</p>
+      <ul>
+        <li><strong>Đóng gói Pull Request (`/pr`):</strong> Trình bày thay đổi cho đồng nghiệp và các bên liên quan một cách súc tích, cung cấp bằng chứng kiểm thử thực tế và đánh giá rủi ro rõ ràng.</li>
+        <li><strong>Đúc kết kinh nghiệm (`/retro`):</strong> Rà soát lại môi trường làm việc, con trỏ định hướng file và các rào chắn tự động để các phiên làm việc tiếp theo của coding agent đạt hiệu suất cao hơn.</li>
+      </ul>
+    </div>
+
+    <h2>1. Nghệ thuật Viết Pull Request theo Chuẩn Matt Pocock (<code>/pr</code>)</h2>
+    <p>Một PR body kém chất lượng thường mắc phải hai thái cực: hoặc quá sơ sài không có thông tin, hoặc quá dài dòng với những lời mở đầu không cần thiết. Kỹ năng <code>pr</code> của Matt Pocock thiết lập một template 3 phần chuẩn mực, tập trung vào bản chất:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Template PR Body Chuẩn của Matt Pocock (Dex Horthy / Show-me)</span></div>
+      <pre><code>## Summary
+
+&lt;diagram, diff-sketch, call-tree, hoặc shallow file tree&gt;
+
+## Evidence
+
+- **Before:** &lt;screenshot, log, hoặc failing test run&gt;
+  **After:** &lt;screenshot, log, hoặc passing test run&gt;
+
+## Merge Danger
+
+**Door:** &lt;one-way hoặc two-way&gt;
+
+&lt;mô tả đánh giá khả năng hoàn tác&gt;
+
+**Blast Radius:** &lt;đánh giá phạm vi ảnh hưởng trong một từ&gt;
+
+&lt;mô tả hệ quả tiềm ẩn đối với các thành phần xung quanh&gt;</code></pre>
+    </div>
+
+    <div class="callout why">
+      <div class="ct">🚪 Khái niệm One-way Door vs Two-way Door trong Đánh giá Rủi ro</div>
+      <p>Lấy cảm hứng từ triết lý ra quyết định của Jeff Bezos, việc phân loại quyết định sáp nhập mã nguồn thành hai loại cửa giúp đội ngũ kỹ thuật có chiến lược review phù hợp:</p>
+      <ul>
+        <li><strong>Two-way Door (Cửa hai chiều):</strong> Quyết định có thể dễ dàng đảo ngược hoặc rollback với chi phí thấp nếu phát sinh sự cố. Ví dụ: thêm một hàm mới, bổ sung adapter, hoặc cập nhật logic tầng ứng dụng có bảo vệ bằng feature flag. Các PR này có rủi ro thấp.</li>
+        <li><strong>One-way Door (Cửa một chiều):</strong> Quyết định khó hoặc không thể đảo ngược mà không gây gián đoạn hệ thống hoặc mất dữ liệu. Ví dụ: xóa cột cơ sở dữ liệu, chạy migration thay đổi kiểu dữ liệu bảng lớn, hoặc thay đổi giao thức xác thực. Các PR này đòi hỏi kiểm thử thận trọng và kế hoạch dự phòng chi tiết.</li>
+      </ul>
+    </div>
+
+    <h2>2. Báo cáo Pull Request Thực tế cho VibeCoding ERP Mini v1.0</h2>
+    <p>Chúng ta đã thiết lập file tài liệu PR chính thức tại <a href="../docs/release-v1.0-pr.md"><code>docs/release-v1.0-pr.md</code></a>. Dưới đây là nội dung cốt lõi của bản PR:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Trích đoạn docs/release-v1.0-pr.md</span></div>
+      <pre><code>## Summary
+
+VibeCoding ERP Mini v1.0: Bộ giải pháp quản lý tồn kho, đơn hàng và sổ cái kế toán kép
+trên nền tảng Next.js 15 App Router và Supabase PostgreSQL.
+
+User Action (UI / Server Action)
+  ├── reserveStockAction() ──► Supabase RPC: reserve_stock_atomic (SELECT FOR UPDATE)
+  ├── processOrderPaymentAction()
+  │     ├── commitReservation() ──► Trừ kho vật lý
+  │     ├── Invoice Generation ──► INV-2026-XXXX
+  │     └── postTransaction()  ──► Debit 112 (Bank) / Credit 511 (Revenue)
+  └── getTrialBalanceAction()  ──► Bảng cân đối thử nghiệm (Σ Debit === Σ Credit)
+
+## Evidence
+- Before: Check-Then-Act gây rủi ro Over-selling khi có request đồng thời; chưa có sổ cái kép.
+- After: 35/35 automated tests trong Vitest pass trong 159ms; typecheck 0 lỗi; test Concurrency
+  chứng minh 10 requests đồng thời tranh mua 2 sản phẩm: đúng 2 request thành công, 8 request
+  bị từ chối an toàn, tồn kho không bao giờ âm.
+
+## Merge Danger
+**Door:** Two-way door
+Toàn bộ logic được bao bọc sau Seams (IInventoryRepository, ILedgerRepository). Dữ liệu có
+Check Constraints bảo vệ tính tương thích ngược, dễ dàng hoàn tác hoặc hoán đổi adapter.
+
+**Blast Radius:** Low
+Phạm vi tác động giới hạn trong các module nội bộ (inventory, ledger, actions).</code></pre>
+    </div>
+
+    <h2>3. Quản lý Phiên bản với Semantic Versioning & Changelog</h2>
+    <p>Một dự án mã nguồn chuyên nghiệp cần một lịch sử thay đổi rõ ràng. File <a href="../CHANGELOG.md"><code>CHANGELOG.md</code></a> được xây dựng theo chuẩn <strong>Keep a Changelog</strong> và tuân thủ <strong>Semantic Versioning (SemVer)</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Quy tắc Đánh số Phiên bản Semantic Versioning (MAJOR.MINOR.PATCH)</span></div>
+      <pre><code>Phiên bản: v1.0.0
+           │ │ │
+           │ │ └── PATCH: Vá lỗi tương thích ngược (Bug fixes)
+           │ └──── MINOR: Bổ sung tính năng mới tương thích ngược (New features)
+           └────── MAJOR: Thay đổi lớn phá vỡ tính tương thích ngược (Breaking changes)</code></pre>
+    </div>
+
+    <h2>4. Phương pháp luận Retrospective cho Coding Agent (<code>/retro</code>)</h2>
+    <p>Trong kỹ nghệ lập trình cùng AI (Agentic Engineering), mục tiêu của một buổi Retrospective không phải là đánh giá hiệu suất con người, mà là <strong>cải thiện môi trường làm việc (Environment) của coding agent</strong> để các phiên làm việc tiếp theo diễn ra mượt mà và chính xác hơn.</p>
+
+    <div class="callout tip">
+      <div class="ct">⚖️ Nguyên tắc: Implementation Agent vs Review Agent (Áp lực Ngữ cảnh)</div>
+      <p>Matt Pocock chỉ ra một sự thật quan trọng về quản lý Token Budget:</p>
+      <ul>
+        <li><strong>Implementation Agent:</strong> Chịu áp lực ngữ cảnh (Context Pressure) lớn nhất. Agent này phải khám phá thư mục, đọc nhiều file, viết code và debug lỗi. Cần giữ steering files ngắn gọn để dành token cho agent này suy luận.</li>
+        <li><strong>Review Agent:</strong> Chịu áp lực ngữ cảnh thấp nhất. Agent này chỉ nhận diff của commit/PR, không phải khám phá hay viết lại toàn bộ hệ thống. Do đó, Review Agent là đối tượng phù hợp nhất để chịu trách nhiệm kiểm tra các quy chuẩn kiến trúc trong <code>CODING_STANDARDS.md</code>.</li>
+      </ul>
+    </div>
+
+    <h2>5. Mô hình Đúc kết Keep / Drop / Try sau 16 Bài học</h2>
+    <p>Từ tài liệu <a href="../docs/retrospective-v1.0.md"><code>docs/retrospective-v1.0.md</code></a>, bảng tổng kết sau đây ghi lại những bài học thực tiễn nhất của dự án:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bảng Tổng kết Keep / Drop / Try (VibeCoding ERP Mini)</span></div>
+      <pre><code>Hành động   │ Chi tiết Thực tiễn trong Dự án ERP Mini
+────────────┼──────────────────────────────────────────────────────────────────────────────
+KEEP        │ - Thiết kế Deep Modules với interface hẹp và Seams độc lập.
+            │ - Kiểm thử TDD với In-memory Adapters chạy siêu tốc (< 15ms).
+            │ - Quy trình chẩn đoán lỗi có căn cứ (diagnosing-bugs) trước khi sửa code.
+            │ - Đánh giá mã nguồn theo hai trục độc lập Standards vs Spec.
+────────────┼──────────────────────────────────────────────────────────────────────────────
+DROP        │ - Mô hình Check-Then-Act với các truy vấn rời rạc trên tầng ứng dụng.
+            │ - Câu từ cường điệu hóa hoặc ghép song ngữ mở ngoặc đơn rườm rà.
+            │ - Sửa code trước khi có test tái hiện lỗi một cách xác định.
+────────────┼──────────────────────────────────────────────────────────────────────────────
+TRY         │ - Khám phá sâu nguyên lý thiết kế Prompt và Skill qua writing-for-agents.
+            │ - Làm chủ trọn vẹn bộ kỹ năng Meta-Skills viết lách và sư phạm AI trong Module 6.</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Theo kỹ năng /pr của Matt Pocock, ba phần bắt buộc trong một PR body chuẩn mực là gì?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đây là cấu trúc văn bản hành chính thông thường, không phải template tinh gọn của kỹ năng pr.">A. Introduction, Implementation Details, Future Work.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Template chuẩn của kỹ năng pr gồm 3 phần cốt lõi: Summary (trực quan hóa thay đổi bằng diagram/tree/diff), Evidence (bằng chứng Before/After cụ thể), và Merge Danger (phân loại One-way/Two-way door và Blast Radius).">B. Summary (tóm tắt bằng sơ đồ/diff), Evidence (bằng chứng Before/After), và Merge Danger (đánh giá rủi ro One-way/Two-way door). </button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Các phần này là chi tiết bổ trợ, không phải khung sườn 3 phần bắt buộc.">C. User Stories, Database Schema, Code Snippets.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi nào một Pull Request được phân loại là One-way Door?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Thay đổi logic tầng ứng dụng có thể rollback dễ dàng nên là Two-way Door.">A. Khi PR chỉ thay đổi một vài dòng code ở tầng controller.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! One-way Door là các quyết định khó hoặc không thể đảo ngược mà không gây mất mát dữ liệu hoặc gián đoạn hệ thống lớn (ví dụ: xóa bảng, thay đổi kiểu dữ liệu cơ sở dữ liệu lớn).">B. Khi PR chứa các thao tác khó hoặc không thể đảo ngược mà không gây mất dữ liệu hoặc gián đoạn hệ thống, như migration xóa cột hoặc thay đổi schema lớn.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Có kiểm thử tự động không làm thay đổi bản chất của một quyết định một chiều.">C. Khi PR có đầy đủ 100% unit tests bao phủ.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 3. Trong phương pháp luận /retro của Matt Pocock, tại sao việc kiểm tra các quy chuẩn kiến trúc nên giao cho Review Agent thay vì Implementation Agent?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Cả hai agent đều có thể đọc tài liệu nếu cần.">A. Vì Implementation Agent không có quyền đọc file CODING_STANDARDS.md.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Implementation Agent chịu áp lực ngữ cảnh (Context Pressure) rất lớn do phải đọc nhiều file, viết code và debug; trong khi Review Agent chỉ nhận git diff nên có nhiều token budget hơn để đối soát các tiêu chuẩn thiết kế sâu.">B. Vì Implementation Agent chịu áp lực ngữ cảnh lớn nhất khi phải khám phá mã nguồn và debug, trong khi Review Agent chỉ nhận diff nên có đủ token budget để rà soát tiêu chuẩn thiết kế.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Không liên quan đến việc viết code nhanh hay chậm.">C. Vì Review Agent viết code nhanh hơn Implementation Agent.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- TỔNG KẾT MODULE 5 -->
+    <div class="callout tip">
+      <div class="ct">🎉 Chúc mừng! Bạn đã hoàn thành 100% MODULE 5</div>
+      <ul class="checklist">
+        <li>Hoàn thành trọn vẹn cả 3 bài học Module 5: Bài 19 (Concurrency Debugging), Bài 20 (Two-axis Code Review & Merge Conflicts), Bài 21 (PR & Retrospective).</li>
+        <li>Bảo vệ hệ thống trước lỗi Race Condition bằng PostgreSQL Row-level Lock (<code>SELECT FOR UPDATE</code>) Stored Procedure.</li>
+        <li>Xác lập tài liệu quy chuẩn dự án <code>CODING_STANDARDS.md</code>, báo cáo đánh giá 2 trục <code>docs/code-review-v1.0-report.md</code>, PR body <code>docs/release-v1.0-pr.md</code>, và tài liệu <code>CHANGELOG.md</code>.</li>
+        <li>Hệ thống ERP Mini đạt trạng thái phát hành v1.0 ổn định: 35/35 tests Vitest pass trong 159ms, 0 lỗi typecheck.</li>
+      </ul>
+    </div>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 22)</div>
+      <div class="nt">Bài 22 · /writing-for-agents — Kỹ Nghệ Viết Cho Agent: Context Load, Pointers, Leading Words & Pruning</div>
+      <p class="nd">Bước vào Module 6 (Meta-Skills của Matt Pocock): Mổ xẻ cơ chế Token Budget (Context load vs Cognitive load), Information Hierarchy, Context Pointers và kỹ thuật cắt tỉa cặn lắng để Agent thi công chuẩn xác 100%.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0020-code-review-and-merge-conflicts.html">← Bài 20</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0022-writing-for-agents.html">Bài 22 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Mở file <a href="../docs/release-v1.0-pr.md" target="_blank"><code>docs/release-v1.0-pr.md</code></a> và <a href="../CHANGELOG.md" target="_blank"><code>CHANGELOG.md</code></a> để xem toàn bộ thông tin đóng gói bản phát hành Release v1.0 của dự án ERP Mini!</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

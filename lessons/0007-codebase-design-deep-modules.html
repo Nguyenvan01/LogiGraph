@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 07: /codebase-design — Thiết kế Deep Modules & Seams
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 07 · /codebase-design — Thiết kế Deep Modules & Seams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 07</span>
+    <h1>/codebase-design — Thiết kế Deep Modules & Seams cho Inventory Core</h1>
+    <p class="subtitle">Ứng dụng triết lý Deep Modules của John Ousterhout: Interface nhỏ gọn 3 hàm giấu kín sự phức tạp
+      bên trong, tách rời Core khỏi Next.js và Supabase.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/codebase-design</code> của Matt Pocock, hiểu bản
+      chất Deep Module (Depth = Leverage), vị trí đặt Seams, chiến lược Dual-Adapter và cấu trúc thư mục TypeScript
+      chuẩn mực.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Khắc phục Tight Coupling trong Next.js & Supabase</div>
+      <p>Sau khi hoàn thành 5 Tracer-bullet Tickets ở Bài 06, chúng ta bắt đầu thi công <strong>Ticket 01: In-Memory
+          Inventory Repository Seam</strong>. Trong đa số các dự án Next.js thông thường, lập trình viên thường viết
+        code logic trực tiếp bên trong các Server Components, Server Actions hoặc Route Handlers, gọi thẳng
+        <code>supabase.from('products').update(...)</code>.</p>
+      <p>Hậu quả là mã nguồn bị <strong>Tight Coupling</strong>: Logic tính toán tồn kho, kiểm tra TTL và xử lý tranh
+        chấp bị phân tán khắp nơi. Mỗi khi muốn viết Unit Test cho một ca trừ kho, lập trình viên buộc phải dựng cả
+        database Supabase hoặc viết mock hàng chục dòng rất mong manh.</p>
+      <p>Kỹ năng <code>/codebase-design</code> áp dụng triết lý <strong>Deep Modules</strong> để tách rời hoàn toàn Core
+        nghiệp vụ ra khỏi Framework và Database, tạo ra một Seam cho phép cắm 2 Adapters linh hoạt.</p>
+    </div>
+
+    <h2>1. Triết lý Deep Modules của John Ousterhout</h2>
+    <p>Trong cuốn sách nổi tiếng <em>A Philosophy of Software Design</em>, Giáo sư John Ousterhout phân biệt hai loại
+      mô-đun phần mềm:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>So sánh trực quan: Deep Module vs Shallow Module</span></div>
+      <pre><code>        DEEP MODULE (Nên dùng)                      SHALLOW MODULE (Nên tránh)
+┌─────────────────────────────────────┐       ┌─────────────────────────────────────┐
+│    Interface nhỏ (3 hàm đơn giản)   │       │   Interface lớn (hàng chục hàm API) │
+├─────────────────────────────────────┤       ├─────────────────────────────────────┤
+│                                     │       │                                     │
+│  Implementation sâu & giàu năng lực │       │   Implementation nông (chỉ chuyển   │
+│  (Ẩn giấu TTL, Invariant, Concurrency│       │   tiếp dữ liệu đơn thuần)           │
+│   và kiểm soát lỗi bên trong)       │       │                                     │
+│                                     │       └─────────────────────────────────────┘
+└─────────────────────────────────────┘</code></pre>
+    </div>
+
+    <p>Matt Pocock định nghĩa lại các khái niệm then chốt theo góc nhìn Kỹ nghệ Agent:</p>
+    <ul>
+      <li><strong>Depth:</strong> Tỷ lệ Leverage tại bề mặt Interface. Khả năng mà caller có thể điều khiển trên mỗi đơn
+        vị kiến thức họ phải ghi nhớ. Một mô-đun được gọi là <em>Deep</em> khi nó cung cấp năng lực mạnh mẽ đằng sau một
+        Interface nhỏ gọn.</li>
+      <li><strong>Leverage cho Caller:</strong> Người gọi chỉ cần học 3 hàm đơn giản nhưng giải quyết được toàn bộ bài
+        toán phức tạp về tranh chấp kho và hết hạn thanh toán.</li>
+      <li><strong>Locality cho Maintainer:</strong> Khi có bug hoặc cần tối ưu thuật toán trừ kho, kỹ sư chỉ cần sửa tại
+        MỘT vị trí duy nhất bên trong implementation mà không làm thay đổi bất kỳ dòng code nào ở phía caller.</li>
+      <li><strong>The Deletion Test:</strong> Hãy thử tưởng tượng nếu xóa module này đi: nếu độ phức tạp biến mất thì đó
+        là một pass-through nông cạn; nếu độ phức tạp bùng nổ tràn lan sang hàng chục caller thì đó chính là một Deep
+        Module thực thụ đang gánh vác trách nhiệm lớn.</li>
+    </ul>
+
+    <h2>2. Thiết kế Seams & 2 Adapters</h2>
+    <p>Theo Michael Feathers (<em>Working Effectively with Legacy Code</em>), <strong>Seam</strong> là vị trí cho phép
+      thay đổi hành vi của chương trình mà không cần chỉnh sửa mã nguồn tại vị trí đó.</p>
+
+    <div class="callout why">
+      <div class="ct">💡 Định luật Seam của Matt Pocock</div>
+      <p><strong>"One adapter means a hypothetical seam. Two adapters means a real one."</strong><br>
+        <em>(Nếu chỉ có một Adapter duy nhất, seam đó mới chỉ là giả định trên lý thuyết. Khi có hai Adapters cùng thỏa
+          mãn Interface, seam mới thực sự hình thành.)</em>
+      </p>
+    </div>
+
+    <p>Trong dự án VibeCoding ERP, chúng ta đã thiết lập Seam chính thức tại interface <a
+        href="../src/modules/inventory/domain/types.ts" target="_blank"><code>IInventoryRepository</code></a> và thi
+      công đúng 2 Adapters:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Tên Adapter</th>
+          <th>Vị trí file</th>
+          <th>Mục đích & Môi trường hoạt động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>InMemoryInventoryRepository</strong></td>
+          <td><a href="../src/modules/inventory/adapters/in-memory.ts"
+              target="_blank"><code>adapters/in-memory.ts</code></a></td>
+          <td>Sử dụng <code>Map</code> trong bộ nhớ. Dành riêng cho Unit Tests bằng Vitest. Thời gian chạy <strong>&lt;
+              5ms</strong>, không cần Internet, không cần Supabase.</td>
+        </tr>
+        <tr>
+          <td><strong>SupabaseInventoryRepository</strong></td>
+          <td><a href="../src/modules/inventory/adapters/supabase.ts"
+              target="_blank"><code>adapters/supabase.ts</code></a></td>
+          <td>Thực thi các câu lệnh SQL nguyên tử kết hợp ràng buộc <code>CHECK (stock >= 0)</code> trên Supabase
+            PostgreSQL. Dùng cho Production và Integration Tests.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Bóc tách Interface 3 Hàm của InventoryService</h2>
+    <p>Đúng theo yêu cầu kiến trúc của Bài 07, bề mặt công khai của <a href="../src/modules/inventory/index.ts"
+        target="_blank"><code>src/modules/inventory/index.ts</code></a> được thu gọn tối đa vào <strong>3 hàm nghiệp
+        vụ</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/inventory/index.ts — Deep Interface 3 hàm</span></div>
+      <pre><code><span class="kw">export class</span> <span class="tbl">InventoryService</span> {
+  <span class="kw">constructor</span>(<span class="kw">private readonly</span> repo: <span class="tbl">IInventoryRepository</span>) {}
+
+  <span class="cmt">/**
+   * 1. Tra cứu tồn kho khả dụng thời gian thực
+   * Bảo toàn Invariant: availableStock = physicalStock - activeReservations
+   */</span>
+  <span class="kw">public async</span> <span class="fn">getAvailableStock</span>(productId: <span class="tbl">string</span>): <span class="tbl">Promise&lt;number&gt;</span>;
+
+  <span class="cmt">/**
+   * 2. Tạm giữ tồn kho trong 15 phút TTL
+   * Tự động kiểm tra khả dụng, quăng lỗi InsufficientStockError nếu thiếu hàng
+   */</span>
+  <span class="kw">public async</span> <span class="fn">reserveStock</span>(productId: <span class="tbl">string</span>, quantity: <span class="tbl">number</span>, orderId?: <span class="tbl">string</span>): <span class="tbl">Promise&lt;StockReservation&gt;</span>;
+
+  <span class="cmt">/**
+   * 3. Quyết toán đợt giữ hàng (Settle)
+   * - 'COMMIT': Khách thanh toán -> trừ vĩnh viễn vào kho vật lý
+   * - 'RELEASE': Hủy đơn hoặc hết hạn TTL -> hoàn trả kho khả dụng
+   */</span>
+  <span class="kw">public async</span> <span class="fn">settleReservation</span>(reservationId: <span class="tbl">string</span>, action: <span class="str">'COMMIT'</span> | <span class="str">'RELEASE'</span>, reason?: <span class="tbl">string</span>): <span class="tbl">Promise&lt;void&gt;</span>;
+}</code></pre>
+    </div>
+
+    <h3>Cấu trúc thư mục theo chuẩn /setup-ts-deep-modules</h3>
+    <p>Toàn bộ mã nguồn được tổ chức theo cấu trúc khép kín, ngăn chặn việc import bừa bãi từ bên ngoài:</p>
+    <div class="code-block">
+      <div class="code-label"><span>Cấu trúc mã nguồn tại src/modules/inventory/</span></div>
+      <pre><code>src/modules/inventory/
+├── index.ts          <span class="cmt"># Public surface duy nhất của module</span>
+├── domain/           <span class="cmt"># Thư mục nội bộ: Types, Domain Errors</span>
+│   ├── types.ts
+│   └── errors.ts
+└── adapters/         <span class="cmt"># Thư mục nội bộ: 2 Adapters ở Seam</span>
+    ├── in-memory.ts  <span class="cmt"># InMemory Adapter (Vitest)</span>
+    └── supabase.ts   <span class="cmt"># Supabase Postgres Adapter (Production)</span></code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Theo John Ousterhout và kỹ năng /codebase-design của Matt Pocock, định nghĩa nào sau đây
+        phản ánh chính xác nhất về một "Deep Module"?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Module có interface lớn với hàng chục hàm là Shallow Module, làm tăng gánh nặng ghi nhớ cho người gọi.">A.
+        Một module có interface rất lớn chứa đầy đủ mọi hàm helper để người gọi tùy biến.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Deep Module mang lại đòn bẩy cao: Interface nhỏ gọn dễ học, nhưng giấu kín toàn bộ logic phức tạp và xử lý ca biên bên trong.">B.
+        Một module có interface nhỏ gọn (ít hàm, tham số đơn giản) nhưng ẩn giấu bên trong một khối lượng logic và năng
+        lực xử lý mạnh mẽ.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Số lượng file trong thư mục không quyết định độ sâu của module; độ sâu được đo bằng năng lực ẩn sau interface.">C.
+        Một module có cấu trúc thư mục lồng nhau từ 5 tầng trở lên.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Tại sao Matt Pocock nhấn mạnh câu nói: "One adapter means a hypothetical seam. Two adapters
+        means a real one"?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Thiết kế interface không nhằm mục đích tăng độ phủ test, mà nhằm bảo vệ tính linh hoạt kiến trúc.">A.
+        Để tăng code coverage của kiểm thử tự động lên gấp đôi.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Nếu chỉ có 1 adapter duy nhất, interface dễ bị thiết kế méo mó ăn khớp với adapter đó. Khi có 2 adapter thực tế (In-memory cho test & Supabase cho production), Seam mới thực sự chứng minh được tính trừu tượng độc lập.">B.
+        Vì nếu chỉ có 1 adapter, interface dễ bị phụ thuộc vào triển khai đó; khi có ít nhất 2 adapter chạy thật
+        (In-memory & Database), Seam mới thực sự phát huy giá trị tách rời. </button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Supabase và In-memory là hai công nghệ độc lập, không chạy dự phòng fail-over trực tiếp cho nhau.">C.
+        Để nếu Supabase bị sập server thì hệ thống tự động chuyển sang lưu tạm vào RAM của máy chủ.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 07</div>
+      <ul class="checklist">
+        <li>Làm chủ tư duy Deep Modules của John Ousterhout và nguyên tắc đòn bẩy Interface của Matt Pocock.</li>
+        <li>Thiết lập thành công Seam <code>IInventoryRepository</code> và hiện thực hóa trọn vẹn 2 Adapters: In-Memory
+          và Supabase.</li>
+        <li>Hoàn thiện lớp dịch vụ lõi <a href="../src/modules/inventory/index.ts"
+            target="_blank"><code>InventoryService</code></a> với Interface tinh gọn đúng 3 hàm, typecheck 100% không
+          một cảnh báo.</li>
+        <li>Cấu trúc thư mục đóng gói sạch sẽ theo chuẩn <code>setup-ts-deep-modules</code>, bảo vệ Core khỏi sự phụ
+          thuộc vào Next.js.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 08 -->
+    <h2>4. Câu hỏi tư duy (Bắc cầu sang Bài 08)</h2>
+    <p>Kiến trúc Deep Module đã định hình và Seam đã được thiết lập. Nhưng trước khi vội vã viết hàng trăm dòng code, làm sao để chắc chắn kiến trúc này không có "điểm nghẽn rò rỉ" (leaky abstractions) hay những hàm thừa thãi làm tăng cognitive load?</p>
+    <p><em>Làm thế nào để quét và tối ưu hóa kiến trúc codebase trước khi thi công?</em></p>
+    <p>Đó là bài toán thực chiến của Bài 08 với kỹ năng: <code>/improve-codebase-architecture</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 08 · /improve-codebase-architecture — Quét & Tối Ưu Hóa Kiến Trúc Codebase Trước Khi Thi Công</div>
+      <p class="nd">Quét hot spots qua git log, áp dụng Deletion Test, xuất báo cáo Visual HTML Before/After và chạy Grilling refactor loop để làm sâu các module.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0006-to-tickets-tracer-bullets.html">← Bài 06</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0008-improve-codebase-architecture.html">Bài 08 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <a href="../src/modules/inventory/index.ts"
+        target="_blank"><code>src/modules/inventory/index.ts</code></a> để kiểm tra interface 3 hàm của Deep Module.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

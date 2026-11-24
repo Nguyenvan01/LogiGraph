@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 12: /handoff & /loop-me — Quản Lý Ngữ Cảnh, Bàn Giao Phiên & Duy Trì Human-in-the-loop
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 12 · /handoff & /loop-me — Quản Lý Ngữ Cảnh & Bàn Giao Phiên Làm Việc</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 12</span>
+    <h1>/handoff & /loop-me — Quản Lý Ngữ Cảnh, Bàn Giao Phiên & Duy Trì Human-in-the-loop</h1>
+    <p class="subtitle">Khắc phục triệt để hiện tượng Context Degradation: Chuẩn hóa tài liệu bàn giao Single Source of Truth và tự động hóa quy trình với Loop Lens.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ bộ ba kỹ năng vận hành (<code>/handoff</code>, <code>/claude-handoff</code>, <code>/loop-me</code>), đóng gói trạng thái làm việc vào <code>.scratch/handoff.md</code> và áp dụng nguyên tắc "Push Right" để tối ưu hóa tương tác người - máy.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Hiện tượng "Lú lẫn ngữ cảnh" (Context Degradation)</div>
+      <p>Sau khi hoàn thành thi công phân hệ Kho ở Bài 10 và thiết lập hàng rào an toàn Git ở Bài 11, phiên làm việc hiện tại đã tích lũy hàng chục nghìn tokens gồm logs terminal, diffs code cũ và các câu hỏi trung gian. Khi Context Window bị kéo dài, cơ chế attention của mô hình AI bị pha loãng (Attention Dilution).</p>
+      <p>Hậu quả là Agent bắt đầu quên các quyết định đã ghi trong ADR, sinh code lệch chuẩn hoặc tự ý sửa các file không liên quan. Bài học này hướng dẫn kỹ thuật <strong>Handoff Protocol</strong> của Matt Pocock để đóng gói trạng thái làm việc và reset sang phiên làm việc mới với 100% độ sắc bén.</p>
+    </div>
+
+    <h2>1. Hiện Tượng Context Degradation & Bản Chất Kỹ Thuật</h2>
+    <p>Một phiên làm việc kéo dài sẽ tích lũy "rác ngữ cảnh" (context noise). Mô hình Handoff giải quyết vấn đề này bằng cách tạo ra các điểm cắt sạch sẽ:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>So sánh: Phiên làm việc kéo dài vs Cơ chế Handoff</span></div>
+      <pre><code>❌ Phiên làm việc kéo dài dẫn đến Context Degradation:
+[ADR & Quyết định] ──► [Logs terminal dài] ──► [Nhiễu ngữ cảnh] ──► [Độ chính xác suy giảm]
+
+✅ Mô hình Handoff theo chuẩn Matt Pocock:
+[Phiên A: Hoàn thành Task] ──► Đóng gói Handoff Artifact ──► [Phiên B: Khởi tạo mới với Context sạch 100%]</code></pre>
+    </div>
+
+    <h2>2. Bốn Nguyên Tắc Thiết Kế Tài Liệu Handoff (`/handoff`)</h2>
+    <p>Tài liệu bàn giao (lưu tại <code>.scratch/handoff.md</code>) không phải là nơi xả nhật ký thô, mà phải tuân thủ 4 nguyên tắc vàng:</p>
+
+    <ul>
+      <li><strong>1. No Duplication (Không nhân bản dữ liệu):</strong> Tuyệt đối không copy-paste toàn bộ code, file spec hay schema database vào file handoff. Chỉ ghi các <strong>relative paths</strong> (ví dụ: <code>specs/inventory-and-order.md</code>) để agent phiên sau tự đọc khi cần.</li>
+      <li><strong>2. Next Session Scope (Ranh giới phiên tiếp theo):</strong> Nêu rõ chính xác mục tiêu kỹ thuật của phiên tiếp theo. Không giao việc mơ hồ.</li>
+      <li><strong>3. Suggested Skills (Chỉ định kỹ năng):</strong> Liệt kê danh sách các skills cụ thể trong <code>.agents/skills/</code> mà agent tiếp theo cần kích hoạt (ví dụ: <code>/grill-with-docs</code>, <code>/domain-modeling</code>, <code>/tdd</code>).</li>
+      <li><strong>4. Redaction (Tẩy sạch bí mật):</strong> Xóa bỏ hoàn toàn API keys, tokens xác thực và mật khẩu trước khi lưu file hoặc truyền vào prompt.</li>
+    </ul>
+
+    <h2>3. Phân Biệt `/handoff` và `/claude-handoff`</h2>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Tiêu chí so sánh</th>
+          <th>Kỹ năng <code>/handoff</code></th>
+          <th>Kỹ năng <code>/claude-handoff</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Phương thức lưu trữ</strong></td>
+          <td>Ghi tóm tắt trạng thái vào tệp markdown tĩnh (<code>.scratch/handoff.md</code>).</td>
+          <td>Chuyển tóm tắt trạng thái trực tiếp thành prompt khởi động của một background subagent mới.</td>
+        </tr>
+        <tr>
+          <td><strong>Quy trình thực thi</strong></td>
+          <td>Người dùng chủ động mở phiên làm việc mới và cung cấp tệp handoff làm ngữ cảnh đầu vào.</td>
+          <td>Hệ thống tự động kích hoạt tiến trình nền thông qua lệnh <code>claude --bg --name "&lt;name&gt;" "&lt;prompt&gt;"</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Trường hợp áp dụng</strong></td>
+          <td>Khi cần tạm dừng phiên làm việc, chuyển giao giữa các thành viên, hoặc đổi môi trường IDE.</td>
+          <td>Khi cần bàn giao tức thì cho một tác vụ chạy nền độc lập mà không làm gián đoạn luồng làm việc chính.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. Phương Pháp Luận Loop Lens Trong Tự Động Hóa (`/loop-me`)</h2>
+    <p>Kỹ năng <code>/loop-me</code> cung cấp góc nhìn quy trình: xem xét các hoạt động kỹ thuật lặp lại dưới dạng <strong>loops within loops</strong>. Khi nhận diện được cấu trúc của một vòng lặp, chúng ta có thể chuyển hóa nó thành một <strong>Workflow Spec</strong> để giao cho AI Agent thực thi có kiểm soát.</p>
+
+    <div class="callout why">
+      <div class="ct">💡 Ba thành phần cấu trúc của Loop Lens</div>
+      <p><strong>1. Trigger:</strong> Điều kiện kích hoạt quy trình: theo cơ chế <em>Event-driven</em> (như issue mới, commit mới) hoặc <em>Schedule-driven</em> (theo lịch định kỳ). Mô hình Event-driven giúp tối ưu tài nguyên hơn do chỉ chạy khi có sự kiện thực tế phát sinh.</p>
+      <p><strong>2. Checkpoints &amp; Nguyên tắc "Push Right":</strong> Checkpoint là vị trí con người cần tham gia để phê duyệt hoặc ra quyết định. Nguyên tắc <strong>"Push right"</strong> yêu cầu dời checkpoint về phía cuối quy trình càng xa càng tốt: Agent tự động hoàn tất các khâu đọc tài liệu, kiểm thử, phân tích mã nguồn, và chỉ yêu cầu người dùng xác nhận ở khâu quyết định cuối cùng.</p>
+      <p><strong>3. Decision Brief:</strong> Tại checkpoint, Agent không đưa ra log thô hay diff chưa xử lý, mà trình bày một <strong>Decision Brief</strong> cô đọng: kết quả đạt được, căn cứ lựa chọn giải pháp và link dẫn tới các tài liệu chi tiết.</p>
+    </div>
+
+    <h2>5. Hộp Prompt Thực Chiến: Bàn Giao Sạch Sẽ Trước Khi Vào Module 4</h2>
+    <p>Trước khi kết thúc Module 3 để bước sang Module 4 Capstone, bạn nhập prompt sau vào terminal:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /handoff</div>
+      <pre><code>/handoff "Tóm tắt toàn bộ thành quả của Module 3: 16 unit tests của phân hệ Kho đã pass, 
+Git guardrail hook đã hoạt động. 
+Thiết lập mục tiêu phiên tới cho Module 4 Capstone: Nghiên cứu Kế toán kép, thiết kế cấu trúc phân hệ Ledger và thi công TDD. 
+Lưu kết quả vào .scratch/handoff.md theo đúng 4 nguyên tắc Handoff Protocol."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Trong quy chuẩn Handoff Protocol của Matt Pocock, nguyên tắc nào cần áp dụng để tối ưu Context Window cho agent tiếp theo?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Sao chép lại mã nguồn làm lãng phí token và gây phân tán attention của mô hình.">A. Sao chép toàn bộ mã nguồn và lịch sử commit vào file handoff để agent mới không cần đọc tệp trên đĩa.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Chỉ sử dụng relative path trỏ tới các tệp hiện có, tránh sao chép trùng lặp dữ liệu và nêu rõ mục tiêu cùng các Suggested Skills.">B. Không sao chép lại nội dung tệp đã có; chỉ cung cấp relative path, nêu rõ trọng tâm phiên tiếp theo và danh sách Suggested Skills.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Suggested Skills là trường thông tin quan trọng để định hình workflow cho agent sau.">C. Loại bỏ danh sách Suggested Skills vì agent mới có thể tự suy luận toàn bộ quy trình.</button>
+      <div class="feedback"></div>
+
+      <div class="q"><strong>Câu 2:</strong> Trong phương pháp /loop-me, nguyên tắc "Push Right" đối với Checkpoint có ý nghĩa gì?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Push right giúp tối đa hóa khả năng tự chủ của agent trong khâu chuẩn bị, chỉ chuyển giao quyền quyết định cho con người khi đã có đầy đủ dữ liệu phân tích.">A. Trì hoãn sự can thiệp của con người đến bước cuối cùng, để Agent tự động hoàn tất tối đa các khâu chuẩn bị trước khi yêu cầu quyết định.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Dừng lại hỏi sau mỗi thao tác đơn lẻ làm giảm hiệu suất tự động hóa.">B. Dừng lại yêu cầu người dùng xác nhận sau mỗi thao tác dòng lệnh riêng lẻ.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Push right điều chỉnh thời điểm tương tác chứ không loại bỏ vai trò phê duyệt của con người.">C. Loại bỏ hoàn toàn sự tham gia của con người trong các quyết định phát hành sản phẩm.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 12</div>
+      <ul class="checklist">
+        <li>Hiểu rõ nguyên nhân kỹ thuật của Context Degradation và giải pháp Handoff Protocol.</li>
+        <li>Nắm vững 4 nguyên tắc vàng của tài liệu handoff: No Duplication, Next Session Scope, Suggested Skills, Redaction.</li>
+        <li>Biết cách áp dụng Loop Lens và nguyên tắc "Push Right" để tối ưu hóa sự tham gia của con người.</li>
+        <li>Khép lại trọn vẹn Module 3 với 6 bài học theo đúng quy trình phát triển phần mềm chuẩn mực!</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 13 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Bài 13 — Capstone Chặng 1)</h2>
+    <p>Module 3 đã trang bị cho bạn đầy đủ kỹ năng và phương pháp kỹ thuật từ Thiết kế Deep Module, Quét Kiến trúc, Task Graph, TDD cho đến Hàng rào Git và Handoff. Bây giờ là lúc chúng ta bước vào <strong>Module 4: Dự án Thực Chiến Capstone ERP Mini</strong>.</p>
+    <p>Khách hàng đưa ra một bài toán nghiệp vụ kinh điển: <em>"Mỗi khi khách thanh toán đơn hàng, hệ thống phải hạch toán kế toán kép để dòng tiền không bao giờ bị mất dấu."</em> Nhưng làm sao một lập trình viên chưa từng học kế toán có thể hiểu và chất vấn được bài toán này?</p>
+    <p>Đó là nội dung mở màn của Bài 13 với câu chuyện tiệm bánh đời thường và kỹ năng: <code>/grill-with-docs</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 13 · /grill-with-docs — Khám Phá Nghiệp Vụ Kế Toán Kép: Từ Bài Toán Đời Thường Đến Chất Vấn Sâu</div>
+      <p class="nd">Chặng 1 Capstone ERP Mini: Câu chuyện tiệm bánh, bẫy balance += 100k, nguyên lý 2 túi tiền Nợ/Có, bảng 5 tài khoản và quy tắc Sổ cái Append-only.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0011-git-guardrails-claude-code.html">← Bài 11</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0013-grill-with-docs-double-entry-accounting.html">Bài 13 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <code>.scratch/handoff.md</code> để quan sát cách cấu trúc một tài liệu bàn giao ngữ cảnh thực tế trong dự án.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

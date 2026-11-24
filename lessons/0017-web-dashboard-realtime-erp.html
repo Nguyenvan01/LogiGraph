@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 13: Hoàn Thành Ứng Dụng: Setup Web Dashboard & Trải Nghiệm Sản Phẩm Thực Tế
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; hướng dẫn từ sơ khai đến nâng cao.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình: Setup dashboard -> Phân rã UI -> Surface the State -> Trải nghiệm thực tế.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 17 · Dựng Web Dashboard Tương Tác Theo Nguyên Lý "Surface the State"</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 17 (Capstone Chặng 5)</span>
+    <h1>Dựng Web Dashboard Tương Tác Theo Nguyên Lý "Surface the State"</h1>
+    <p class="subtitle">Chặng 5 Dự án Capstone ERP Mini: Tự tay khởi tạo không gian giao diện, chỉ đạo AI dựng Web Dashboard theo nguyên lý "Surface the State", phân rã 4 panels độc lập và kết nối reactive wiring với các Server Actions.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Làm chủ kỹ năng điều phối AI xây dựng giao diện người dùng có kiểm soát, tránh bẫy Monolithic Spaghetti, trang bị cơ chế chống bấm đúp và kết nối hoàn hảo với tầng Server Actions.</p>
+
+    <!-- BẮC CẦU TỪ BÀI 12 SANG 13 -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh thực tế: Khi Mã Nguồn Cần Trở Thành Một Sản Phẩm Thực Tế</div>
+      <p>Trải qua các bài học từ 10 đến 12, chúng ta đã có:</p>
+      <ul>
+        <li>Schema Database PostgreSQL với Check Constraints và View <code>view_ledger_trial_balance</code>.</li>
+        <li>Core Services (<code>InventoryService</code>, <code>LedgerService</code>) với 100% unit tests Vitest xanh lét.</li>
+        <li>Server Actions Next.js với lá chắn Zod và PostgreSQL RLS bảo vệ Sổ cái.</li>
+      </ul>
+      <p>Nhưng một sản phẩm phần mềm chỉ thực sự hoàn thành khi khách hàng hoặc người dùng cuối có thể <strong>nhìn thấy bằng mắt và tự tay bấm trải nghiệm bằng chuột</strong>. Bài học này sẽ dẫn dắt bạn qua những bước sơ khai nhất để dựng nên Web Dashboard trực quan và nghiệm thu toàn bộ dự án Capstone.</p>
+    </div>
+
+    <!-- GIAI ĐOẠN 1: SETUP KHÔNG GIAN GIAO DIỆN -->
+    <h2>1. Giai đoạn 1: Setup Không Gian Giao Diện Từ Con Số 0</h2>
+    <p>Chúng ta khởi tạo một thư mục riêng biệt cho giao diện dashboard:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Terminal: Khởi tạo thư mục dashboard</span></div>
+      <pre><code>mkdir -p dashboard
+touch dashboard/index.html</code></pre>
+    </div>
+
+    <div class="callout warn">
+      <div class="ct">⚠️ Lời cảnh báo kinh điển: Đừng bảo AI "Viết cho tôi cả Dashboard"</div>
+      <p>Khi bạn ra lệnh ngây thơ: <em>"Hãy viết cho tôi một trang ERP Dashboard hoàn chỉnh"</em>, AI sẽ sinh ra một file khổng lồ dài cả nghìn dòng code với các hậu quả tai hại:</p>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Code Spaghetti:</strong> Trộn lẫn CSS, HTML và logic tính toán vào một mớ hỗn độn.</li>
+        <li><strong>Tự chế lại logic:</strong> AI tự viết lại các phép trừ kho và số dư ngay trên trình duyệt thay vì gọi qua các Server Actions đã test ở Bài 12.</li>
+        <li><strong>Khi có lỗi không biết sửa ở đâu:</strong> Một nút bấm không ăn, bạn phải mò mẫm qua 1000 dòng code để tìm nguyên nhân.</li>
+      </ol>
+      <p><strong>Giải pháp:</strong> Phân rã giao diện thành 4 Panels độc lập theo nguyên lý <strong>"Surface the State"</strong>.</p>
+    </div>
+
+    <!-- GIAI ĐOẠN 2: NGUYÊN LÝ SURFACE THE STATE & 4 PANELS -->
+    <h2>2. Giai đoạn 2: Phân Rã Giao Diện Theo Nguyên Lý "Surface the State"</h2>
+    <p>Một hệ thống ERP doanh nghiệp không được che giấu dữ liệu ngầm. Người vận hành kho và kế toán viên phải nhìn thấy ngay tác động của từng hành động trên 4 khu vực:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bản đồ Phân rã 4 Khu vực Giao diện</span></div>
+      <pre><code>┌────────────────────────────────────────────────────────────────────────┐
+│ 1. KPI SUMMARY BAR (Thanh chỉ số tổng quan)                            │
+│ [ Tồn khả dụng: 9 sp ] [ Tiền gửi: +$2,500 ] [ Doanh thu: +$2,500 ] [ Status: BALANCED ] │
+└────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────┬────────────────────────────────────┐
+│ 2. KHO HÀNG (Inventory)           │ 3. ĐƠN HÀNG & HÓA ĐƠN (Orders)     │
+│ - Tồn kho vật lý: 10              │ - Mã đơn: ORD-2026-0001            │
+│ - Đang giữ: 1                     │ - Trạng thái: PAID                 │
+│ - Khả dụng: 9                     │ - Hóa đơn: INV-2026-0001           │
+├───────────────────────────────────┴────────────────────────────────────┤
+│ 4. BẢNG CÂN ĐỐI KẾ TOÁN (Trial Balance)                                │
+│ Mã TK │ Tên Tài Khoản          │ Phát sinh Nợ │ Phát sinh Có │ Số dư   │
+│ 112   │ Tiền gửi ngân hàng     │ $2,500.00    │ $0.00        │ +$2,500 │
+│ 511   │ Doanh thu bán hàng     │ $0.00        │ $2,500.00    │ +$2,500 │
+│ ─── TỔNG CỘNG ──────────────── │ $2,500.00    │ $2,500.00    │ BALANCED│
+└────────────────────────────────────────────────────────────────────────┘</code></pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 3: HỘP PROMPT CHỈ ĐẠO AI DỰNG UI -->
+    <h2>3. Giai đoạn 3: Hộp Prompt Chỉ Đạo AI Dựng Giao Diện Chuẩn Mực</h2>
+
+    <h3>Hộp Prompt Mẫu Gửi Cho AI:</h3>
+    <div class="code-block">
+      <div class="code-label"><span>Prompt chỉ đạo AI dựng Web Dashboard</span></div>
+      <pre><code>Hãy dựng giao diện ERP Dashboard hoàn chỉnh tại file dashboard/index.html theo các tiêu chuẩn:
+
+1. Thiết kế & Thẩm mỹ: Nền sáng thanh lịch (Light Theme: #ffffff, #f8fafc), viền tinh tế (#e2e8f0), font chữ Inter kết hợp JetBrains Mono cho số liệu tài chính.
+2. Bố cục gồm 4 Panels độc lập:
+   - Panel 1: KPI Summary Bar (4 thẻ số liệu tổng quan).
+   - Panel 2: Quản lý Kho hàng (hiển thị rõ: Kho vật lý, Giữ hàng 15p, Khả dụng).
+   - Panel 3: Danh sách Đơn hàng & Hóa đơn (trạng thái DRAFT / PAID / SHIPPED).
+   - Panel 4: Bảng cân đối Trial Balance (truy vấn từ view view_ledger_trial_balance).
+3. Thanh thao tác nhanh (Toolbar) chứa đúng 4 nút:
+   - "+ Đặt 1 sp"
+   - "Thanh toán"
+   - "Xuất kho"
+   - "Hủy đơn / Hoàn tiền"
+4. Giao diện chỉ phản chiếu trạng thái, không tự ý tính toán logic; kết nối trực tiếp với các Server Actions.</code></pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 4: KẾT NỐI TƯƠNG TÁC -->
+    <h2>4. Giai đoạn 4: Kết Nối Tương Tác Phản Ứng & Chống Bấm Đúp</h2>
+    <p>Để giao diện phản hồi mượt mà, mỗi khi người dùng bấm nút, chúng ta kích hoạt Server Action và tự động cập nhật lại màn hình:</p>
+
+    <div class="callout tip">
+      <div class="ct">🛡 Kỹ thuật phòng thủ: Chống bấm đúp (Double-Click Prevention)</div>
+      <p>Khi người dùng bấm "Thanh toán", nếu mạng hơi chậm, người dùng có xu hướng bấm thêm vài lần nữa. Để ngăn chặn việc tạo ra nhiều hóa đơn trùng lặp, mã điều khiển luôn vô hiệu hóa nút bấm trong lúc đang xử lý:</p>
+      <pre style="font-family: var(--mono); background: #f8fafc; padding: 6px 10px; border-radius: 4px; margin: 6px 0;">
+button.disabled = true; // Khóa nút
+await processOrderPaymentAction(...); // Gửi yêu cầu
+button.disabled = false; // Mở lại nút</pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 5: TRẢI NGHIỆM THỰC TẾ & NGHIỆM THU -->
+    <h2>5. Giai đoạn 5: Ra Sản Phẩm Thực Tế — 4 Bước Trực Tiếp Trải Nghiệm</h2>
+    <p>Mở file <a href="../dashboard/index.html" target="_blank"><code>dashboard/index.html</code></a> trên trình duyệt của bạn và thực hiện lần lượt 4 bước:</p>
+
+    <div class="callout tip">
+      <div class="ct">🖥 Kịch bản 4 Bước Trải nghiệm Sản phẩm Thực tế</div>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Bước 1: Bấm nút "+ Đặt 1 sp":</strong>
+          <br>Quan sát: Tồn kho khả dụng lập tức giảm từ 10 xuống 9 sản phẩm, trong khi Tồn kho vật lý vẫn giữ nguyên 10. Đơn hàng mới xuất hiện ở trạng thái <code>DRAFT</code> kèm đồng hồ giữ hàng 15 phút.
+        </li>
+        <li><strong>Bước 2: Bấm nút "Thanh toán":</strong>
+          <br>Quan sát: Đơn hàng chuyển sang màu xanh <code>PAID</code>, hóa đơn chính thức <code>INV-2026-0001</code> được cấp số. Tồn kho vật lý bị trừ xuống 9. Bảng Trial Balance lập tức ghi nhận: Nợ 112 (Tiền gửi) +$2,500 và Có 511 (Doanh thu) +$2,500. Trạng thái hiển thị <code>BALANCED</code>.
+        </li>
+        <li><strong>Bước 3: Bấm nút "Xuất kho":</strong>
+          <br>Quan sát: Đơn hàng chuyển sang <code>SHIPPED</code>. Chi phí giá vốn $1,800 được ghi nhận vào tài khoản 632 và tài sản kho 156 giảm tương ứng $1,800. Sổ sách tiếp tục <code>BALANCED</code> 100%.
+        </li>
+        <li><strong>Bước 4: Bấm nút "Hủy đơn & Hoàn tiền":</strong>
+          <br>Quan sát: Bút toán đảo chiều kích hoạt, trả lại $2,500 cho khách và khôi phục tồn kho. Bảng cân đối Kế toán vẫn khớp nhau từng xu!
+        </li>
+      </ol>
+    </div>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Tại sao trong thiết kế Dashboard ERP, giao diện người dùng (UI) không nên tự thực hiện các phép tính cộng trừ số dư mà phải lấy kết quả từ Server Actions?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Trình duyệt tính toán số học rất nhanh.">A. Vì trình duyệt tính toán số học quá chậm.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Giao diện chỉ đóng vai trò hiển thị trạng thái (Surface the State). Toàn bộ logic nghiệp vụ phải tập trung ở backend để bảo đảm tính nhất quán (Single Source of Truth) và ngăn chặn việc gian lận số liệu trên client.">B. Để bảo đảm nguyên tắc Single Source of Truth: Toàn bộ phép tính phải do backend quyết định, tránh tình trạng số liệu trên màn hình không khớp với database.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. HTML/JS có thể viết logic nhưng đó là phản hoa học kiến trúc.">C. Vì HTML không hỗ trợ viết code logic.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi bạn bấm nút "+ Đặt 1 sp", tại sao Tồn kho khả dụng giảm ngay nhưng Tồn kho vật lý vẫn giữ nguyên con số 10?</div>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Đặt hàng mới chỉ là thao tác giữ chỗ (Stock Reservation). Sản phẩm vẫn nằm nguyên trên kệ trong kho vật lý cho đến khi khách hàng thanh toán thành công.">A. Vì khách mới chỉ giữ chỗ hàng (Stock Reservation with 15-min TTL), hàng vẫn còn nguyên trong kho vật lý cho đến khi thanh toán.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đây là thiết kế chủ động của hệ thống, không phải do mạng chậm.">B. Vì hệ thống bị nghẽn mạng nên chưa kịp trừ kho vật lý.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- KẾT QUẢ ĐẠT ĐƯỢC -->
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Chặng 5 (Bài 17)</div>
+      <ul class="checklist">
+        <li>Setup không gian giao diện tại <code>dashboard/index.html</code> sạch sẽ và tránh bẫy Monolithic Spaghetti.</li>
+        <li>Phân rã layout thành 4 Panels độc lập theo nguyên lý "Surface the State": KPI Bar, Kho hàng, Đơn hàng & Hóa đơn, Bảng cân đối Kế toán.</li>
+        <li>Kết nối Reactive Wiring với các Server Actions backend và trang bị cơ chế khóa nút chống bấm đúp.</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG BÀI 18 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Chặng 6: Bài 18)</h2>
+    <p>Giao diện Web Dashboard đã được lắp ráp hoàn chỉnh. Bây giờ là thời khắc đáng chờ đợi nhất của toàn bộ dự án Capstone:</p>
+    <p><em>Làm thế nào để mở trình duyệt, trực tiếp bấm chuột vận hành chu trình ERP qua 4 kịch bản (Đặt hàng &rarr; Thanh toán &rarr; Xuất kho &rarr; Hoàn tiền), quan sát dòng tiền dịch chuyển và kiểm chứng Bảng cân đối Trial Balance đạt trạng thái BALANCED 100%?</em></p>
+    <p>Đó là nội dung của <strong>Chặng 6 (Bài 18): Trực Tiếp Vận Hành Chu Trình ERP End-to-End & Đối Soát Bảng Cân Đối</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 18 · Trực Tiếp Vận Hành Chu Trình ERP End-to-End & Đối Soát Bảng Cân Đối</div>
+      <p class="nd">Chặng 6 Capstone: Mở trình duyệt, tự tay bấm 4 nút tương tác, quan sát trừ kho, cấp hóa đơn, ghi sổ kép và nghiệm thu sản phẩm ERP Mini hoàn chỉnh.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0016-server-actions-zod-supabase.html">← Bài 16</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0018-end-to-end-verification-and-trial-balance.html">Bài 18 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở file <code>dashboard/index.html</code> trong VS Code hoặc trình duyệt để kiểm tra cấu trúc 4 panels vừa được thiết kế.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

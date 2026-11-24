@@ -1,0 +1,10 @@
+- **Ngôn ngữ & Phong cách**: 
+  - Nếu câu từ nào tiếng Anh rõ ý thì thể hiện bằng tiếng Anh chuyên ngành chuẩn mực (`Design Tree`, `Frontier`, `Context Window`, `Context Degradation`, `Deep Modules`, `Seams`, `Adapters`, `Race Condition`, `Concurrency`, `Stock Reservation`, `TTL`, `State Machine`, `Throwaway Prototype`, `Invariant`, `Row-level Locking`, `SELECT FOR UPDATE`, `Optimistic Concurrency Control`, `Single Source of Truth`, `Network Latency`...).
+  - Nếu câu từ nào tiếng Việt rõ ý hơn tiếng Anh thì ưu tiên tiếng Việt mộc mạc, chuẩn xác, điềm tĩnh để giải thích bản chất kỹ thuật.
+  - **Tránh lạm dụng song ngữ mở ngoặc đơn `tiếng Việt (tiếng Anh)`**, ví dụ: tránh viết kiểu `sự kiện (event)`, `điểm may (seams)`, `dính chùm (tight coupling)`, `tranh chấp tài nguyên (race condition)`. Hãy dùng thẳng thuật ngữ tiếng Anh chuẩn, hoặc dùng từ thuần Việt nếu nghĩa đã trọn vẹn.
+  - **Tuyệt đối không dùng từ ngữ cường điệu, đao to búa lớn hoặc ẩn dụ gây khó hiểu**:
+    - Tránh các từ giật gân: "vũ khí", "đỉnh cao", "sát thủ", "thần thánh", "sống còn", "huyết mạch", "bẻ gãy", "bão táp".
+    - Tránh dịch văn vẻ hoặc ẩn dụ kỳ lạ: KHÔNG dùng "ô nhiễm context" (hãy dùng: "làm đầy/tràn context window"), KHÔNG dùng "sương mù tan dần" (hãy giải thích: "các phần việc chưa xác định chi tiết, khi chốt xong quyết định trước thì sẽ làm rõ thành ticket"), KHÔNG dùng "chất vấn dồn dập" (hãy dùng: "đặt câu hỏi từng bước để làm rõ yêu cầu").
+    - Giữ văn phong kỹ thuật điềm tĩnh, chuẩn xác, dễ hiểu của Senior Software Engineer.
+- **Giao diện bài học**: Người học yêu cầu **BACKGROUND SÁNG (Light Mode)**, sạch sẽ, tương phản cao, dễ đọc.
+- **Dự án thực tế song song**: `VibeCoding ERP Mini` sử dụng Next.js 15 (App Router) + Supabase (PostgreSQL) + Vitest.

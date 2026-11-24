@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  MỤC LỤC /teach: Master 38 Skills Matt Pocock & VibeCoding ERP Mini
+  Tổng hợp 7 Modules chuẩn mực và 28 bài học đơn nhiệm (Bài 00 -> Bài 27).
+  100% Nguyên bản với skills-lock.json của Matt Pocock.
+  Light Theme & Semantic Design.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lộ trình Master 38 Skills Matt Pocock & VibeCoding ERP Mini</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+  <style>
+    .hero {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 2.3rem;
+      margin-top: 10px;
+      color: #0f172a;
+    }
+
+    .progress-wrap {
+      margin: 24px 0 36px;
+    }
+
+    .progress-bar {
+      height: 10px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #10b981);
+      border-radius: 999px;
+    }
+
+    .progress-label {
+      text-align: center;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+
+    .module {
+      margin: 36px 0;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .module-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .module-num {
+      font-family: var(--mono);
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .module-head h2 {
+      border: none;
+      margin: 0;
+      padding: 0;
+      font-size: 1.35rem;
+      color: #0f172a;
+    }
+
+    .module-why {
+      color: #64748b;
+      font-size: 14px;
+      margin: 8px 0 18px;
+      line-height: 1.6;
+    }
+
+    .lessons-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .lessons-list li {
+      margin: 10px 0;
+    }
+
+    .lessons-list a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 15px;
+      text-decoration: none;
+      color: #1e293b;
+      transition: all 0.15s ease;
+    }
+
+    .lessons-list a:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.08);
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+
+    .badge.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    .badge.capstone {
+      background: #fce7f3;
+      color: #9d174d;
+      border: 1px solid #fbcfe8;
+    }
+
+    .badge.meta {
+      background: #f3e8ff;
+      color: #6b21a8;
+      border: 1px solid #e9d5ff;
+    }
+
+    .lesson-title {
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .skills-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #475569;
+      background: #e2e8f0;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      white-space: nowrap;
+    }
+
+    .lcount {
+      font-size: 12px;
+      color: #16a34a;
+      font-family: var(--mono);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .intro-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #2563eb;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .stat-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #2563eb;
+      font-family: var(--mono);
+    }
+
+    .stat-sub {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 768px) {
+      .lessons-list a {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .skills-tag {
+        width: 100%;
+        margin-left: 0;
+        text-align: left;
+      }
+      .lcount {
+        margin-left: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <span class="lesson-tag">⚡ Agentic Engineering · Next.js 15 & Supabase ERP</span>
+      <h1>Lộ trình Master 38 Skills Matt Pocock</h1>
+      <p class="subtitle">Thấu hiểu bản chất kỹ nghệ Prompt/Context & Tự tay xây dựng sản phẩm VibeCoding ERP Mini thực tế.</p>
+    </div>
+
+    <div class="intro-card">
+      <strong>Kiến trúc & Mục tiêu Lộ trình:</strong> Khóa học thực chiến toàn diện gồm <strong>28 bài học đơn nhiệm (Bài 00 &rarr; Bài 27)</strong> phân bố qua 7 Modules chặt chẽ. Hệ thống hóa trọn vẹn <strong>38/38 skills của Matt Pocock</strong> (nguyên bản từ <code>skills-lock.json</code>), kết hợp sản phẩm thực chiến <code>VibeCoding ERP Mini</code> (Next.js 15 App Router, Supabase PostgreSQL, Vitest).
+      
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-val">28 / 28</div>
+          <div class="stat-sub">Bài học hoàn chỉnh</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">38 / 38</div>
+          <div class="stat-sub">Matt Pocock Skills</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">35 / 35</div>
+          <div class="stat-sub">Vitest Tests Passing (100%)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">0</div>
+          <div class="stat-sub">Custom Skill lai tạp</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 100%"></div>
+      </div>
+      <div class="progress-label">28 / 28 bài học hoàn thành (100%) · Đã hoàn thiện toàn bộ 7 Modules</div>
+    </div>
+
+    <!-- MODULE 0 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 0</span>
+        <h2>Khởi Tạo Môi Trường & Dự Án (Foundations & Safety)</h2>
+      </div>
+      <p class="module-why">Chuẩn bị nền tảng kỹ thuật (Node 25, Next.js 15, Vitest, Supabase), kích hoạt AI trợ giảng và thiết lập cơ chế an toàn commit ngay từ đầu.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0000-setup-nextjs-supabase-erp.html">
+            <span class="badge done">Bài 00</span>
+            <span class="lesson-title">Dựng khung Next.js 15, Supabase & Cấu hình Vitest Sanity Check</span>
+            <span class="skills-tag">/ask-matt · /setup-pre-commit · /wizard</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 1 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 1</span>
+        <h2>Khám Phá & Xác Định Yêu Cầu Nghiệp Vụ (Discovery & Planning)</h2>
+      </div>
+      <p class="module-why">Quy trình phỏng vấn làm rõ yêu cầu, khử Silent Assumptions, điều phối subagents khảo sát codebase và tạo prototype độc lập kiểm chứng bài toán kỹ thuật.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0001-grilling-inventory-requirements.html">
+            <span class="badge done">Bài 01</span>
+            <span class="lesson-title">Stress-test Yêu Cầu Nghiệp Vụ & Loại Bỏ Silent Assumptions</span>
+            <span class="skills-tag">/grill-me · /grilling · /wait-what · /to-questionnaire</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0002-wayfinder-and-research.html">
+            <span class="badge done">Bài 02</span>
+            <span class="lesson-title">Định Vị Codebase & Thu Thập Tri Thức Độc Lập Bằng Subagents</span>
+            <span class="skills-tag">/wayfinder · /research</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0003-prototype-order-state-machine.html">
+            <span class="badge done">Bài 03</span>
+            <span class="lesson-title">Xây Dựng Prototype Độc Lập Để Kiểm Chứng State Machine Đơn Hàng</span>
+            <span class="skills-tag">/prototype</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 2 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 2</span>
+        <h2>Mô Hình Hóa Domain & Lập Đặc Tả Kỹ Thuật (Modeling & Specification)</h2>
+      </div>
+      <p class="module-why">Chuẩn hóa từ vựng nghiệp vụ (Ubiquitous Language), ghi chép quyết định kiến trúc ADR và phân rã công việc thành các lát cắt dọc (Vertical Slices).</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0004-domain-modeling-and-database-schema.html">
+            <span class="badge done">Bài 04</span>
+            <span class="lesson-title">Mô Hình Hóa Domain Với Ubiquitous Language & Database Schema</span>
+            <span class="skills-tag">/domain-modeling</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0005-to-spec-technical-specification.html">
+            <span class="badge done">Bài 05</span>
+            <span class="lesson-title">Lập Đặc Tả Kỹ Thuật Chi Tiết Cho Module Inventory & Order</span>
+            <span class="skills-tag">/to-spec</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0006-to-tickets-tracer-bullets.html">
+            <span class="badge done">Bài 06</span>
+            <span class="lesson-title">Phân Rã Tracer-Bullet Tickets & Thiết Lập Dependency Graph</span>
+            <span class="skills-tag">/to-tickets · /triage</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 3 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 3</span>
+        <h2>Kiến Trúc & Thi Công Deep Modules (Architecture & Execution)</h2>
+      </div>
+      <p class="module-why">Thiết kế Deep Modules, Seams & Adapters, quét churn phản biện kiến trúc, lập Task Graph DAG thi công bằng TDD và thiết lập rào chắn an toàn Git.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0007-codebase-design-deep-modules.html">
+            <span class="badge done">Bài 07</span>
+            <span class="lesson-title">Thiết Kế Deep Modules & Đường Biên Seams Cho Inventory Core</span>
+            <span class="skills-tag">/codebase-design</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0008-improve-codebase-architecture.html">
+            <span class="badge done">Bài 08</span>
+            <span class="lesson-title">Đo Đạc Churn, Phản Biện & Cải Tiến Kiến Trúc Hệ Thống</span>
+            <span class="skills-tag">/improve-codebase-architecture</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0009-implement-spec-task-graph.html">
+            <span class="badge done">Bài 09</span>
+            <span class="lesson-title">Lập Kế Hoạch Thi Công Task Graph DAG & Điều Phối Worktrees</span>
+            <span class="skills-tag">/implement-spec</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0010-implement-and-tdd-inventory.html">
+            <span class="badge done">Bài 10</span>
+            <span class="lesson-title">Thi Công Core Logic Bằng TDD Red-Green-Refactor & Shoehorn</span>
+            <span class="skills-tag">/implement · /tdd · /migrate-to-shoehorn</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0011-git-guardrails-claude-code.html">
+            <span class="badge done">Bài 11</span>
+            <span class="lesson-title">Thiết Lập PreToolUse Hook Chặn Lệnh Phá Hoại Trên Git</span>
+            <span class="skills-tag">/git-guardrails-claude-code</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0012-context-management-and-handoff.html">
+            <span class="badge done">Bài 12</span>
+            <span class="lesson-title">Quản Lý Context, Tự Động Hóa Vòng Lặp & Bàn Giao Session</span>
+            <span class="skills-tag">/handoff · /claude-handoff · /loop-me</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 4 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 4</span>
+        <h2>Dự Án Thực Chiến Capstone — Kế Toán Kép ERP Mini (Full-Stack ERP)</h2>
+      </div>
+      <p class="module-why">Đúng 6 chặng chuẩn mực dành cho người mới: Setup &rarr; Cấu trúc &rarr; TDD Core &rarr; Server Actions &rarr; Web Dashboard &rarr; Ra sản phẩm thực tế.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0013-grill-with-docs-double-entry-accounting.html">
+            <span class="badge capstone">Bài 13</span>
+            <span class="lesson-title">Chặng 1: Khám Phá & Phản Biện Nguyên Lý Kế Toán Kép (Bẫy Balance +=)</span>
+            <span class="skills-tag">/grill-with-docs</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0014-setup-project-ledger-spec.html">
+            <span class="badge capstone">Bài 14</span>
+            <span class="lesson-title">Chặng 2: Cấu Trúc Dự Án, Thiết Kế Seams & Lập Spec Kế Toán</span>
+            <span class="skills-tag">/codebase-design · /domain-modeling · /to-spec · /to-tickets</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0015-tdd-ledger-core-service.html">
+            <span class="badge capstone">Bài 15</span>
+            <span class="lesson-title">Chặng 3: Áp Dụng TDD Xây Dựng Ledger Core Service</span>
+            <span class="skills-tag">/tdd · /migrate-to-shoehorn</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0016-server-actions-zod-supabase.html">
+            <span class="badge capstone">Bài 16</span>
+            <span class="lesson-title">Chặng 4: Tích Hợp Next.js Server Actions, Zod & Supabase RLS</span>
+            <span class="skills-tag">/implement · /codebase-design</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0017-web-dashboard-realtime-erp.html">
+            <span class="badge capstone">Bài 17</span>
+            <span class="lesson-title">Chặng 5: Hoàn Thiện Web Dashboard Trực Quan Hóa ERP Thời Gian Thực</span>
+            <span class="skills-tag">/prototype · /codebase-design</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0018-end-to-end-verification-and-trial-balance.html">
+            <span class="badge capstone">Bài 18</span>
+            <span class="lesson-title">Chặng 6: Ra Sản Phẩm Thực Tế & Kiểm Thử Toàn Diện E2E Trial Balance</span>
+            <span class="skills-tag">E2E Verification · Trial Balance</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 5 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 5</span>
+        <h2>Kiểm Thử, Khắc Phục Lỗi & Hoàn Thiện Sản Phẩm (Debug, Review & Ship)</h2>
+      </div>
+      <p class="module-why">Chẩn đoán và cô lập Race Condition/Concurrency bằng Isolation Hypothesis, review code 2 trục Standards vs Spec, đóng gói PR và Retrospective.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0019-diagnosing-bugs-concurrency-supabase.html">
+            <span class="badge done">Bài 19</span>
+            <span class="lesson-title">Chẩn Đoán Lỗi Bất Đồng Bộ & Xử Lý Concurrency Trên Supabase</span>
+            <span class="skills-tag">/diagnosing-bugs</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0020-code-review-and-merge-conflicts.html">
+            <span class="badge done">Bài 20</span>
+            <span class="lesson-title">Review Code 2 Trục Standards/Spec & Giải Quyết Xung Đột Git</span>
+            <span class="skills-tag">/code-review · /resolving-merge-conflicts</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0021-pr-and-retrospective.html">
+            <span class="badge done">Bài 21</span>
+            <span class="lesson-title">Đóng Gói Pull Request Chuẩn Mực & Đúc Kết Retrospective</span>
+            <span class="skills-tag">/pr · /retro</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- MODULE 6 -->
+    <div class="module">
+      <div class="module-head">
+        <span class="module-num">Module 6</span>
+        <h2>Kỹ Nghệ Tác Nhân & Sư Phạm Trí Tuệ Nhân Tạo (Meta-Skills & Agentic Engineering)</h2>
+      </div>
+      <p class="module-why">Tách bạch 6 kỹ năng độc lập: Information Hierarchy, thu thập Fragments, xây dựng Beats Journey, đúc kết Shape văn phong, sư phạm tương tác Teach và tự động hóa Scaffold Exercises.</p>
+      <ul class="lessons-list">
+        <li>
+          <a href="0022-writing-for-agents.html">
+            <span class="badge meta">Bài 22</span>
+            <span class="lesson-title">Nguyên Lý Information Hierarchy & Tối Ưu Hóa Token Context Cho Agent</span>
+            <span class="skills-tag">/writing-for-agents</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0023-writing-fragments-raw-explore.html">
+            <span class="badge meta">Bài 23</span>
+            <span class="lesson-title">Thu Thập Raw Noticings Bằng Kỹ Thuật Fragments</span>
+            <span class="skills-tag">/writing-fragments</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0024-writing-beats-journey-grounding.html">
+            <span class="badge meta">Bài 24</span>
+            <span class="lesson-title">Xây Dựng Beats Journey & Neo Khái Niệm</span>
+            <span class="skills-tag">/writing-beats</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0025-writing-shape-expert-prose.html">
+            <span class="badge meta">Bài 25</span>
+            <span class="lesson-title">Đúc Kết Văn Phong Chuyên Gia & Tạo Lập Artifact Hoàn Chỉnh</span>
+            <span class="skills-tag">/writing-shape</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0026-teach-ai-pedagogy-workspace.html">
+            <span class="badge meta">Bài 26</span>
+            <span class="lesson-title">Sư Phạm AI & Thiết Kế Stateful Workspace</span>
+            <span class="skills-tag">/teach</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+        <li>
+          <a href="0027-scaffold-exercises-automation.html">
+            <span class="badge meta">Bài 27</span>
+            <span class="lesson-title">Tự Động Hóa Bộ Bài Tập Thực Hành & Tổng Kết Lộ Trình 38 Skills</span>
+            <span class="skills-tag">/scaffold-exercises</span>
+            <span class="lcount">hoàn thành</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="intro-card" style="text-align: center; margin-top: 30px; border-left: 4px solid #10b981;">
+      <strong>Hoàn Thành Trọn Vẹn Khóa Học!</strong> Bạn đã làm chủ toàn bộ 38 kỹ năng của Matt Pocock và sở hữu kiến thức thực chiến vững chắc về Next.js 15, Supabase, Vitest và quy trình Agentic Engineering chuyên nghiệp.
+    </div>
+  </div>
+</body>
+
+</html>

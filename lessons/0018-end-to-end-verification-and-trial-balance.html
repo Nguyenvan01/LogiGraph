@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 18: Trực Tiếp Vận Hành Chu Trình ERP End-to-End & Đối Soát Bảng Cân Đối
+  Tiêu chuẩn: Cầm tay chỉ việc cho người mới Next.js; tiếng Anh chuyên ngành chuẩn, tiếng Việt sáng rõ.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình Capstone Chặng 6: Ra Sản Phẩm Thực Tế & Đối Soát Bảng Cân Đối.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 18 · Trực Tiếp Vận Hành Chu Trình ERP End-to-End & Đối Soát Bảng Cân Đối</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 18 (Capstone Chặng 6)</span>
+    <h1>Trực Tiếp Vận Hành Chu Trình ERP End-to-End & Đối Soát Bảng Cân Đối</h1>
+    <p class="subtitle">Chặng 6 Dự án Capstone ERP Mini: Tự tay mở trình duyệt, bấm 4 nút tương tác (Đặt hàng &rarr; Thanh toán &rarr; Xuất kho &rarr; Hoàn tiền), quan sát dòng tiền và kiểm chứng Bảng cân đối Trial Balance đạt trạng thái BALANCED 100%.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Trực tiếp vận hành sản phẩm ERP hoàn chỉnh, đối soát tính cân bằng tài chính của Sổ cái kép, hoàn tất nghiệm thu Capstone Module 4 đưa vào Portfolio cá nhân.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Giây phút Nghiệm thu: Khi Toàn Bộ Hệ Thống Chuyển Động Đồng Bộ</div>
+      <p>Sau 5 chặng thi công miệt mài: từ nghiên cứu nghiệp vụ đời thường (Bài 13), thiết kế cấu trúc Seams (Bài 14), lập trình TDD Core Service (Bài 15), xây dựng Server Actions & RLS (Bài 16) đến dựng Web Dashboard (Bài 17) — toàn bộ các mảnh ghép kiến trúc giờ đây đã hòa làm một.</p>
+      <p>Một lập trình viên chuyên nghiệp chứng minh năng lực bằng <strong>sản phẩm chạy thật</strong>. Bài học này sẽ hướng dẫn bạn mở ứng dụng trên trình duyệt, tự tay bấm chuột trải nghiệm 4 kịch bản vận hành thực tế và quan sát cơ chế kiểm soát cân bằng tài chính của hệ thống.</p>
+    </div>
+
+    <!-- HƯỚNG DẪN MỞ ỨNG DỤNG -->
+    <h2>1. Mở Ứng Dụng Web Dashboard Trực Tiếp Trên Trình Duyệt</h2>
+    <p>Không cần cài đặt phức tạp, bạn có thể mở trực tiếp file dashboard trên trình duyệt Chrome, Edge hoặc Firefox bằng 1 lệnh duy nhất:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>terminal (bash) — Lệnh mở Dashboard trên Linux / MacOS / Windows</span></div>
+      <pre><code><span class="cmt"># Mở trực tiếp file dashboard bằng trình duyệt mặc định</span>
+xdg-open dashboard/index.html   <span class="cmt"># Trên Linux</span>
+<span class="cmt"># hoặc: open dashboard/index.html   (trên macOS)</span>
+<span class="cmt"># hoặc: start dashboard/index.html  (trên Windows)</span></code></pre>
+    </div>
+
+    <p>Bạn cũng có thể mở trực tiếp file <a href="../dashboard/index.html" target="_blank"><code>dashboard/index.html</code></a> ngay trong tab mới của trình duyệt.</p>
+
+    <!-- KỊCH BẢN 1: ĐẶT HÀNG -->
+    <h2>2. Kịch Bản 1: Đặt 1 Sản Phẩm (Tạm Giữ Hàng 15 Phút)</h2>
+    <p>Trên thanh công cụ phía trên cùng, bạn bấm vào nút <strong>"+ Đặt 1 sp (15p giữ hàng)"</strong> và quan sát màn hình thay đổi tức thì:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Hiện tượng quan sát được sau khi bấm Đặt 1 sp</span></div>
+      <pre><code>1. PANEL KHO HÀNG (INVENTORY):
+   - Tồn khả dụng (Available): Giảm từ 10 xuống 9 (Đổi sang màu vàng cam báo hiệu đang giữ chỗ).
+   - Tồn vật lý (Physical): Vẫn giữ nguyên 10 sản phẩm (Vì hàng vẫn nằm trên kệ).
+   - Trạng thái Reservation: Hiển thị đồng hồ đếm ngược 15:00 phút.
+
+2. PANEL ĐƠN HÀNG (ORDERS):
+   - Xuất hiện đơn hàng mới: Mã ORD-001, giá trị 2.500$, trạng thái: RESERVED.
+
+3. PANEL SỔ CÁI KẾ TOÁN:
+   - Chưa ghi bút toán nào (Vì khách chưa thanh toán tiền, chưa có dòng tiền dịch chuyển).</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Ý nghĩa kỹ thuật</div>
+      <p>Hệ thống bảo vệ doanh nghiệp khỏi nguy cơ bán vượt tồn kho (Anti-overselling) nhưng không làm sai lệch số lượng hàng vật lý trên kệ.</p>
+    </div>
+
+    <!-- KỊCH BẢN 2: THANH TOÁN -->
+    <h2>3. Kịch Bản 2: Thanh Toán Đơn Hàng & Cấp Hóa Đơn Tự Động</h2>
+    <p>Tại Panel Đơn hàng, bạn bấm vào nút <strong>"Thanh toán (Pay $2.500)"</strong>. Quan sát luồng xử lý của Kế toán Kép diễn ra:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Hiện tượng quan sát được sau khi Thanh toán</span></div>
+      <pre><code>1. PANEL ĐƠN HÀNG & HÓA ĐƠN:
+   - Đơn hàng ORD-001 đổi sang màu xanh lục: PAID.
+   - Hệ thống tự động cấp số hóa đơn tài chính: INV-2026-0001 (Định dạng bất biến).
+
+2. PANEL KHO HÀNG:
+   - Tồn kho vật lý chính thức trừ từ 10 xuống 9 sản phẩm.
+
+3. PANEL SỔ CÁI KẾ TOÁN KÉP:
+   - Xuất hiện Bút toán kép số TX-001:
+     • Nợ TK 112 (Tiền gửi ngân hàng): +2.500$
+     • Có TK 511 (Doanh thu bán hàng): +2.500$
+
+4. BẢNG CÂN ĐỐI THỬ (TRIAL BALANCE):
+   - Tài khoản 112 (Tài sản): 2.500$
+   - Tài khoản 511 (Doanh thu): 2.500$
+   - TRẠNG THÁI: [BALANCED] — Tổng Nợ (2.500$) === Tổng Có (2.500$)!</code></pre>
+    </div>
+
+    <!-- KỊCH BẢN 3: XUẤT KHO -->
+    <h2>4. Kịch Bản 3: Xuất Kho Giao Hàng & Ghi Nhận Giá Vốn</h2>
+    <p>Bạn bấm nút <strong>"Xuất kho (Ship)"</strong> trên đơn hàng. Trạng thái đơn hàng chuyển sang <code>SHIPPED</code>:</p>
+    <ul>
+      <li>Hệ thống ghi nhận bút toán chi phí giá vốn: Ghi Nợ TK 632 (Giá vốn hàng bán: 1.500$) và Ghi Có TK 156 (Giảm giá trị tài sản kho: 1.500$).</li>
+      <li>Bảng cân đối Trial Balance tiếp tục duy trì trạng thái <strong>BALANCED 100%</strong>: Tổng Nợ tăng đúng bằng Tổng Có.</li>
+    </ul>
+
+    <!-- KỊCH BẢN 4: HỦY ĐƠN & HOÀN TIỀN -->
+    <h2>5. Kịch Bản 4: Khách Yêu Cầu Hủy Đơn & Bút Toán Đảo Chiều</h2>
+    <p>Điều gì xảy ra nếu sau khi thanh toán, khách hàng đổi ý và yêu cầu hoàn tiền? Bạn bấm nút <strong>"Hủy đơn / Hoàn tiền (Refund)"</strong>:</p>
+
+    <div class="callout warn">
+      <div class="ct">🔄 Bút Toán Đảo Chiều Vận Hành</div>
+      <p>Hệ thống tuân thủ nghiêm ngặt quy tắc Append-only: <strong>Không xóa dòng giao dịch cũ</strong>. Thay vào đó:</p>
+      <ul>
+        <li>Ghi thêm một bút toán đảo chiều mới: Ghi CÓ TK 112 (-2.500$ tiền ngân hàng) và Ghi NỢ TK 511 (-2.500$ doanh thu).</li>
+        <li>Khôi phục lại tồn kho khả dụng từ 9 lên lại 10 sản phẩm.</li>
+        <li>Bảng cân đối Trial Balance quay về trạng thái số dư bằng 0, nhưng toàn bộ lịch sử 2 lần giao dịch vẫn được lưu giữ nguyên vẹn để phục vụ kiểm toán tài chính!</li>
+      </ul>
+    </div>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Khi quan sát Panel Bảng cân đối (Trial Balance), chỉ số nào chứng minh hệ thống kế toán đang vận hành chính xác 100%?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Số dư tiền gửi không quyết định tính cân bằng của toàn hệ thống.">A. Số dư tài khoản 112 luôn lớn hơn 10.000$.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Trạng thái BALANCED xuất hiện khi tổng số tiền bên Nợ của tất cả các tài khoản bằng chính xác tổng số tiền bên Có. Nếu lệch dù chỉ 1 xu, hệ thống sẽ cảnh báo UNBALANCED.">B. Trạng thái BALANCED hiển thị màu xanh lá: Tổng số tiền bên Nợ (Debit) bằng chính xác tổng số tiền bên Có (Credit).</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Số lượng đơn hàng không liên quan đến phương trình kế toán.">C. Số lượng đơn hàng trong danh sách luôn lớn hơn 5 đơn.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi khách hàng bấm hủy đơn và nhận lại tiền, vì sao Sổ cái không xóa bỏ dòng bút toán thanh toán trước đó?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Xóa dữ liệu quá khứ vi phạm pháp luật kế toán và làm mất dấu vết kiểm toán. Hệ thống bắt buộc phải ghi nhận bút toán đảo chiều để chứng minh dòng tiền vào và ra thực tế.">A. Vì quy tắc Sổ cái Append-only cấm xóa dữ liệu, giúp bảo toàn lịch sử kiểm toán minh bạch và chứng minh tiền đã vào rồi được trả lại cho khách.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Trình duyệt không có hạn chế này.">B. Vì trình duyệt web không hỗ trợ lệnh xóa dữ liệu.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- TỔNG KẾT TOÀN BỘ CAPSTONE MODULE 4 -->
+    <div class="callout tip">
+      <div class="ct">🏆 Tổng kết Thành tựu Toàn bộ Module 4 (Capstone ERP Mini)</div>
+      <ul class="checklist">
+        <li><strong>Chặng 1 (Bài 13):</strong> Khám phá bài toán dòng tiền tiệm bánh đời thường, dùng <code>/grill-with-docs</code> chốt nguyên lý Kế toán kép và quy tắc Sổ cái Append-only.</li>
+        <li><strong>Chặng 2 (Bài 14):</strong> Khởi tạo cấu trúc thư mục chuẩn mực <code>domain/</code> vs <code>adapters/</code>, định nghĩa Seam <code>ILedgerRepository</code>, cập nhật <code>CONTEXT.md</code>, lập ADR-0002 và phân rã 4 tickets.</li>
+        <li><strong>Chặng 3 (Bài 15):</strong> Bắt đầu từ file trắng trơn, áp dụng <code>/codebase-design</code> & <code>/tdd</code> hoàn thành Core Service với 11 tests Vitest chạy siêu tốc trong 17ms.</li>
+        <li><strong>Chặng 4 (Bài 16):</strong> Setup tầng ứng dụng <code>src/actions/</code>, tạo lá chắn Zod validation và khóa két sắt Supabase RLS.</li>
+        <li><strong>Chặng 5 (Bài 17):</strong> Dựng Web Dashboard trực quan theo nguyên lý "Surface the State", phân rã 4 panels độc lập và kết nối reactive wiring.</li>
+        <li><strong>Chặng 6 (Bài 18):</strong> Trực tiếp bấm 4 nút vận hành chu trình ERP thực tế, đối soát Trial Balance đạt BALANCED 100%, sở hữu sản phẩm hoàn chỉnh đưa vào Portfolio!</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG MODULE 5 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Module 5: Kiểm định Nâng cao & Debug Chuyên Sâu)</h2>
+    <p>Chúc mừng bạn đã hoàn thành trọn vẹn dự án <strong>VibeCoding ERP Mini Capstone</strong> từ con số 0 đến sản phẩm web chạy thật!</p>
+    <p>Tuy nhiên, một kỹ sư cao cấp không dừng lại ở việc hệ thống chạy tốt khi chỉ có 1 người bấm chuột:</p>
+    <ul>
+      <li><em>Nếu có 50 khách hàng cùng bấm nút đặt mua 1 món hàng duy nhất trong kho tại cùng một phần nghìn giây, điều gì sẽ xảy ra? Liệu có 2 người cùng mua được một món hàng (Overselling) không?</em></li>
+      <li><em>Làm thế nào để tái hiện lỗi tranh chấp dữ liệu (Race Condition) khó nhằn này và chẩn đoán tận gốc rễ bằng PostgreSQL Row-level Lock?</em></li>
+    </ul>
+    <p>Đó là bài toán thực chiến của <strong>Module 5: Debug Chuyên Sâu</strong>, mở đầu với <strong>Bài 19: Chẩn đoán Lỗi & Concurrency Race Conditions (/diagnosing-bugs)</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 19 · /diagnosing-bugs — Phân Tích & Xử Lý Bug Concurrency Race Conditions Trên Supabase</div>
+      <p class="nd">Tái hiện lỗi tranh chấp dữ liệu khi nhiều người cùng đặt hàng, phân tích Postgres RPC và chốt cơ chế Row-level Lock (SELECT FOR UPDATE) an toàn tuyệt đối.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0017-web-dashboard-realtime-erp.html">← Bài 17</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0019-diagnosing-bugs-concurrency-supabase.html">Bài 19 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở trực tiếp file <a href="../dashboard/index.html" target="_blank"><code>dashboard/index.html</code></a> và tự mình bấm thử nghiệm lần lượt 4 kịch bản để chiêm ngưỡng sản phẩm của chính mình!</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

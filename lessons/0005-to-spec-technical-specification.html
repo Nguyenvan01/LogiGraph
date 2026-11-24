@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 05: /to-spec — Soạn Bản Đặc tả Kỹ thuật chuẩn mực cho Kho & Đơn hàng
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 05 · /to-spec — Soạn Bản Đặc tả Kỹ thuật chuẩn mực</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 2 · Bài 05</span>
+    <h1>/to-spec — Soạn Bản Đặc tả Kỹ thuật chuẩn mực cho Module Kho & Đơn hàng</h1>
+    <p class="subtitle">Cách tổng hợp toàn bộ quyết định thiết kế thành Technical Specification chi tiết: User Stories, Seams cần test, Implementation & Testing Decisions.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/to-spec</code> của Matt Pocock, hiểu tư duy "No interview, just synthesis", thiết kế Seams cho Testing, và chuẩn bị sẵn sàng cho <code>/to-tickets</code>.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Tại sao không chia Ticket và lập trình ngay?</div>
+      <p>Sau Bài 04, chúng ta đã có từ điển Ubiquitous Language trong <a href="../CONTEXT.md" target="_blank"><code>CONTEXT.md</code></a>, quyết định kiến trúc trong <a href="../docs/adr/0001-atomic-stock-reservation-over-redis-lock.md" target="_blank"><code>docs/adr/</code></a>, và cấu trúc bảng trong Supabase Migration. Tuy nhiên, nếu lập tức giao cho AI Agent hoặc lập trình viên viết code ngay lúc này, họ sẽ rơi vào bẫy <strong>Silent Assumptions</strong>:</p>
+      <ul>
+        <li>Họ sẽ tự quyết định cấu trúc interface của Service theo thói quen cá nhân.</li>
+        <li>Họ sẽ viết Unit Test bằng cách mock sâu vào các hàm private hoặc mock thư viện Supabase client, tạo ra các brittle tests dễ gãy khi tái cấu trúc.</li>
+        <li>Họ sẽ bỏ sót các ca biên mà khách hàng thực tế gặp phải.</li>
+      </ul>
+      <p>Kỹ năng <code>/to-spec</code> đóng vai trò là cây cầu nối vững chắc: chuyển hóa mọi sự hiểu biết đã tích lũy thành một bản <strong>Technical Specification</strong> duy nhất trước khi phân rã thành các tickets nhỏ.</p>
+    </div>
+
+    <h2>1. Bản chất Kỹ nghệ của /to-spec</h2>
+    <p>Khác với <code>/grill-me</code> (liên tục đặt câu hỏi phỏng vấn để bóc tách yêu cầu), kỹ năng <code>/to-spec</code> tuân theo nguyên tắc chỉ đạo của Matt Pocock:</p>
+    <blockquote>
+      <strong>"Do NOT interview the user; just synthesize what you already know."</strong><br>
+      <em>(KHÔNG phỏng vấn thêm người dùng; chỉ tổng hợp lại toàn bộ những gì bạn đã biết từ ngữ cảnh.)</em>
+    </blockquote>
+
+    <p>Một bản Spec chuẩn mực của Matt Pocock bao gồm 6 phần cốt lõi:</p>
+    <ol>
+      <li><strong>Problem Statement & Solution:</strong> Mô tả vấn đề và giải pháp hoàn toàn dưới góc nhìn của người dùng, không dùng thuật ngữ kỹ thuật phức tạp ở phần này.</li>
+      <li><strong>User Stories:</strong> Danh sách đánh số tuần tự theo cấu trúc <code>As an &lt;actor&gt;, I want &lt;feature&gt;, so that &lt;benefit&gt;</code>, bao quát đầy đủ mọi khía cạnh của tính năng.</li>
+      <li><strong>Implementation Decisions:</strong> Các quyết định kỹ thuật đã chốt: module cần xây dựng, interface, schema database, state transition matrix. <em>Lưu ý: Không đưa đường dẫn file cụ thể hoặc code snippet dài dòng vào đây, ngoại trừ các đoạn trích cô đọng từ Prototype mã hóa quyết định chính xác hơn lời văn.</em></li>
+      <li><strong>Testing Decisions:</strong> Định nghĩa rõ triết lý kiểm thử: chỉ kiểm tra external behavior, xác định các Seam cao nhất để cắm test.</li>
+      <li><strong>Out of Scope:</strong> Những việc dứt khoát không làm trong phạm vi bản spec này để ngăn chặn hiện tượng Scope Creep.</li>
+      <li><strong>Further Notes:</strong> Các lưu ý bổ sung cho các bước triển khai tiếp theo.</li>
+    </ol>
+
+    <h2>2. Thiết kế Seams cho Testing</h2>
+    <p>Khái niệm <strong>Seam</strong> xuất phát từ cuốn sách kinh điển <em>Working Effectively with Legacy Code</em> của Michael Feathers:</p>
+    <blockquote>
+      <strong>"A seam is a place where you can alter behavior in your program without editing in that place."</strong><br>
+      <em>(Seam là vị trí cho phép thay đổi hành vi của chương trình mà không cần sửa mã nguồn tại vị trí đó.)</em>
+    </blockquote>
+
+    <p>Matt Pocock nhấn mạnh nguyên tắc vàng khi thiết kế Seams:</p>
+    <div class="callout why">
+      <div class="ct">💡 Nguyên tắc Seams của Matt Pocock</div>
+      <p><strong>"Use the highest seam possible. The fewer seams across the codebase, the better - the ideal number is one."</strong></p>
+      <p><em>(Hãy sử dụng seam ở tầng cao nhất có thể. Càng ít seam trong codebase càng tốt — con số lý tưởng là một.)</em></p>
+    </div>
+
+    <p>Thay vì tạo ra hàng chục điểm mock ở khắp nơi (mock HTTP client, mock SQL query, mock helper...), chúng ta thiết lập Seam tại <strong>Interface của Service Repository</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Mô hình Dual-Adapter qua một Seam duy nhất</span></div>
+      <pre><code>             ┌────────────────────────────────────────┐
+             │       Domain Core: OrderService        │
+             └───────────────────┬────────────────────┘
+                                 │ (Gọi qua Seam)
+             ┌───────────────────▼────────────────────┐
+             │         IInventoryRepository           │  ← Seam cao nhất
+             └─────────┬────────────────────┬─────────┘
+                       │                    │
+        ┌──────────────▼─────┐       ┌──────▼──────────────┐
+        │ In-Memory Adapter  │       │  Supabase Adapter   │
+        │ (Dùng cho Vitest)  │       │ (Dùng cho Production│
+        │ Siêu tốc: &lt; 5ms    │       │  PostgreSQL thật)   │
+        └────────────────────┘       └─────────────────────┘</code></pre>
+    </div>
+
+    <p>Lợi ích vượt trội của chiến lược này:</p>
+    <ul>
+      <li><strong>Tốc độ kiểm thử tức thì:</strong> Bộ Unit Test bằng Vitest chạy trên <code>In-Memory Adapter</code> chỉ mất vài mili-giây, không cần mạng, không cần tài khoản Supabase.</li>
+      <li><strong>Kiểm thử hành vi thật:</strong> Không mock các hàm nội bộ, bảo vệ test không bị gãy khi thay đổi cấu trúc code bên trong (Refactoring-safe).</li>
+    </ul>
+
+    <h2>3. Phân tích Bản Spec Thực tế: specs/inventory-and-order.md</h2>
+    <p>Bản đặc tả kỹ thuật hoàn chỉnh đã được xuất bản tại <a href="../specs/inventory-and-order.md" target="_blank"><code>specs/inventory-and-order.md</code></a> (và lưu tại issue tracker của dự án: <code>.scratch/inventory-and-order/spec.md</code>).</p>
+
+    <h3>14 User Stories phủ kín mọi chủ thể nghiệp vụ</h3>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Mong muốn cốt lõi</th>
+          <th>Benefit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Customer</strong></td>
+          <td>Tạo đơn hàng Draft giữ hàng 15 phút</td>
+          <td>Tạm giữ hàng trong lúc chuẩn bị thanh toán, không lo bị người khác mua mất.</td>
+        </tr>
+        <tr>
+          <td><strong>Customer</strong></td>
+          <td>Bị từ chối thanh toán nếu đã quá hạn 15 phút</td>
+          <td>Không bị trừ tiền cho món hàng không còn được giữ.</td>
+        </tr>
+        <tr>
+          <td><strong>Customer</strong></td>
+          <td>Hủy đơn đã thanh toán khi chưa giao hàng</td>
+          <td>Được hoàn tiền và hàng được trả lại kho vật lý.</td>
+        </tr>
+        <tr>
+          <td><strong>Warehouse Manager</strong></td>
+          <td>Tồn kho vật lý không bao giờ bị âm</td>
+          <td>Số liệu sổ sách điện tử luôn khớp 100% với số lượng hàng trong kho thật.</td>
+        </tr>
+        <tr>
+          <td><strong>Warehouse Manager</strong></td>
+          <td>Hàng hết hạn giữ tự động hoàn về khả dụng</td>
+          <td>Đơn hàng bị bỏ quên không làm giam hàng trong kho.</td>
+        </tr>
+        <tr>
+          <td><strong>Fulfillment Agent</strong></td>
+          <td>Cập nhật trạng thái SHIPPED và DONE</td>
+          <td>Đóng kín vòng đời đơn hàng khi giao hàng thành công.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Theo quy tắc của Matt Pocock trong kỹ năng /to-spec, tại sao lập trình viên KHÔNG nên phỏng vấn người dùng trong bước này?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Người dùng rất quan trọng, nhưng việc phỏng vấn đã được thực hiện triệt để ở bước /grill-me và /wayfinder trước đó.">A. Vì ý kiến của người dùng không còn quan trọng sau khi đã có schema database.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Bản chất của /to-spec là tổng hợp các quyết định đã được thảo luận và chốt từ các bước trước (/grill-me, ADR, prototype). Phỏng vấn lại sẽ gây lặp lại và làm loãng context.">B. Vì mục tiêu của /to-spec là tổng hợp những hiểu biết và quyết định đã thống nhất trước đó, không lặp lại quá trình phỏng vấn gây mất thời gian. </button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. /to-spec là kỹ năng dành cho việc lập spec, không phụ thuộc vào việc người dùng có online hay không.">C. Vì /to-spec chỉ được kích hoạt khi người dùng không có mặt.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi thiết kế Seams cho Testing theo chuẩn Matt Pocock, khuyến nghị nào sau đây là CHÍNH XÁC NHẤT?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Càng nhiều seam rải rác càng làm codebase bị phân mảnh và phụ thuộc vào mocking quá mức.">A. Nên tạo càng nhiều seam càng tốt ở mọi file và mọi hàm helper để dễ viết unit test.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Seam ở tầng cao nhất (như Service Repository interface) cho phép thay thế Adapter (In-memory vs Database) mà không làm ô nhiễm domain logic, số lượng seam lý tưởng là một.">B. Sử dụng seam ở tầng cao nhất có thể, số lượng seam càng ít càng tốt (lý tưởng là một điểm duy nhất tại boundary của Service). </button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Mock sâu vào Supabase client là nguyên nhân hàng đầu khiến các bộ test bị gãy khi thư viện nâng cấp phiên bản.">C. Luôn luôn cắm mock trực tiếp vào từng câu lệnh SQL của Supabase client.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 05</div>
+      <ul class="checklist">
+        <li>Nắm vững bản chất kỹ nghệ của <code>/to-spec</code>: Tổng hợp tri thức sẵn có, không phỏng vấn lại.</li>
+        <li>Hiểu sâu nguyên lý Seams và chiến lược Dual-Adapter (In-memory cho test Vitest + Supabase cho production).</li>
+        <li>Xuất bản thành công bản đặc tả kỹ thuật toàn diện tại <a href="../specs/inventory-and-order.md" target="_blank"><code>specs/inventory-and-order.md</code></a>.</li>
+        <li>Đồng bộ spec vào issue tracker cục bộ tại <code>.scratch/inventory-and-order/spec.md</code> với trạng thái <code>ready-for-agent</code>.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 06 -->
+    <h2>4. Câu hỏi tư duy (Bắc cầu sang Bài 06)</h2>
+    <p>Bản Spec hoàn chỉnh đã có, nhưng nếu một AI Agent nhận toàn bộ Monolithic Spec để code trong một phiên làm việc, nó sẽ nhanh chóng làm tràn Context Window và sinh code chắp vá.</p>
+    <p><em>Làm thế nào để phân rã bản Spec này thành Tracer-bullet Tickets theo Vertical Slice, thiết lập Blockers Graph để Agent có thể gắp việc tự động mà không bị xung đột?</em></p>
+    <p>Đó là bài toán của Bài 06 với hai kỹ năng: <code>/to-tickets</code> và <code>/triage</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 06 · /to-tickets & /triage — Phân rã Tracer-bullet Tickets & Blockers Graph</div>
+      <p class="nd">Cách bẻ nhỏ bản Spec thành các tickets độc lập, quản lý nhãn Triage và xác định Frontier sẵn sàng cho Agent gắp việc.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0004-domain-modeling-and-database-schema.html">← Bài 04</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0006-to-tickets-tracer-bullets.html">Bài 06 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <code>specs/inventory-and-order.md</code> để kiểm tra 14 User Stories và các quyết định Seams trước khi sang bước phân rã ticket.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

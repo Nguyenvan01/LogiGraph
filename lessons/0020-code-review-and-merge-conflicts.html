@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 15: Senior Code Review 2 Trục Độc lập: Standards vs Spec & Giải quyết Xung đột Merge
+  Kỹ năng Matt Pocock: /code-review, /resolving-merge-conflicts
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; thuật ngữ chuyên ngành chuẩn mực.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 20 · /code-review & /resolving-merge-conflicts — Review 2 Trục & Xử Lý Merge Conflicts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 5 · Bài 20</span>
+    <h1>/code-review & /resolving-merge-conflicts — Review 2 Trục & Xử Lý Merge Conflicts</h1>
+    <p class="subtitle">Thực hành đánh giá mã nguồn đa chiều theo phương pháp luận Matt Pocock: Tách bạch giữa Trục Standards (chuẩn kiến trúc & Fowler Code Smells) và Trục Spec (yêu cầu chức năng), cùng quy trình 5 bước giải quyết Merge Conflict có căn cứ.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Nắm vững kỹ năng Code Review hai trục độc lập để không bỏ sót lỗi kiến trúc hay nghiệp vụ; làm chủ quy trình Three-way Merge để dung hòa mã nguồn mà không làm mất ý định của các bên.</p>
+
+    <!-- BẮC CẦU TỪ BÀI 14 SANG BÀI 15 -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Kiểm soát Chất lượng Mã nguồn trước khi Release</div>
+      <p>Ở Bài 14, chúng ta đã áp dụng quy trình <code>diagnosing-bugs</code> để ngăn chặn Race Condition bằng Stored Procedure PostgreSQL <code>reserve_stock_atomic</code>. Toàn bộ test suite của dự án đều vượt qua các bài kiểm thử.</p>
+      <p>Trước khi phát hành phiên bản Release v1.0, chúng ta cần trả lời hai câu hỏi độc lập:</p>
+      <ul>
+        <li><strong>Câu hỏi 1 (Standards):</strong> Mã nguồn có tuân thủ các chuẩn mực kiến trúc của dự án và không dính Code Smells hay không?</li>
+        <li><strong>Câu hỏi 2 (Spec):</strong> Mã nguồn có hiện thực hóa trung thực, đầy đủ mọi yêu cầu đã cam kết trong bản đặc tả kỹ thuật mà không phát sinh tính năng thừa hay không?</li>
+      </ul>
+      <p>Đồng thời, khi làm việc trong nhóm phát triển phân tán hoặc tích hợp nhiều nhánh, Merge Conflict thường xuyên xuất hiện. Bài học này thực hành hai kỹ năng: <code>/code-review</code> và <code>/resolving-merge-conflicts</code>.</p>
+    </div>
+
+    <h2>1. Nguyên lý Code Review 2 Trục Độc lập</h2>
+    <p>Một vấn đề thường gặp khi review code là gộp chung tất cả nhận xét vào một danh sách duy nhất. Khi đó, các thảo luận về cú pháp có thể che khuất các sai lệch về logic nghiệp vụ.</p>
+
+    <div class="callout why">
+      <div class="ct">⚖️ Bốn Tình huống Tương quan giữa Standards và Spec</div>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+        <thead>
+          <tr style="background: #f1f5f9; text-align: left;">
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Trường hợp</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Trục Standards</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Trục Spec</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Hệ quả thực tế</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>1. Phù hợp</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: var(--green); font-weight: 600;">PASS</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: var(--green); font-weight: 600;">PASS</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Kiến trúc rõ ràng, hiện thực hóa chính xác nghiệp vụ. Đủ điều kiện merge.</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>2. Sai lệch Spec</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: var(--green); font-weight: 600;">PASS</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 600;">FAIL</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Code viết đúng chuẩn kiến trúc nhưng giải quyết sai bài toán hoặc thiếu yêu cầu trong spec.</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>3. Nợ Kỹ thuật</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 600;">FAIL</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: var(--green); font-weight: 600;">PASS</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Đúng logic nghiệp vụ nhưng coupling chặt và vi phạm tiêu chuẩn thiết kế, gây khó khăn cho việc bảo trì.</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>4. Từ chối</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 600;">FAIL</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 600;">FAIL</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Vi phạm quy chuẩn dự án và sai lệch yêu cầu chức năng. Yêu cầu sửa đổi hoàn toàn.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Kỹ năng <code>code-review</code> của Matt Pocock giải quyết vấn đề này bằng cách chạy hai đánh giá độc lập:</p>
+    <ul>
+      <li><strong>Trục Standards:</strong> So sánh mã nguồn với tài liệu quy chuẩn dự án (<code>CODING_STANDARDS.md</code>, <code>CONTEXT.md</code>) và bộ lọc 12 Fowler Code Smells.</li>
+      <li><strong>Trục Spec:</strong> Đối soát mã nguồn với bản đặc tả kỹ thuật gốc (<code>specs/</code>) để tìm ra 3 nhóm lỗi: Requirements bị thiếu, Scope Creep tự phát, hoặc yêu cầu bị làm sai logic.</li>
+    </ul>
+
+    <h2>2. Bảng Tra cứu 12 Fowler Code Smells Baseline</h2>
+    <p>Khi một dự án chưa có tài liệu quy chuẩn chi tiết, Trục Standards luôn sử dụng danh sách 12 Code Smells kinh điển từ cuốn sách <em>Refactoring</em> của Martin Fowler làm thước đo chuẩn mực:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bảng Đối chiếu 12 Fowler Code Smells & Hướng Xử lý</span></div>
+      <pre><code>Code Smell               │ Bản chất nhận diện                          │ Hướng tái cấu trúc chuẩn
+────────────────────────┼─────────────────────────────────────────────┼────────────────────────────────────────────
+1. Mysterious Name      │ Tên biến, hàm không tiết lộ ý định thực sự. │ Đổi tên theo Ubiquitous Language.
+2. Duplicated Code      │ Cùng một khối logic xuất hiện ở nhiều file. │ Trích xuất thành hàm hoặc module dùng chung.
+3. Feature Envy         │ Phương thức truy cập dữ liệu class khác quá │ Chuyển phương thức về đối tượng sở hữu dữ
+                        │ nhiều so với dữ liệu của chính nó.          │ liệu đó.
+4. Data Clumps          │ Một nhóm tham số luôn đi cùng nhau qua hàm. │ Gom nhóm thành một kiểu dữ liệu riêng.
+5. Primitive Obsession  │ Dùng chuỗi, số nguyên thủy cho khái niệm.   │ Đóng gói thành Branded Type hoặc Value Object.
+6. Repeated Switches    │ Cùng một khối switch/if lặp lại ở nhiều nơi.│ Thay thế bằng Polymorphism hoặc Map/Lookup.
+7. Shotgun Surgery      │ Một thay đổi nhỏ phải sửa rải rác nhiều file.│ Gom các thành phần liên quan vào một module.
+8. Divergent Change     │ Một file bị sửa vì nhiều lý do không liên can│ Chia nhỏ module theo nguyên lý đơn trách nhiệm.
+9. Speculative Generality│ Tạo tham số, abstraction phòng hờ tương lai.│ Xóa bỏ, giữ mã nguồn tối giản theo yêu cầu thật.
+10. Message Chains      │ Chuỗi gọi phương thức quá dài a.b().c().d() │ Ẩn chuỗi truy cập sau phương thức trực tiếp.
+11. Middle Man          │ Class chỉ đóng vai trò chuyển tiếp vô ích.  │ Cắt bỏ lớp trung gian, gọi trực tiếp đối tượng.
+12. Refused Bequest     │ Class con từ chối hoặc override hầu hết kế  │ Thay thế Inheritance bằng Composition.
+                        │ thừa từ class cha.                          │</code></pre>
+    </div>
+
+    <h2>3. Báo cáo Code Review Thực tế cho VibeCoding ERP Mini v1.0</h2>
+    <p>Chúng ta đã thiết lập tài liệu đánh giá chính thức tại <a href="../docs/code-review-v1.0-report.md"><code>docs/code-review-v1.0-report.md</code></a>. Dưới đây là trích đoạn báo cáo theo đúng định dạng chuẩn mực của Matt Pocock:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Trích đoạn Báo cáo docs/code-review-v1.0-report.md</span></div>
+      <pre><code>## Standards
+- Deep Modules & Seams: Cả InventoryService và LedgerService đều giấu logic
+  phức tạp sau giao diện nhỏ gọn (3 đến 4 phương thức công khai).
+- Clean Seams: Tách rời khỏi Supabase Client qua interface IInventoryRepository và
+  ILedgerRepository; sẵn sàng 2 Adapter (InMemory & Supabase).
+- Concurrency Protection: Stored Procedure reserve_stock_atomic loại bỏ Check-Then-Act.
+- Findings:
+  - [Minor Smell - Primitive Obsession]: Mã tài khoản kế toán trong src/actions/billing.ts đang
+    dùng chuỗi string thay vì Branded Type AccountCode ('112', '511', '632').
+
+## Spec
+- Inventory Invariants: Bảo toàn công thức Available Stock = Physical Stock - Active Reservations.
+- Stock Reservation TTL: Đạt chuẩn 15 phút, tự động hoàn trả kho khi hết hạn.
+- Double-entry Invariant: Bảo toàn tổng Nợ = tổng Có trên mọi giao dịch.
+- Append-only Audit Trail: Kích hoạt RLS ngăn chặn UPDATE và DELETE trên sổ cái.
+- Findings: 0 finding (Khớp yêu cầu chức năng, 0 scope creep).
+
+## Summary
+- Standards Axis: 1 minor finding (Primitive Obsession tại tham số accountCode).
+- Spec Axis: 0 finding. Mã nguồn đủ điều kiện xuất xưởng Release v1.0.</code></pre>
+    </div>
+
+    <h2>4. Quy trình Giải quyết Merge Conflict</h2>
+    <p>Khi làm việc trong môi trường thực tế, xung đột mã nguồn xuất hiện khi hai nhánh cùng chỉnh sửa một dòng hoặc khối lệnh so với điểm tổ tiên chung gần nhất (Merge Base). Quy trình 5 bước theo <code>resolving-merge-conflicts</code>:</p>
+
+    <div class="callout tip">
+      <div class="ct">🛠 5 Bước Giải quyết Merge Conflict</div>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Bước 1: Quan sát trạng thái hiện tại:</strong> Dùng <code>git status</code> để liệt kê các file bị xung đột (trạng thái unmerged <code>UU</code>). Kiểm tra vị trí các Conflict Markers (<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>).</li>
+        <li><strong>Bước 2: Tìm nguồn gốc và ý định của từng bên:</strong> Đọc commit message, pull requests và issue tickets của cả hai nhánh để hiểu rõ mục tiêu kỹ thuật. Tránh phán đoán chủ quan.</li>
+        <li><strong>Bước 3: Giải quyết từng hunk:</strong>
+          <ul style="margin: 4px 0;">
+            <li>Bảo toàn ý định của cả hai bên nếu tương thích (Preserve both intents).</li>
+            <li>Nếu bất tương thích, chọn bên phù hợp nhất với mục tiêu của việc merge và ghi chú lại sự đánh đổi.</li>
+            <li>Không tự ý bịa thêm hành vi mới ngoài phạm vi của hai nhánh.</li>
+            <li>Không dùng lệnh <code>--abort</code> do lúng túng.</li>
+          </ul>
+        </li>
+        <li><strong>Bước 4: Chạy Automated Checks:</strong> Thực thi chuỗi kiểm tra tự động của dự án: Typecheck (<code>tsc --noEmit</code>), Tests (<code>vitest run</code>). Đảm bảo việc hòa giải không làm hỏng test case nào.</li>
+        <li><strong>Bước 5: Hoàn tất merge hoặc rebase:</strong> Đưa file đã sửa vào staging (<code>git add</code>) và tạo commit sáp nhập hoặc tiếp tục chu trình rebase.</li>
+      </ol>
+    </div>
+
+    <h2>5. Tình huống Thực tế: Xung đột giữa Audit Log và Atomic Lock</h2>
+    <p>Hãy xem xét một tình huống xung đột thực tế khi hòa giải mã nguồn hàm <code>commitReservation</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Conflict Hunk trong src/modules/inventory/adapters/supabase.ts</span></div>
+      <pre><code><<<<<<< HEAD (Nhánh feature/audit-logging)
+  public async commitReservation(reservationId: ReservationId): Promise<void> {
+    const startTime = performance.now();
+    console.log(`[AUDIT] Starting reservation commit: ${reservationId}`);
+    const res = await this.getReservation(reservationId);
+    if (!res) throw new ReservationNotFoundError(reservationId);
+    // ... logic trừ kho cũ ...
+    console.log(`[AUDIT] Reservation ${reservationId} committed in ${performance.now() - startTime}ms`);
+  }
+=======
+  public async commitReservation(reservationId: ReservationId): Promise<void> {
+    // Nhánh feature/concurrency-fix: Chuyển sang gọi Stored Procedure nguyên tử
+    const { error } = await this.client.rpc('commit_reservation_atomic', {
+      p_reservation_id: reservationId,
+    });
+    if (error) {
+      if (error.code === 'P0003') throw new ReservationNotFoundError(reservationId);
+      throw new Error(`Atomic commit failed: ${error.message}`);
+    }
+  }
+>>>>>>> feature/concurrency-fix</code></pre>
+    </div>
+
+    <div class="callout what">
+      <div class="ct">💡 Áp dụng Nguyên tắc Preserve Both Intents</div>
+      <p><strong>Phân tích ý định:</strong></p>
+      <ul>
+        <li>Nhánh <code>HEAD</code> muốn: Bổ sung audit logging và đo đạc thời gian thực thi (Observability).</li>
+        <li>Nhánh <code>feature/concurrency-fix</code> muốn: Thay thế logic cũ bằng Stored Procedure nguyên tử để chống Race Condition (Data Integrity).</li>
+      </ul>
+      <p>Hai ý định này hoàn toàn bổ trợ cho nhau. Đoạn mã hòa giải chuẩn mực sẽ bọc khối gọi RPC nguyên tử vào giữa cặp lệnh log thời gian thực thi, giữ trọn vẹn cả hai mục tiêu mà không làm mất đóng góp của bất kỳ lập trình viên nào.</p>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Tại sao kỹ năng code-review của Matt Pocock lại yêu cầu tách rời Trục Standards và Trục Spec?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Tách 2 trục nhằm đảm bảo tính khách quan trong đánh giá kỹ thuật, không phải để chia người review.">A. Để chia đôi thời gian review cho hai người khác nhau thực hiện.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Một đoạn code có thể tuân thủ tiêu chuẩn kiến trúc nhưng lại làm sai nghiệp vụ, hoặc ngược lại. Tách bạch 2 trục giúp ngăn chặn tình trạng trục này che giấu khuyết điểm của trục kia.">B. Để ngăn chặn việc một trục che giấu khuyết điểm của trục kia: mã nguồn có thể tuân thủ quy chuẩn kiến trúc nhưng lại giải quyết sai yêu cầu nghiệp vụ.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Cả hai trục đều áp dụng chung cho toàn bộ mã nguồn của pull request.">C. Vì Trục Standards chỉ dành cho frontend còn Trục Spec chỉ dành cho backend.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Trong quy trình giải quyết Merge Conflict (resolving-merge-conflicts), nguyên tắc cốt lõi khi xử lý từng conflict hunk là gì?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Xóa bỏ một bên một cách máy móc sẽ làm mất công sức và phá vỡ tính năng của bên đó.">A. Luôn luôn chọn nhánh của mình (ours) và ghi đè toàn bộ nhánh của người khác (theirs).</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Cần tìm hiểu nguyên nhân gốc qua commit history và PRs để bảo toàn ý định của cả hai bên nếu tương thích, và không tự ý sáng tác thêm hành vi mới ngoài phạm vi của hai nhánh.">B. Tìm hiểu ý định gốc của cả hai bên, bảo toàn cả hai ý định nếu tương thích, và không tự ý bịa thêm hành vi mới.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Lệnh --abort chỉ dùng khi nhận thấy nhánh merge hoàn toàn sai mục đích ban đầu, không phải giải pháp để vượt qua xung đột.">C. Sử dụng ngay lệnh git merge --abort để bỏ qua xung đột.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 3. Hiện tượng nào dưới đây được Martin Fowler xếp vào nhóm Primitive Obsession trong danh mục Code Smells?</div>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Dùng kiểu chuỗi hoặc số nguyên thủy tùy tiện để biểu diễn một khái niệm domain quan trọng thay vì định nghĩa Branded Type hoặc Value Object chính là Primitive Obsession.">A. Dùng chuỗi string nguyên thủy để truyền mã tài khoản kế toán hoặc ID thực thể thay vì đóng gói thành Branded Type hoặc Value Object chuyên biệt.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đây là Data Clumps hoặc Feature Envy, không phải Primitive Obsession.">B. Viết một hàm có quá nhiều dòng lệnh và lồng ghép nhiều vòng lặp if-else.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đây là Speculative Generality.">C. Tạo ra một class trừu tượng nhưng chỉ có duy nhất một class con kế thừa.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- TỔNG KẾT BÀI HỌC -->
+    <div class="callout tip">
+      <div class="ct">🎓 Đúc kết Bài 20: Quy trình Code Review và Xử lý Merge Conflict</div>
+      <ul class="checklist">
+        <li>Phương pháp luận Code Review 2 trục độc lập: <strong>Trục Standards</strong> (Kiến trúc & Fowler Code Smells) và <strong>Trục Spec</strong> (Đối soát trung thực yêu cầu đặc tả).</li>
+        <li>Tài liệu quy chuẩn dự án <code>CODING_STANDARDS.md</code> và báo cáo <code>docs/code-review-v1.0-report.md</code> cho phiên bản ERP v1.0.</li>
+        <li>Quy trình 5 bước giải quyết Merge Conflict có căn cứ: Quan sát trạng thái &rarr; Tìm nguồn gốc ý định &rarr; Bảo toàn cả hai ý định &rarr; Kiểm chứng bằng automated checks &rarr; Hoàn tất sáp nhập.</li>
+        <li>Bảo vệ tính toàn vẹn của mã nguồn: Toàn bộ 35 tests Vitest và typecheck TypeScript duy trì trạng thái 100% xanh.</li>
+      </ul>
+    </div>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 5 · Bài 21)</div>
+      <div class="nt">Bài 21 · /pr & /retro — Đóng Gói Bản Phát Hành Release v1.0 & Retrospective Đúc Kết</div>
+      <p class="nd">Vận hành kỹ năng /pr và /retro: Soạn thảo Pull Request hoàn chỉnh cho phiên bản ERP v1.0, tổng kết Changelog và đúc rút bài học kinh nghiệm sau toàn bộ chu trình phát triển sản phẩm cùng AI Pair-programming.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0019-diagnosing-bugs-concurrency-supabase.html">← Bài 19</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0021-pr-and-retrospective.html">Bài 21 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Mở file <a href="../docs/code-review-v1.0-report.md" target="_blank"><code>docs/code-review-v1.0-report.md</code></a> và <a href="../CODING_STANDARDS.md" target="_blank"><code>CODING_STANDARDS.md</code></a> để xem chi tiết cách thức một báo cáo Senior Code Review được tổ chức theo tiêu chuẩn của Matt Pocock!</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

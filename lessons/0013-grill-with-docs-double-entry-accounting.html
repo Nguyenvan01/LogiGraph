@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 13: /grill-with-docs — Khám Phá Nghiệp Vụ Kế Toán Kép Đời Thường
+  Tiêu chuẩn: Cầm tay chỉ việc cho người mới Next.js; tiếng Anh chuyên ngành chuẩn, tiếng Việt sáng rõ.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình Capstone Chặng 1: Setup Project & Hiểu Nghiệp Vụ Đời Thường.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 13 · /grill-with-docs — Khám Phá Nghiệp Vụ Kế Toán Kép: Từ Bài Toán Đời Thường Đến Chất Vấn Sâu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 13 (Capstone Chặng 1)</span>
+    <h1>/grill-with-docs — Khám Phá Nghiệp Vụ Kế Toán Kép: Từ Bài Toán Đời Thường Đến Chất Vấn Sâu</h1>
+    <p class="subtitle">Chặng 1 Dự án Capstone ERP Mini: Phân tích bài toán dòng tiền thực tế qua câu chuyện tiệm bánh, giải mã bẫy balance += 100k và dùng /grill-with-docs để chốt luật bất biến Sổ cái.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Hiểu rõ nguyên lý Kế toán kép (Double-Entry Bookkeeping), bảng 5 tài khoản tối giản, và làm chủ skill <code>/grill-with-docs</code> để chất vấn sâu tài liệu nghiên cứu.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh thực tế: Khi Hệ Thống Cần Tích Hợp Dòng Tiền & Kế Toán</div>
+      <p>Ở Module 3, chúng ta đã hoàn thành phân hệ Quản lý Kho (<code>src/modules/inventory/</code>) với đầy đủ cơ chế trừ kho và tạm giữ hàng 15 phút. Bây giờ, khách hàng đưa ra bài toán lớn tiếp theo để biến ứng dụng thành một hệ thống ERP thực thụ:</p>
+      <p style="font-style: italic; background: #ffffff; padding: 10px 14px; border-left: 3px solid var(--accent); border-radius: 4px; margin: 8px 0;">
+        "Mỗi khi khách hàng thanh toán thành công một đơn hàng, hệ thống phải tự động xuất hóa đơn tài chính và hạch toán vào sổ cái kế toán để cuối tháng đối soát không lệch một xu."
+      </p>
+      <p>Nhiều lập trình viên cảm thấy e ngại khi tiếp cận bài toán Kế toán vì nghĩ rằng nó chứa các công thức phức tạp. Nhưng thực tế, kế toán là một hệ thống logic nhất quán và chặt chẽ. Hãy bắt đầu từ một câu chuyện đời thường.</p>
+    </div>
+
+    <!-- BÀI TOÁN DÒNG TIỀN ĐỜI THƯỜNG -->
+    <h2>1. Câu Chuyện Tiệm Bánh & Cạm Bẫy `balance += 100.000`</h2>
+    <p>Giả sử bạn mở một tiệm bánh ngọt. Khách hàng tới mua 1 chiếc bánh kem giá 100.000đ. Một lập trình viên mới bắt đầu thường sẽ thiết kế bảng cơ sở dữ liệu ngây thơ như sau:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>SQL ngây thơ: Cập nhật trực tiếp số dư (Anti-pattern)</span></div>
+      <pre><code><span class="cmt">-- ❌ SAI LẦM: Cộng trực tiếp tiền vào số dư cửa hàng</span>
+UPDATE stores SET balance = balance + 100000 WHERE id = 'tiem-banh-01';</code></pre>
+    </div>
+
+    <p>Cách làm "cộng trừ số dư trực tiếp" này sẽ nhanh chóng gây lỗi vì 3 lý do kỹ thuật quan trọng:</p>
+
+    <div class="callout warn">
+      <div class="ct">⚠️ Ba Thảm Họa Khi Thiết Kế Cột `balance` Đơn Thuần</div>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Mất dấu nguồn gốc tiền (Lost Audit Trail):</strong> Sau 1 tháng, cột <code>balance</code> báo tiệm bánh có 50.000.000đ. Làm sao bạn biết bao nhiêu tiền là do bán bánh kem, bao nhiêu tiền do bán nước uống, hay có ai đó vô tình chạy lệnh SQL cộng nhầm một số 0? Không ai chứng minh được!</li>
+        <li><strong>Lỗi ghi đè khi đông khách (Race Condition):</strong> Khi có 2 khách cùng quẹt thẻ thanh toán tại cùng 1 giây, cả 2 request cùng đọc số dư cũ là 1.000.000đ, cùng cộng thêm 100.000đ và cùng ghi đè giá trị 1.100.000đ xuống database. Kết quả: Khách đã trả 200.000đ nhưng tiệm bánh mất trắng 100.000đ!</li>
+        <li><strong>Mua sắm tài sản bị hiểu nhầm thành "lỗ":</strong> Tiệm bánh bỏ ra 20.000.000đ mua một chiếc lò nướng công nghiệp. Lệnh <code>balance -= 20.000.000</code> khiến tài khoản tụt dốc. Báo cáo tài chính ngây thơ sẽ báo tiệm "bị lỗ 20 triệu", trong khi thực tế tiệm không hề nghèo đi mà chỉ chuyển đổi 20 triệu tiền mặt thành 20 triệu tài sản lò nướng!</li>
+      </ol>
+    </div>
+
+    <!-- NGUYÊN LÝ KẾ TOÁN KÉP -->
+    <h2>2. Nguyên Lý Kế Toán Kép: Hai Chiếc Túi Luôn Cân Bằng</h2>
+    <p>Để giải quyết triệt để 3 thảm họa trên, các thương gia Ý từ thế kỷ 15 đã phát minh ra <strong>Kế toán Kép (Double-Entry Bookkeeping)</strong>:</p>
+
+    <div class="callout tip">
+      <div class="ct">⚖️ Bản chất cốt lõi: Mọi biến động tài chính đều là sự dịch chuyển giữa 2 túi tiền</div>
+      <p>Không có tiền nào tự sinh ra hoặc tự mất đi. Tiền luôn đi từ <strong>Bên Có (Credit)</strong> sang <strong>Bên Nợ (Debit)</strong>:</p>
+      <ul>
+        <li><strong>Khi bán 1 chiếc bánh kem thu 100.000đ:</strong>
+          <ul>
+            <li>Tiền gửi ngân hàng (Tài sản) tăng thêm 100.000đ &rarr; Ghi <strong>Nợ TK 112</strong>: +100.000đ.</li>
+            <li>Nguồn gốc tiền từ Doanh thu bán hàng &rarr; Ghi <strong>Có TK 511</strong>: +100.000đ.</li>
+          </ul>
+        </li>
+        <li><strong>Khi mua lò nướng 20.000.000đ:</strong>
+          <ul>
+            <li>Tài sản thiết bị tăng thêm 20 triệu &rarr; Ghi <strong>Nợ TK 211</strong>: +20.000.000đ.</li>
+            <li>Nguồn tiền lấy từ tài khoản ngân hàng chi ra &rarr; Ghi <strong>Có TK 112</strong>: +20.000.000đ.</li>
+          </ul>
+        </li>
+      </ul>
+      <p style="text-align: center; font-size: 1.2rem; font-weight: 700; font-family: var(--mono); color: var(--accent); margin: 12px 0;">
+        BẤT BIẾN: Tổng Nợ (Debit) === Tổng Có (Credit)
+      </p>
+      <p>Nếu trong bất kỳ giao dịch nào mà Tổng Nợ khác Tổng Có dù chỉ 1 đồng xu, hệ thống sẽ từ chối ghi nhận ngay lập tức!</p>
+    </div>
+
+    <!-- BẢNG 5 TÀI KHOẢN TỐI GIẢN -->
+    <h2>3. Bảng 5 Tài Khoản Tối Giản Cho Hệ Thống VibeCoding ERP</h2>
+    <p>Thay vì sử dụng hàng trăm mã tài khoản phức tạp của doanh nghiệp lớn, chúng ta chuẩn hóa một bảng 5 tài khoản tinh gọn cho phân hệ ERP Mini:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Mã TK</th>
+          <th>Tên Tài Khoản</th>
+          <th>Loại Tài Khoản</th>
+          <th>Ý Nghĩa Nghiệp Vụ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>111</code></td>
+          <td>Tiền mặt</td>
+          <td>Tài sản (Asset)</td>
+          <td>Tiền mặt thu trực tiếp tại quầy cửa hàng.</td>
+        </tr>
+        <tr>
+          <td><code>112</code></td>
+          <td>Tiền gửi ngân hàng</td>
+          <td>Tài sản (Asset)</td>
+          <td>Tiền khách chuyển khoản hoặc quẹt thẻ qua cổng thanh toán.</td>
+        </tr>
+        <tr>
+          <td><code>156</code></td>
+          <td>Hàng tồn kho</td>
+          <td>Tài sản (Asset)</td>
+          <td>Giá trị tài sản của toàn bộ sản phẩm đang nằm trong kho.</td>
+        </tr>
+        <tr>
+          <td><code>511</code></td>
+          <td>Doanh thu bán hàng</td>
+          <td>Doanh thu (Revenue)</td>
+          <td>Khoản tiền tiệm kiếm được từ việc bán sản phẩm cho khách.</td>
+        </tr>
+        <tr>
+          <td><code>632</code></td>
+          <td>Giá vốn hàng bán</td>
+          <td>Chi phí (Expense)</td>
+          <td>Giá vốn ban đầu của lượng hàng hóa đã xuất kho giao cho khách.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ÁP DỤNG SKILL GRILL-WITH-DOCS -->
+    <h2>4. Áp Dụng Skill `/grill-with-docs`: Chất Vấn Cùng AI</h2>
+    <p>Sau khi đã nắm vững nguyên lý đời thường, làm thế nào để bạn chỉ đạo AI Agent làm việc một cách chặt chẽ nhất? Hãy sử dụng skill <code>/grill-with-docs</code> để AI đọc tài liệu nghiên cứu có sẵn tại <code>docs/research/double-entry-bookkeeping.md</code> và đặt câu hỏi chất vấn bạn:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt kích hoạt /grill-with-docs (Copy-paste)</div>
+      <pre><code>/grill-with-docs "Tôi chuẩn bị xây dựng phân hệ Kế toán Kép cho dự án VibeCoding ERP.
+Hãy đọc kỹ file tài liệu nghiên cứu docs/research/double-entry-bookkeeping.md và phỏng vấn tôi từng câu hỏi một để làm rõ các quyết định kiến trúc:
+1. Xác nhận bảng 5 tài khoản tối giản (111, 112, 156, 511, 632).
+2. Khi khách hàng hủy đơn và yêu cầu hoàn tiền, hệ thống xử lý thế nào để không làm hỏng tính toàn vẹn của sổ sách?
+3. Có cho phép chỉnh sửa hoặc xóa các dòng bút toán đã ghi vào sổ cái không?
+
+Mỗi câu hỏi hãy đưa ra phương án khuyến nghị (Recommended) kèm phân tích đánh đổi ngắn gọn."</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Ba Quyết Định Bất Biến Được Chốt Qua Phiên Grilling</div>
+      <ul>
+        <li><strong>1. Sổ cái Append-Only:</strong> Một khi dòng bút toán đã ghi vào cơ sở dữ liệu thì <strong>tuyệt đối cấm UPDATE và DELETE</strong>. Mọi sai sót đều được sửa bằng một bút toán đảo chiều.</li>
+        <li><strong>2. Bút toán đảo chiều:</strong> Khi hủy đơn hàng đã thanh toán 100k, hệ thống không xóa dòng cũ mà ghi thêm bút toán mới: Ghi Có TK 112 (100k) và Ghi Nợ TK 511 (100k). Sổ sách hoàn toàn minh bạch!</li>
+        <li><strong>3. Tính toán số dư động:</strong> Số dư của bất kỳ tài khoản nào luôn bằng tổng các khoản Nợ trừ đi tổng các khoản Có phát sinh từ đầu đến giờ, không lưu số dư tĩnh để tránh lỗi race condition.</li>
+      </ul>
+    </div>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Khi khách hàng thanh toán chuyển khoản 200.000đ mua một món hàng, bút toán kế toán kép nào sau đây là chính xác?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Đây là cách làm ngây thơ cộng trừ trực tiếp, không phải kế toán kép.">A. UPDATE stores SET balance = balance + 200000.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Tiền gửi ngân hàng (TK 112) tăng 200k và Doanh thu bán hàng (TK 511) tăng 200k. Tổng Nợ = Tổng Có = 200.000đ.">B. Ghi Nợ TK 112: 200.000đ và Ghi Có TK 511: 200.000đ.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Bán hàng tạo ra Doanh thu (511), không phải làm giảm Hàng tồn kho trực tiếp ở bước thu tiền.">C. Ghi Nợ TK 112: 200.000đ và Ghi Có TK 156: 200.000đ.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Tại sao quy tắc Sổ cái Append-Only (chỉ cho phép INSERT, cấm UPDATE và DELETE) lại là nguyên tắc cốt lõi của hệ thống ERP?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Append-Only bảo vệ tính toàn vẹn của Audit Trail. Mọi sai sót đều có dấu vết điều chỉnh thông qua bút toán đảo chiều, không ai có thể âm thầm tẩy xóa số liệu.">A. Đảm bảo Audit Trail bất biến, ngăn chặn việc gian lận số liệu và giúp việc đối soát tài chính luôn chính xác.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Lệnh INSERT không liên quan đến việc tiết kiệm dung lượng ổ cứng.">B. Giúp tiết kiệm dung lượng lưu trữ trên cơ sở dữ liệu Supabase.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Append-Only là nguyên tắc thiết kế dữ liệu, không làm tăng tốc độ mạng Internet.">C. Giúp đường truyền mạng Internet từ máy khách lên server nhanh hơn.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- KẾT QUẢ ĐẠT ĐƯỢC -->
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Chặng 1 (Bài 13)</div>
+      <ul class="checklist">
+        <li>Hiểu rõ bản chất dòng tiền và lý do cần loại bỏ cách tính <code>balance += x</code>.</li>
+        <li>Nắm vững phương trình bất biến của Kế toán kép: Tổng Nợ === Tổng Có.</li>
+        <li>Nắm vững bảng 5 tài khoản tối giản (111, 112, 156, 511, 632) và quy tắc Sổ cái Append-Only.</li>
+        <li>Vận hành thành công <code>/grill-with-docs</code> để chất vấn sâu tài liệu nghiên cứu trước khi bước vào thiết kế kỹ thuật.</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG CHẶNG 2 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Chặng 2: Bài 14)</h2>
+    <p>Nghiệp vụ đã thông suốt, các quy tắc bất biến đã được chốt hạ. Bây giờ chúng ta sẽ bắt đầu thiết lập cấu trúc cho phân hệ Kế toán từ con số 0:</p>
+    <p><em>Làm thế nào để tạo cấu trúc thư mục phân hệ tách biệt Core khỏi Database, định nghĩa Seam Interface cho Sổ cái, cập nhật CONTEXT.md & ADR-0002 và lập bản đặc tả kỹ thuật chi tiết cùng 4 tickets thi công?</em></p>
+    <p>Đó là trọng tâm của <strong>Chặng 2 (Bài 14): Thiết Kế Cấu Trúc Phân Hệ, Seams Độc Lập & Lập Đặc Tả Kế Toán</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 14 · /domain-modeling & /to-spec — Thiết Kế Cấu Trúc Phân Hệ, Seams Độc Lập & Lập Đặc Tả Kế Toán</div>
+      <p class="nd">Chặng 2 Capstone: Tạo cấu trúc thư mục ledger/domain vs adapters, định nghĩa Seam ILedgerRepository, cập nhật CONTEXT.md, lập ADR-0002, viết specs và phân rã 4 tickets.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0012-context-management-and-handoff.html">← Bài 12</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0014-setup-project-ledger-spec.html">Bài 14 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở file <code>docs/research/double-entry-bookkeeping.md</code> trong dự án để đọc thêm về các tình huống định khoản kế toán kinh điển.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

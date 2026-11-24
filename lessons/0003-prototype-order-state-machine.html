@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 03: /prototype — Kiểm chứng State Machine Vòng đời Đơn hàng bằng Throwaway Code
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 03 · /prototype — Kiểm chứng State Machine Đơn hàng</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 1 · Bài 03</span>
+    <h1>/prototype — Kiểm chứng State Machine Vòng đời Đơn hàng bằng Throwaway Code</h1>
+    <p class="subtitle">Cách xây dựng mẩu thử độc lập để giải tỏa sự mơ hồ trong thiết kế logic trước khi tích hợp vào codebase chính.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Nắm vững skill <code>/prototype</code> của Matt Pocock, phân biệt Logic Prototype vs UI Prototype, tuân thủ 6 quy tắc vàng và kiểm chứng State Machine Đơn hàng cho dự án VibeCoding ERP.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Tại sao không viết code hoàn chỉnh ngay?</div>
+      <p>Sau khi chốt quy tắc tồn kho ở Bài 01 và lập bản đồ dự án ở Bài 02, chúng ta có <strong>Ticket 02</strong> trong Frontier: <em>Thiết kế State Machine cho Order Lifecycle</em>.</p>
+      <p>Vòng đời đơn hàng không phải là một chuỗi tuần tự đơn giản. Nó liên kết chặt chẽ với cơ chế <strong>Stock Reservation with 15-min TTL</strong>, các sự kiện thanh toán, hủy đơn và xuất kho. Nếu lập tức tạo bảng Supabase, viết Server Actions và nối giao diện, bạn sẽ phải xử lý cùng lúc quá nhiều tầng phức tạp (Database, Network, Validation, Auth). Khi một edge case bị kẹt, chi phí sửa đổi toàn bộ các tầng này là rất lớn.</p>
+      <p>Kỹ năng <code>/prototype</code> giải quyết bài toán này: tạo <strong>Throwaway Code</strong> chỉ để trả lời dứt khoát một câu hỏi thiết kế duy nhất với chi phí thấp nhất.</p>
+    </div>
+
+    <h2>1. Bản chất Kỹ nghệ của /prototype</h2>
+    <p>Theo tài liệu gốc của Matt Pocock:</p>
+    <blockquote>
+      <strong>"A prototype is throwaway code that answers a question. The question decides the shape."</strong><br>
+      <em>(Một prototype là mã nguồn dùng một lần để trả lời một câu hỏi. Chính câu hỏi sẽ quyết định hình dạng của prototype.)</em>
+    </blockquote>
+
+    <p>Prototype được chia thành hai nhánh hoàn toàn khác biệt tùy thuộc vào bản chất câu hỏi:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Nhánh</th>
+          <th>Câu hỏi Cần Trả Lời</th>
+          <th>Artifact Shape</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Logic Prototype</strong><br><code>LOGIC.md</code></td>
+          <td><em>"Mô hình trạng thái / logic nghiệp vụ này có hợp lý không?"</em><br>(Does this logic / state model feel right?)</td>
+          <td><strong>Một file HTML duy nhất</strong>, tự chứa toàn bộ CSS và JS, mở bằng double-click. Gồm một Pure Logic Module (Reducer), bảng hiển thị State trực quan, các nút Free-play và các kịch bản Guided Walkthroughs.</td>
+        </tr>
+        <tr>
+          <td><strong>UI Prototype</strong><br><code>UI.md</code></td>
+          <td><em>"Giao diện này trông như thế nào?"</em><br>(What should this look like?)</td>
+          <td><strong>Nhiều biến thể giao diện</strong> (thường là 3 variants) trên cùng một route, chuyển đổi qua lại bằng tham số <code>?variant=</code> và một thanh điều hướng nổi (floating bottom bar).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout why">
+      <div class="ct">💡 Lựa chọn cho Bài 03: Logic Prototype</div>
+      <p>Mục tiêu của Bài 03 là kiểm chứng sự phối hợp giữa các trạng thái đơn hàng (<code>DRAFT</code> → <code>PAID</code> → <code>SHIPPED</code> → <code>DONE</code> / <code>CANCELLED</code>) và các ràng buộc tồn kho. Chúng ta không tìm kiếm bố cục giao diện, mà cần kiểm tra tính đúng đắn của các bước chuyển trạng thái (State Transitions). Do đó, chúng ta chọn nhánh <strong>Logic Prototype</strong>.</p>
+    </div>
+
+    <h2>2. 6 Quy tắc Vàng khi Xây dựng Prototype</h2>
+    <p>Matt Pocock đặt ra 6 nguyên tắc bất di bất dịch để giữ đúng bản chất của một prototype:</p>
+
+    <ol>
+      <li><strong>Throwaway from day one:</strong> Code prototype sinh ra để học, không phải để tái sử dụng toàn bộ. Đặt tên rõ ràng (ví dụ: chứa tiền tố <code>prototype</code>) để người đọc không nhầm lẫn với production code.</li>
+      <li><strong>Trivial to run:</strong> Một Logic Prototype phải mở được bằng một cú double-click chuột trên trình duyệt. Không yêu cầu người khác phải chạy <code>npm install</code>, khởi động dev server hay cấu hình môi trường.</li>
+      <li><strong>No persistence by default:</strong> Toàn bộ State sống trong bộ nhớ RAM (in-memory). Database là thứ mà prototype đang chuẩn bị kiểm chứng, không phải thứ nó nên phụ thuộc vào.</li>
+      <li><strong>Skip the polish:</strong> Không viết unit tests cho prototype. Không xử lý lỗi vượt quá mức cần thiết để chạy. Không trừu tượng hóa sớm.</li>
+      <li><strong>Surface the state:</strong> Sau mỗi lần bấm nút hành động, giao diện phải lập tức hiển thị toàn bộ state liên quan bằng ngôn ngữ nghiệp vụ rõ ràng để người dùng nhìn thấy sự thay đổi.</li>
+      <li><strong>Capture it when done:</strong> Sau khi câu hỏi được trả lời, tích hợp phần Pure Logic Module đã được xác thực vào codebase chính; lưu prototype làm Primary Source đối chiếu.</li>
+    </ol>
+
+    <h2>3. Các Anti-patterns cần Tuyệt đối Tránh</h2>
+    <div class="callout danger">
+      <div class="ct">⚠️ Những sai lầm thường gặp khi làm Prototype</div>
+      <ul>
+        <li><strong>Viết Unit Tests cho prototype:</strong> Khi bắt đầu viết test cho prototype, nó không còn là prototype nữa mà đã biến thành production code nửa vời.</li>
+        <li><strong>Nối vào Database production:</strong> Gây tốn thời gian thiết lập schema, migrate dữ liệu và làm chậm vòng lặp phản hồi.</li>
+        <li><strong>DOM coupling:</strong> Nếu các hàm tính toán trạng thái truy cập trực tiếp <code>document.getElementById</code> hoặc gắn liền với sự kiện click, bạn sẽ không thể tái sử dụng khối logic đó ở backend hoặc frontend.</li>
+        <li><strong>Đưa cả file HTML của prototype vào Production:</strong> Giao diện prototype chỉ phục vụ việc kiểm thử thủ công. Chỉ có Pure Logic Module bên trong là tài sản có giá trị được giữ lại.</li>
+      </ul>
+    </div>
+
+    <h2>4. Phân tích Sản phẩm Thực tế: File Prototype Đơn hàng ERP</h2>
+    <p>Chúng ta đã hiện thực hóa mẩu thử này tại <a href="../prototypes/order-lifecycle-prototype.html" target="_blank"><code>prototypes/order-lifecycle-prototype.html</code></a>. Hãy cùng bóc tách kiến trúc 2 tầng của file:</p>
+
+    <h3>Tầng 1: Pure Logic Module độc lập</h3>
+    <p>Toàn bộ logic chuyển trạng thái được đóng gói thành một <strong>Pure Reducer</strong>: <code>(state, action) => newState</code>. Hàm này hoàn toàn độc lập với DOM:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>prototypes/order-lifecycle-prototype.html — Pure Reducer</span></div>
+      <pre><code><span class="cmt">// Pure function: Không truy cập DOM, không side-effect</span>
+<span class="kw">function</span> <span class="fn">orderReducer</span>(state, action) {
+  <span class="kw">const</span> nextState = JSON.parse(JSON.stringify(state));
+
+  <span class="kw">switch</span> (action.type) {
+    <span class="kw">case</span> <span class="str">'CREATE_DRAFT'</span>: {
+      <span class="kw">const</span> qty = action.quantity;
+      <span class="cmt">// Kiểm tra Invariant: Tồn kho khả dụng phải đủ</span>
+      <span class="kw">if</span> (nextState.inventory.availableStock &lt; qty) {
+        nextState.lastError = <span class="str">`Không đủ tồn kho khả dụng.`</span>;
+        <span class="kw">return</span> nextState;
+      }
+      <span class="cmt">// Giữ hàng: Tăng activeReservations, giảm availableStock</span>
+      nextState.inventory.activeReservations += qty;
+      nextState.inventory.availableStock = nextState.inventory.physicalStock - nextState.inventory.activeReservations;
+      nextState.order = { status: <span class="str">'DRAFT'</span>, reservation: { status: <span class="str">'ACTIVE'</span> } };
+      <span class="kw">return</span> nextState;
+    }
+
+    <span class="kw">case</span> <span class="str">'CONFIRM_PAYMENT'</span>: {
+      <span class="cmt">// Cam kết trừ vĩnh viễn vào kho vật lý khi thanh toán thành công</span>
+      <span class="kw">const</span> qty = nextState.order.quantity;
+      nextState.inventory.physicalStock -= qty;
+      nextState.inventory.activeReservations -= qty;
+      nextState.order.status = <span class="str">'PAID'</span>;
+      nextState.order.reservation.status = <span class="str">'COMMITTED'</span>;
+      <span class="kw">return</span> nextState;
+    }
+
+    <span class="kw">case</span> <span class="str">'CANCEL_ORDER'</span>: {
+      <span class="cmt">// Chặn hành động bất hợp pháp: Không thể hủy đơn đã giao hoặc hoàn tất</span>
+      <span class="kw">if</span> ([<span class="str">'SHIPPED'</span>, <span class="str">'DONE'</span>].includes(nextState.order.status)) {
+        nextState.lastError = <span class="str">`HÀNH ĐỘNG BẤT HỢP PHÁP: Không thể hủy đơn khi đã ${nextState.order.status}.`</span>;
+        <span class="kw">return</span> nextState;
+      }
+      <span class="cmt">// Xử lý hoàn kho tương ứng nếu hủy từ DRAFT hoặc PAID</span>
+      ...
+    }
+  }
+}</code></pre>
+    </div>
+
+    <h3>Tầng 2: Throwaway UI Shell</h3>
+    <p>Bao bọc bên ngoài Pure Reducer là một giao diện trực quan hỗ trợ hai chế độ kiểm thử:</p>
+    <ul>
+      <li><strong>Free-play Buttons:</strong> Cho phép bấm các action theo thứ tự ngẫu nhiên để tìm ra các lỗi sơ hở trong logic.</li>
+      <li><strong>Guided Walkthroughs:</strong> Cung cấp 4 kịch bản từng bước được lập trình sẵn để kiểm chứng các ca khó:
+        <ol>
+          <li><em>Happy Path:</em> Mua 2 sản phẩm → Giữ hàng 15 phút → Trả tiền và trừ tồn kho vật lý → Giao hàng → Hoàn tất.</li>
+          <li><em>TTL Expired:</em> Khách tạo đơn nhưng quá 15 phút chưa trả tiền → Hàng giữ tự động giải phóng, đơn về <code>CANCELLED</code>.</li>
+          <li><em>Hủy đơn sau thanh toán:</em> Tiền đã thu, kho đã trừ → Khách hủy đơn trước khi giao → Hệ thống chuyển trạng thái sang <code>REFUNDED</code> và hoàn lại tồn kho vật lý.</li>
+          <li><em>Chặn thao tác bất hợp pháp:</em> Thử bấm lệnh Hủy khi đơn đã xuất kho <code>SHIPPED</code> → State Machine từ chối và báo lỗi rõ ràng.</li>
+        </ol>
+      </li>
+    </ul>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Theo kỹ năng /prototype của Matt Pocock, yếu tố nào là QUAN TRỌNG NHẤT để phân biệt một prototype thành công với hacky code?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Prototype được khuyến nghị bỏ qua viết test để tập trung tối đa vào tốc độ trả lời câu hỏi thiết kế.">A. Prototype phải có bộ Unit Tests đạt code coverage trên 80%.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Một prototype xuất sắc bắt đầu bằng một câu hỏi thiết kế rõ ràng và được xác định là throwaway code ngay từ ngày đầu tiên.">B. Prototype được gắn liền với MỘT câu hỏi thiết kế cụ thể và được xác định là throwaway code ngay từ ngày đầu.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Kết nối database là một anti-pattern trong hầu hết các prototype vì làm tăng độ phụ thuộc và cồng kềnh.">C. Prototype phải kết nối được với database PostgreSQL thật để đảm bảo tính thực tế.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi xây dựng một Logic Prototype cho State Machine, vì sao chúng ta phải tách biệt Pure Reducer khỏi các đoạn mã DOM?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Trình duyệt chạy JS gắn DOM hay không gắn DOM đều rất nhanh; lý do chính nằm ở tính tái sử dụng và kiến trúc phần mềm.">A. Để trình duyệt có thể render giao diện với tốc độ 60 khung hình/giây.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Khi Pure Reducer không phụ thuộc vào DOM hay UI framework, sau khi kiểm chứng thành công bạn có thể đưa nguyên khối logic đó vào module backend hoặc frontend của dự án.">B. Giúp logic có tính portable, sau khi kiểm chứng xong có thể đưa thẳng vào codebase của hệ thống mà không cần viết lại.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Pure Reducer vẫn có thể xử lý các logic phức tạp, không liên quan đến việc bắt buộc dùng TypeScript.">C. Vì TypeScript không hỗ trợ cú pháp DOM trong các file HTML độc lập.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 03</div>
+      <ul class="checklist">
+        <li>Làm chủ định nghĩa và tư duy của <code>/prototype</code>: Throwaway code to answer a question.</li>
+        <li>Phân biệt rõ ràng giữa <strong>Logic Prototype</strong> cho state model và <strong>UI Prototype</strong> cho biến thể giao diện.</li>
+        <li>Thực thi thành công file prototype chạy được tại <a href="../prototypes/order-lifecycle-prototype.html" target="_blank"><code>prototypes/order-lifecycle-prototype.html</code></a>.</li>
+        <li>Kiểm chứng thành công 4 ca biên của State Machine Đơn hàng, bảo toàn quy tắc tồn kho <code>Available Stock = Physical Stock - Active Reservations</code>.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG MODULE 2 -->
+    <h2>5. Bước Chuyển tiếp sang Module 2: Mô hình hóa Domain</h2>
+    <p>Như vậy chúng ta đã hoàn thành trọn vẹn <strong>Module 1: Khám phá & Định hình Nghiệp vụ</strong>:</p>
+    <ul>
+      <li>Bài 01 (<code>/grill-me</code>): Chốt các quy tắc tồn kho và TTL Reservation 15 phút.</li>
+      <li>Bài 02 (<code>/wayfinder</code> & <code>/research</code>): Lập bản đồ dự án và nắm vững quy tắc kế toán kép.</li>
+      <li>Bài 03 (<code>/prototype</code>): Kiểm chứng tính khả thi của State Machine Đơn hàng qua mẩu thử độc lập.</li>
+    </ul>
+
+    <p>Logic nghiệp vụ đã rõ ràng, nhưng các thực thể dữ liệu trong hệ thống (Sản phẩm, Đơn hàng, Giữ hàng, Bút toán) vẫn chưa có một <strong>Ubiquitous Language</strong> thống nhất và chưa có bảng dữ liệu PostgreSQL chính thức.</p>
+    <p>Ở Bài 04, chúng ta sẽ bước vào <strong>Module 2</strong> với skill <code>/domain-modeling</code>: thiết lập file <code>CONTEXT.md</code> chuẩn mực và thiết kế Schema Supabase PostgreSQL đầu tiên cho ERP.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 2 · Bài 04)</div>
+      <div class="nt">Bài 04 · /domain-modeling — Chuẩn hóa Từ điển Domain & Thiết kế Schema Supabase PostgreSQL</div>
+      <p class="nd">Thiết lập Ubiquitous Language trong CONTEXT.md và tạo file migration SQL cho các bảng products, orders, stock_reservations.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0002-wayfinder-and-research.html">← Bài 02</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0004-domain-modeling-and-database-schema.html">Bài 04 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Trải nghiệm ngay:</strong> Hãy mở file <a href="../prototypes/order-lifecycle-prototype.html" target="_blank"><code>prototypes/order-lifecycle-prototype.html</code></a> trên trình duyệt và tự tay bấm qua 4 kịch bản để kiểm chứng luồng chuyển trạng thái.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 08: /improve-codebase-architecture — Quét & Tối Ưu Hóa Kiến Trúc Codebase
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 08 · /improve-codebase-architecture — Quét & Tối Ưu Hóa Kiến Trúc Codebase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 08</span>
+    <h1>/improve-codebase-architecture — Quét & Tối Ưu Hóa Kiến Trúc Trước Khi Thi Công</h1>
+    <p class="subtitle">Ứng dụng kỹ thuật Deepening của Matt Pocock: Quét điểm nóng qua Git log, phát hiện Leaky Abstractions, xuất báo cáo Visual HTML Before/After và bảo vệ ranh giới Seams.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/improve-codebase-architecture</code>, tự động hóa rà soát cấu trúc module và củng cố độ sâu (Depth) trước khi bước vào TDD.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Nguy cơ "Mục nát kiến trúc" (Architecture Erosion)</div>
+      <p>Ở Bài 07, chúng ta đã thiết kế Deep Module cho <code>InventoryService</code> với Interface 3 hàm. Tuy nhiên, trong thực tế, các dự án phần mềm thường bị <strong>Architecture Erosion</strong>: Theo thời gian, các lập trình viên (hoặc các AI agent thiếu định hướng) bắt đầu mở thêm các hàm getter phụ trợ, làm lộ các kiểu dữ liệu nội bộ ra ngoài, hoặc để mã nguồn tầng ứng dụng truy cập xuyên thấu vào database adapter.</p>
+      <p>Skill <code>/improve-codebase-architecture</code> cung cấp một quy trình kiểm toán kiến trúc khách quan: Quét codebase, tìm kiếm các <strong>Shallow Modules</strong> (mô-đun nông) và <strong>Leaky Abstractions</strong>, sau đó đề xuất các cơ hội <em>Deepening</em> (làm sâu mô-đun) thông qua báo cáo trực quan.</p>
+    </div>
+
+    <h2>1. Bốn Trụ Cột Của Quá Trình Quét Kiến Trúc</h2>
+    <p>Khi bạn kích hoạt <code>/improve-codebase-architecture</code>, agent thực hiện một quy trình phân tích 4 bước nghiêm ngặt:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Quy trình 4 bước của /improve-codebase-architecture</span></div>
+      <pre><code>[1. Git Churn Hotspots] ──► [2. Deletion Test] ──► [3. Visual HTML Report] ──► [4. Grilling Loop]
+   Quét tần suất sửa đổi        Đánh giá độ sâu         Biểu đồ phụ thuộc           Chất vấn & phê duyệt
+   qua `git log --stat`         và Leaky Abstraction    Before vs After             kế hoạch Refactor</code></pre>
+    </div>
+
+    <ul>
+      <li><strong>1. Git Churn Hotspots:</strong> Sử dụng lệnh <code>git log --stat -n 50</code> để xác định những file có tần suất thay đổi cao nhất kèm số lượng tác giả. Các file vừa có độ phức tạp cao vừa bị sửa liên tục chính là các "ổ rủi ro" (risk hotspots).</li>
+      <li><strong>2. The Deletion Test & Deepening:</strong> Đặt câu hỏi: <em>"Nếu xóa bỏ module này, độ phức tạp sẽ biến mất hay bị đẩy sang nơi khác?"</em>. Nếu interface có quá nhiều hàm mỏng (shallow methods) chỉ để bọc lại database query, agent sẽ gom lại để nâng cao tỷ lệ đòn bẩy (Leverage).</li>
+      <li><strong>3. Báo cáo Visual HTML:</strong> Tạo file báo cáo trực quan (ví dụ: <code>docs/architecture-report.html</code>) chứa sơ đồ Mermaid thể hiện rõ luồng phụ thuộc trước và sau khi tối ưu.</li>
+      <li><strong>4. Vòng lặp Grilling Refactor:</strong> Phỏng vấn chất vấn lập trình viên về từng trade-off kiến trúc trước khi chạm vào mã nguồn thực tế.</li>
+    </ul>
+
+    <h2>2. Hộp Prompt Thực Chiến: Quét Kiến Trúc Phân Hệ Kho</h2>
+    <p>Để quét và tối ưu kiến trúc phân hệ kho trước khi thi công TDD, bạn nhập prompt sau vào Claude Code:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /improve-codebase-architecture</div>
+      <pre><code>/improve-codebase-architecture "Quét toàn bộ cấu trúc thư mục src/modules/inventory/ và src/actions/inventory.ts. 
+Hãy áp dụng The Deletion Test để kiểm tra xem Interface IInventoryRepository có bị Leaky Abstraction không, 
+và xuất báo cáo kiến trúc dạng Visual HTML chỉ ra các điểm cần Deepening."</code></pre>
+    </div>
+
+    <h2>3. Phân Tích Kết Quả: Báo Cáo Before vs After</h2>
+    <p>Dưới đây là một phát hiện điển hình được agent chỉ ra trong báo cáo kiểm toán:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Phát hiện Leaky Abstraction và Phương án Deepening</span></div>
+      <pre><code>❌ KIẾN TRÚC TRƯỚC TỐI ƯU (Shallow Module — Dễ rò rỉ):
+┌────────────────────────────────────────────────────────┐
+│ Caller (Server Action / Controller)                    │
+│   1. Gọi repo.getProduct(id)                           │
+│   2. Tự tính: if (product.stock &lt; requested) throw...  │ ◄── Caller phải tự xử lý logic
+│   3. Tự kiểm tra TTL 15 phút                           │ ◄── Rò rỉ nghiệp vụ ra ngoài
+│   4. Gọi repo.updateStock(id, newStock)                │
+└────────────────────────────────────────────────────────┘
+
+✅ KIẾN TRÚC SAU KHI DEEPENING (Deep Module — Đóng gói hoàn hảo):
+┌────────────────────────────────────────────────────────┐
+│ Caller (Server Action / Controller)                    │
+│   1. Gọi duy nhất: inventoryService.reserveStock(...)   │ ◄── Interface 1 dòng cực gọn
+└────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ InventoryService (Deep Implementation)                 │
+│   - Tự động kiểm tra Invariants và số lượng tồn kho    │
+│   - Tự động quản lý đồng hồ TTL 15 phút                │
+│   - Tự động xử lý Atomic Transaction qua Adapter       │
+└────────────────────────────────────────────────────────┘</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Lợi ích cốt lõi của Deepening</div>
+      <p>Sau khi được làm sâu (Deepening), caller không cần biết bất kỳ chi tiết cài đặt nào bên trong. Nếu sau này ta chuyển từ In-Memory Adapter sang PostgreSQL RPC hay Redis, toàn bộ code phía Server Actions và Frontend hoàn toàn không cần sửa đổi dù chỉ 1 ký tự.</p>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Mục đích chính của "The Deletion Test" trong kỹ năng /improve-codebase-architecture là gì?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Deletion Test là một thí nghiệm tư duy kiến trúc, không phải kiểm tra việc xóa file trong git.">A. Kiểm tra xem file có thể xóa an toàn bằng git rm mà không gây xung đột không.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Nếu xóa module mà độ phức tạp biến mất thì đó là một abstraction tốt. Nếu xóa đi mà độ phức tạp bùng nổ sang hàng chục nơi khác thì module đó đang là một Shallow wrapper vô nghĩa.">B. Đánh giá xem module đó có thực sự đóng gói độ phức tạp (Deep) hay chỉ là một vỏ bọc mỏng (Shallow) chuyển tiếp dữ liệu.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Quét git log là bước Churn Hotspots, không phải Deletion Test.">C. Đo lường tốc độ chạy test của module sau khi xóa bỏ các file không dùng.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 08</div>
+      <ul class="checklist">
+        <li>Hiểu rõ quy trình 4 bước của <code>/improve-codebase-architecture</code>: Git Churn, Deletion Test, Visual Report, Grilling Loop.</li>
+        <li>Biết cách phát hiện Leaky Abstractions và áp dụng kỹ thuật Deepening để nâng cao đòn bẩy của Interface.</li>
+        <li>Chuẩn bị nền tảng kiến trúc vững chắc, không tỳ vết trước khi bắt tay vào phân bổ kế hoạch thực thi.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 09 -->
+    <h2>4. Câu hỏi tư duy (Bắc cầu sang Bài 09)</h2>
+    <p>Kiến trúc đã được quét sạch sẽ và tối ưu hóa tối đa. Nhưng chúng ta đang có một bản đặc tả hoàn chỉnh và 5 tickets cần hoàn thành. Nếu bảo AI: <em>"Hãy làm hết 5 tickets này đi"</em>, AI sẽ bị ngợp ngữ cảnh và làm ẩu.</p>
+    <p><em>Làm thế nào để biến danh sách tickets thành một Đồ thị Nhiệm vụ (Task Graph), xác định tập Frontier và điều phối các Subagents thi công song song trên các Git Worktree độc lập?</em></p>
+    <p>Đó là nội dung của Bài 09 với kỹ năng: <code>/implement-spec</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 09 · /implement-spec — Kỹ Nghệ Thực Thi Đặc Tả: Quản Trị Task Graph & Subagents</div>
+      <p class="nd">Biến tickets thành Task Graph, xác định tập Frontier sẵn sàng thi công, điều phối Implementer Subagents trên Git Worktrees độc lập.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0007-codebase-design-deep-modules.html">← Bài 07</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0009-implement-spec-task-graph.html">Bài 09 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử chạy lệnh <code>git log --stat -n 5</code> trong terminal để tự mình quan sát các điểm nóng thay đổi file trong dự án.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

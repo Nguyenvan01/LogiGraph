@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 14: Phân tích & Xử lý Bug Concurrency / Race Condition thực tế trên Supabase
+  Kỹ năng Matt Pocock: /diagnosing-bugs, /wait-what, /ask-matt
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; thuật ngữ chuyên ngành chuẩn mực.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 19 · /diagnosing-bugs — Phân Tích & Xử Lý Bug Concurrency Trên Supabase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 5 · Bài 19</span>
+    <h1>/diagnosing-bugs — Phân Tích & Xử Lý Bug Concurrency Race Conditions Trên Supabase</h1>
+    <p class="subtitle">Áp dụng kỷ luật chẩn đoán lỗi 4 bước có căn cứ từ Matt Pocock (Reproduce &rarr; Isolate &rarr; Hypothesise &rarr; Verify) để bắt triệt để Race Condition và bảo vệ tính toàn vẹn tồn kho bằng PostgreSQL Row-level Lock.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Làm chủ kỹ năng <code>/diagnosing-bugs</code>, chẩn đoán lỗi logic phức tạp, thấu hiểu cạm bẫy Check-Then-Act trong môi trường Serverless và ứng dụng kỹ thuật Row-level Locking (<code>SELECT FOR UPDATE</code>) qua Supabase RPC.</p>
+
+    <!-- BẮC CẦU TỪ CAPSTONE SANG DEBUGGING CHUYÊN SÂU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Chuyển tiếp sang Module 5 (Debug Chuyên sâu & Senior Code Review)</div>
+      <p>Sau khi hoàn tất Module 4 Capstone, hệ thống ERP Mini của chúng ta đã có đầy đủ kiến trúc 3 tầng: Database Migrations (PostgreSQL / Supabase), Deep Domain Core Services (<code>InventoryService</code>, <code>LedgerService</code>) và Giao diện Dashboard tương tác thời gian thực.</p>
+      <p>Trong điều kiện kiểm thử tuần tự (single-threaded), hệ thống hoạt động chính xác 100%. Tuy nhiên, khi đưa vào môi trường sản xuất thực tế với hàng nghìn người dùng truy cập đồng thời, một bài toán nan giải xuất hiện: <strong>Hai khách hàng đồng thời thanh toán sản phẩm cuối cùng trong kho</strong>. Nếu không có cơ chế kiểm soát tranh chấp chuẩn xác, hệ thống sẽ rơi vào tình trạng Over-selling hoặc Double-booking.</p>
+      <p>Bài học này mở đầu Module 5 bằng việc rèn luyện phương pháp chẩn đoán lỗi nghiêm ngặt theo chuẩn Matt Pocock: không đoán mò, không sửa vội mã nguồn, mà bắt đầu bằng việc thiết lập một Feedback Loop có thể tái hiện lỗi một cách xác định (Deterministic).</p>
+    </div>
+
+    <h2>1. Bản chất của Concurrency Bug: Cạm bẫy Check-Then-Act</h2>
+    <p>Một lỗi phổ biến trong các ứng dụng web là mẫu hình <strong>Check-Then-Act</strong> hoặc <strong>Read-Modify-Write</strong> diễn ra tại tầng ứng dụng:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Mã nguồn có lỗ hổng Race Condition (Vulnerable Implementation)</span></div>
+      <pre><code>// Bước 1: Đọc tồn kho khả dụng từ Database View (Check)
+const balance = await this.getStockBalance(productId);
+if (!balance || balance.availableStock < quantity) {
+  throw new InsufficientStockError(productId, quantity, balance?.availableStock ?? 0);
+}
+
+// Giữa bước 1 và bước 2 tồn tại Network Latency và I/O round-trip (10ms - 50ms)
+
+// Bước 2: Ghi nhận bản ghi giữ hàng vào Database (Act)
+await this.client.from('stock_reservations').insert({
+  product_id: productId,
+  quantity,
+  status: 'ACTIVE',
+  expires_at: expiresAt.toISOString(),
+});</code></pre>
+    </div>
+
+    <p>Hãy xem xét dòng thời gian khi hai yêu cầu (Request A và Request B) cùng đến máy chủ cách nhau 2 mili-giây đối với một sản phẩm chỉ còn duy nhất 1 đơn vị tồn kho khả dụng:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Race Condition Timeline</span></div>
+      <pre><code>Thời gian    Request A (Khách hàng 1)               Request B (Khách hàng 2)
+  T=0ms      Bắt đầu gọi reserveStock(qty: 1)       Bắt đầu gọi reserveStock(qty: 1)
+  T=5ms      Query View: available_stock = 1        Query View: available_stock = 1
+  T=10ms     Kiểm tra 1 >= 1 &rarr; Hợp lệ!              Kiểm tra 1 >= 1 &rarr; Hợp lệ!
+  T=15ms     Gửi lệnh INSERT reservation (qty: 1)   Đang chờ mạng...
+  T=20ms     INSERT thành công                      Gửi lệnh INSERT reservation (qty: 1)
+  T=25ms     Hoàn tất Request A                     INSERT thành công
+  ─────────────────────────────────────────────────────────────────────────────
+  HẬU QUẢ:   Tổng số lượng giữ hàng = 2, trong khi Kho vật lý chỉ có 1!
+             Tồn kho khả dụng thực tế trở thành -1 (Over-selling / Double-booking).</code></pre>
+    </div>
+
+    <h2>2. Kỷ luật Chẩn đoán Lỗi của Matt Pocock (<code>diagnosing-bugs</code>)</h2>
+    <p>Khi đối mặt với một bug khó như Race Condition, phản xạ tự nhiên của nhiều lập trình viên là lập tức nhảy vào đọc code, suy đoán nguyên nhân và thử sửa bừa (Trial and Error). Kỹ năng <code>diagnosing-bugs</code> của Matt Pocock thiết lập một kỷ luật hoàn toàn trái ngược gồm 6 giai đoạn rõ ràng:</p>
+
+    <div class="callout why">
+      <div class="ct">📋 6 Giai đoạn Chẩn đoán Lỗi theo Chuẩn Matt Pocock</div>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Phase 1: Build a Feedback Loop:</strong> Thiết kế một lệnh hoặc kịch bản kiểm thử duy nhất có đặc tính <em>Fast</em>, <em>Deterministic</em> và <em>Red-capable</em> (có khả năng fail đỏ chính xác trên lỗi này). <em>"No red-capable command, no Phase 2."</em></li>
+        <li><strong>Phase 2: Reproduce + Minimise:</strong> Chạy loop, quan sát lỗi xuất hiện. Sau đó loại bỏ từng biến số phụ cho đến khi mọi yếu tố còn lại đều là <em>load-bearing</em> (thiếu nó thì lỗi không xảy ra).</li>
+        <li><strong>Phase 3: Hypothesise:</strong> Liệt kê 3 đến 5 giả thuyết có thể kiểm chứng (Falsifiable) theo cú pháp: <em>"If &lt;X&gt; is the cause, then &lt;changing Y&gt; will make the bug disappear / &lt;changing Z&gt; will make it worse."</em></li>
+        <li><strong>Phase 4: Instrument:</strong> Đặt các điểm đo có chủ đích, gắn Unique Prefix ví dụ <code>[DEBUG-...]</code> để sau này dọn sạch bằng một lệnh grep. Chỉ thay đổi một biến số duy nhất tại một thời điểm.</li>
+        <li><strong>Phase 5: Fix + Regression Test:</strong> Viết test hồi quy tại đúng Seam kỹ thuật trước khi sửa code. Áp dụng giải pháp, quan sát test chuyển từ đỏ sang xanh. Chạy lại feedback loop ban đầu.</li>
+        <li><strong>Phase 6: Cleanup:</strong> Xóa toàn bộ probe debug, kiểm tra toàn bộ test suite và ghi lại giả thuyết đúng vào commit message hoặc tài liệu bàn giao.</li>
+      </ol>
+    </div>
+
+    <h2>3. Phân Tích Kiến Trúc: Đánh Giá 3 Chiến Lược Xử Lý Concurrency Trên PostgreSQL</h2>
+
+    <div class="callout what">
+      <div class="ct">🤔 Tại sao không dùng In-memory Mutex ở tầng Node.js?</div>
+      <p><strong>Câu hỏi:</strong> Trong Node.js hoặc Next.js Server Actions, chúng ta có thể tạo một In-memory Mutex hoặc biến cờ để ngăn hai request cùng vào một đoạn mã xử lý tồn kho hay không?</p>
+      <p><strong>Bản chất kỹ thuật:</strong> Trong kiến trúc Web hiện đại và Cloud Serverless (Next.js triển khai trên Vercel, Docker hoặc Kubernetes), các Server Actions được thực thi trên nhiều Worker processes, các container độc lập hoặc các Serverless Functions phân tán trên toàn cầu.</p>
+      <p>Một khóa trong RAM của Process A hoàn toàn vô hiệu đối với Process B đang chạy trên một máy chủ khác. Single Source of Truth giữa các tiến trình chính là <strong>PostgreSQL Database trên Supabase</strong>. Do đó, việc bảo vệ bất biến dữ liệu bắt buộc phải được giải quyết tại tầng cơ sở dữ liệu.</p>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💡 Đánh Giá 3 Chiến Lược Xử Lý Concurrency Trên PostgreSQL</div>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+        <thead>
+          <tr style="background: #f1f5f9; text-align: left;">
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Chiến lược</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Cơ chế hoạt động</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Ưu điểm</th>
+            <th style="padding: 8px; border: 1px solid #cbd5e1;">Nhược điểm & Ứng dụng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>Pessimistic Locking (<code>SELECT FOR UPDATE</code>)</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Khóa dòng sản phẩm trên bảng <code>products</code> ngay từ đầu transaction. Các request khác phải xếp hàng chờ.</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Ngăn chặn Race Condition 100%; không phát sinh lỗi retry từ client; thời gian giữ khóa cực ngắn (&lt; 5ms).</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>Lựa chọn tối ưu</strong> cho bài toán Flash Sale và quản lý tồn kho số lượng ít.</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>Optimistic Concurrency Control (OCC)</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Thêm cột <code>version</code> hoặc so sánh giá trị cũ khi update (<code>UPDATE ... WHERE version = v</code>).</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Không khóa dữ liệu, hiệu năng cao khi contention thấp.</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Khi nhiều người cùng tranh mua 1 món hàng, hầu hết các request bị abort và phải retry liên tục gây lãng phí tài nguyên.</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;"><strong>Serializable Isolation Level</strong></td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">PostgreSQL tự động phát hiện Serialization Anomalies và ném lỗi 40001 (serialization_failure).</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Tách bạch hoàn toàn logic khóa khỏi câu truy vấn.</td>
+            <td style="padding: 8px; border: 1px solid #cbd5e1;">Ứng dụng bắt buộc phải triển khai cơ chế Retry Loop phức tạp; chi phí tài nguyên máy chủ cao.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>4. Hiện thực hóa Giải pháp: PostgreSQL Stored Procedure</h2>
+    <p>Để giải quyết triệt để vấn đề, chúng ta gom toàn bộ thao tác Check và Act vào một PostgreSQL Function duy nhất, chạy dưới một transaction có Row-level Lock:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Migration: supabase/migrations/20260928000004_atomic_inventory_concurrency.sql</span></div>
+      <pre><code>CREATE OR REPLACE FUNCTION reserve_stock_atomic(
+    p_product_id UUID,
+    p_quantity INTEGER,
+    p_order_id UUID DEFAULT NULL,
+    p_ttl_minutes INTEGER DEFAULT 15
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_physical_stock INTEGER;
+    v_active_reservations INTEGER;
+    v_available_stock INTEGER;
+    v_reservation_id UUID;
+    v_expires_at TIMESTAMPTZ;
+    v_now TIMESTAMPTZ := clock_timestamp();
+BEGIN
+    -- 1. Khóa dòng sản phẩm bằng Row-Level Exclusive Lock (FOR UPDATE)
+    SELECT stock INTO v_physical_stock
+    FROM products
+    WHERE id = p_product_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Product with ID % not found', p_product_id
+            USING ERRCODE = 'P0002';
+    END IF;
+
+    -- 2. Tính toán active reservations trong cùng một lock context
+    SELECT COALESCE(SUM(quantity), 0)::INTEGER INTO v_active_reservations
+    FROM stock_reservations
+    WHERE product_id = p_product_id
+      AND status = 'ACTIVE'
+      AND expires_at > v_now;
+
+    -- 3. Tính tồn kho khả dụng thực tế
+    v_available_stock := v_physical_stock - v_active_reservations;
+
+    -- 4. Kiểm tra điều kiện tồn kho khả dụng
+    IF v_available_stock < p_quantity THEN
+        RAISE EXCEPTION 'Insufficient stock for product %: requested %, available %',
+            p_product_id, p_quantity, v_available_stock
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- 5. Thực hiện chốt bản ghi giữ hàng mới
+    v_reservation_id := gen_random_uuid();
+    v_expires_at := v_now + (p_ttl_minutes || ' minutes')::INTERVAL;
+
+    INSERT INTO stock_reservations (
+        id, order_id, product_id, quantity, status, expires_at, created_at, updated_at
+    ) VALUES (
+        v_reservation_id, p_order_id, p_product_id, p_quantity, 'ACTIVE', v_expires_at, v_now, v_now
+    );
+
+    RETURN jsonb_build_object(
+        'id', v_reservation_id,
+        'productId', p_product_id,
+        'orderId', p_order_id,
+        'quantity', p_quantity,
+        'status', 'ACTIVE',
+        'expiresAt', v_expires_at,
+        'createdAt', v_now,
+        'updatedAt', v_now
+    );
+END;
+$$;</code></pre>
+    </div>
+
+    <h2>5. So sánh Mã nguồn Trước và Sau khi Tối ưu (Before vs After)</h2>
+    <p>Hãy xem sự khác biệt giữa hai cách triển khai trong <code>src/modules/inventory/adapters/supabase.ts</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bảng đối chiếu Kiến trúc Trước và Sau khi Khắc phục Lỗ hổng</span></div>
+      <pre><code>TRƯỚC (Vulnerable Read-Modify-Write)          │ SAU (PostgreSQL Row-level Lock RPC)
+─────────────────────────────────────────────────┼─────────────────────────────────────────────────
+// Hai round-trips riêng biệt qua mạng           │ // Một lệnh gọi RPC nguyên tử duy nhất
+const balance = await getStockBalance(id);       │ const { data, error } = await this.client.rpc(
+if (balance.availableStock < qty) {              │   'reserve_stock_atomic',
+  throw new InsufficientStockError(...);         │   { p_product_id: productId, p_quantity: quantity }
+}                                                │ );
+                                                 │ 
+// Network gap mở ra cơ hội cho race condition   │ if (error?.code === 'P0001') {
+await client.from('stock_reservations').insert({ │   throw new InsufficientStockError(...);
+  product_id: id, quantity                       │ }
+});                                              │ 
+─────────────────────────────────────────────────┼─────────────────────────────────────────────────
+Hậu quả: 2 requests cùng đọc stock=1             │ Kết quả: Request 1 khóa dòng sản phẩm.
+Cả hai cùng insert &rarr; Over-selling xảy ra!       │ Request 2 xếp hàng chờ, thấy stock=0 &rarr; Bị từ chối!</code></pre>
+    </div>
+
+    <h2>6. Kết quả Kiểm thử Tự động với Vitest Suite</h2>
+    <p>Chúng ta đã thiết lập bộ kiểm thử toàn diện tại <a href="../src/modules/inventory/concurrency.test.ts"><code>src/modules/inventory/concurrency.test.ts</code></a> để tái hiện lỗi và chứng minh tính đúng đắn của giải pháp:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Kết quả thực thi Vitest Test Runner (35/35 tests pass)</span></div>
+      <pre><code> RUN  v4.1.11 /home/tinhnq/project/vibecoding_erp
+
+ ✓ src/modules/inventory/inventory.test.ts (16 tests) 11ms
+ ✓ src/modules/ledger/ledger.test.ts (11 tests) 16ms
+ ✓ src/actions/actions.test.ts (4 tests) 15ms
+ ✓ src/modules/inventory/concurrency.test.ts (4 tests) 114ms
+   ├── Phase 1 & 2: Reproduce Race Condition with Vulnerable Read-Modify-Write
+   │   └── demonstrates the over-selling bug under concurrent load [PASS]
+   └── Phase 3, 4 & 5: Fix Verification with Atomic RPC (SELECT FOR UPDATE)
+       ├── correctly prevents double-booking when 2 customers reserve last item [PASS]
+       ├── stress test: handles 10 concurrent reservation attempts on 2 available items [PASS]
+       └── atomically commits reservation via RPC preventing double commits [PASS]
+
+ Test Files  4 passed (4)
+      Tests  35 passed (35)
+   Duration  554ms</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">📊 Phân tích Kịch bản Stress Test (10 Yêu cầu Đồng thời)</div>
+      <p>Trong kịch bản stress test: Sản phẩm có <strong>2 đơn vị tồn kho vật lý</strong>. <strong>10 khách hàng</strong> đồng thời gửi yêu cầu đặt 1 đơn vị cùng một thời điểm:</p>
+      <ul>
+        <li>Chính xác <strong>2 yêu cầu</strong> giành được khóa và tạo reservation thành công.</li>
+        <li>Chính xác <strong>8 yêu cầu</strong> còn lại bị từ chối sạch sẽ với ngoại lệ <code>InsufficientStockError</code>.</li>
+        <li>Tổng số lượng reservation trong cơ sở dữ liệu không bao giờ vượt quá 2; tồn kho khả dụng không bao giờ bị âm.</li>
+      </ul>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Theo nguyên tắc cốt lõi của kỹ năng diagnosing-bugs của Matt Pocock, điều kiện bắt buộc để hoàn thành Phase 1 là gì?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đọc code để xây dựng giả thuyết trước khi có feedback loop chính là lỗi sai phổ biến mà skill diagnosing-bugs muốn ngăn chặn triệt để.">A. Đã đọc kỹ mã nguồn và tìm ra đoạn code nghi vấn gây ra bug.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Hoàn thành Phase 1 đòi hỏi một lệnh kiểm thử duy nhất (test, script, curl) có đặc tính: Red-capable (fail đỏ đúng trên bug này), Deterministic (kết quả nhất quán) và Fast (chạy trong vài giây). Không có lệnh này, không được chuyển sang Phase 2.">B. Thiết lập được một lệnh hoặc test suite có khả năng chạy nhanh, xác định (deterministic) và fail đỏ chính xác trên triệu chứng lỗi của người dùng (red-capable).</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Sửa code trước khi có test tái hiện vi phạm nguyên tắc kiểm chứng có căn cứ.">C. Sửa mã nguồn và chạy lại toàn bộ ứng dụng xem còn lỗi hay không.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Tại sao câu lệnh SELECT FOR UPDATE trong PostgreSQL lại giải quyết được triệt để Over-selling?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. SELECT FOR UPDATE không khóa toàn bộ bảng, nó chỉ khóa các dòng thỏa mãn điều kiện WHERE (Row-level Lock).">A. Vì nó khóa toàn bộ cơ sở dữ liệu và cấm tất cả mọi người truy cập vào bảng products.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! SELECT FOR UPDATE áp dụng khóa độc quyền cấp dòng (Row-level Exclusive Lock) trên dòng sản phẩm được truy vấn. Mọi giao dịch khác muốn đọc để cập nhật dòng này đều phải xếp hàng chờ cho đến khi giao dịch hiện tại hoàn tất (COMMIT hoặc ROLLBACK).">B. Vì nó áp dụng khóa độc quyền cấp dòng (Row-level Exclusive Lock) trên bản ghi sản phẩm, buộc các giao dịch đồng thời khác phải xếp hàng chờ cho đến khi giao dịch hiện tại hoàn tất.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Tầng ứng dụng Node.js trong môi trường serverless không duy trì được trạng thái khóa dùng chung.">C. Vì nó chuyển toàn bộ logic xử lý lên bộ nhớ RAM của máy chủ Node.js.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 3. Trong kỹ năng diagnosing-bugs, quy tắc đặt tên cho các log debug ở Phase 4 là gì?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đặt console.log tùy tiện thường bị bỏ sót và lọt vào môi trường sản xuất.">A. Đặt console.log() tùy ý ở khắp mọi nơi rồi dùng mắt đọc terminal.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Mỗi log debug cần có tiền tố duy nhất (ví dụ [DEBUG-a4f2]) để ở Phase 6 có thể dọn sạch bằng một câu lệnh grep duy nhất mà không sợ xóa sót hoặc xóa nhầm log nghiệp vụ.">B. Gắn một tiền tố định danh duy nhất (Unique Prefix như [DEBUG-xxx]) cho mỗi probe để có thể quét sạch toàn bộ ở Phase 6 bằng một lệnh grep.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Log debug chỉ phục vụ quá trình chẩn đoán và bắt buộc phải được dọn dẹp sạch sẽ trước khi tạo commit hoặc PR.">C. Giữ nguyên toàn bộ log debug trong mã nguồn để phục vụ giám sát sau này.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- TỔNG KẾT BÀI HỌC -->
+    <div class="callout tip">
+      <div class="ct">🎓 Đúc kết Bài 19: Kỷ luật Kỹ thuật khi Xử lý Bug Concurrency</div>
+      <ul class="checklist">
+        <li>Nắm vững quy trình chẩn đoán lỗi 4 bước có căn cứ: <strong>Reproduce &rarr; Isolate &rarr; Hypothesise &rarr; Verify</strong>.</li>
+        <li>Hiểu rõ nguyên nhân gốc rễ của Race Condition trong các ứng dụng web phân tán: Cạm bẫy Check-Then-Act khi kiểm tra tồn kho bằng các truy vấn rời rạc.</li>
+        <li>Thực thi bảo vệ tính toàn vẹn dữ liệu tại tầng PostgreSQL Engine thông qua Stored Procedure (RPC) và khóa dòng <code>SELECT FOR UPDATE</code>.</li>
+        <li>Tích hợp cơ chế RPC an toàn vào <code>SupabaseInventoryRepository</code> với khả năng map mã lỗi cơ sở dữ liệu sang Domain Errors chuẩn mực.</li>
+        <li>Xây dựng test suite Vitest kiểm chứng khả năng chịu tải đồng thời: 35/35 tests pass, 0 lỗi typecheck.</li>
+      </ul>
+    </div>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 5 · Bài 20)</div>
+      <div class="nt">Bài 20 · /code-review & /resolving-merge-conflicts — Review 2 Trục & Xử Lý Merge Conflicts</div>
+      <p class="nd">Vận hành kỹ năng /code-review và /resolving-merge-conflicts: Đánh giá mã nguồn theo 2 trục độc lập (Chuẩn mực Fowler Smells vs Khớp 100% Spec) và xử lý êm đẹp xung đột git khi tích hợp nhiều luồng làm việc.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0018-end-to-end-verification-and-trial-balance.html">← Bài 18</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0020-code-review-and-merge-conflicts.html">Bài 20 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Chạy lệnh <code>npx vitest run src/modules/inventory/concurrency.test.ts</code> trên terminal để tự mình quan sát cách kịch bản kiểm thử tái hiện bug race condition và kiểm chứng giải pháp atomic lock!</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 04: /domain-modeling — Chuẩn hóa Từ điển Domain & Thiết kế Schema Supabase
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 04 · /domain-modeling — Chuẩn hóa Domain & Schema Supabase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 2 · Bài 04</span>
+    <h1>/domain-modeling — Chuẩn hóa Từ điển Domain & Thiết kế Schema Supabase PostgreSQL</h1>
+    <p class="subtitle">Cách xây dựng Ubiquitous Language trong CONTEXT.md, lập Architecture Decision Records (ADR) và chuyển hóa thành Schema PostgreSQL chuẩn cho ERP.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/domain-modeling</code> của Matt Pocock, hiểu cấu trúc Single-context (<code>CONTEXT.md</code> + <code>docs/adr/</code>), kỹ thuật dùng <code>_Avoid_</code> và thiết kế Schema Supabase bảo toàn Invariants.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Từ Prototype sang Nền tảng Dữ liệu Chính thống</div>
+      <p>Ở Bài 03, chúng ta đã kiểm chứng State Machine của Đơn hàng bằng mẩu thử <code>prototypes/order-lifecycle-prototype.html</code>. Tuy nhiên, prototype chỉ là mẩu thử in-memory dùng một lần. Khi bước sang <strong>Module 2: Mô hình hóa Domain & Lập Đặc tả Kỹ thuật</strong>, chúng ta phải đối mặt với nguy cơ <strong>Term Ambiguity</strong>:</p>
+      <ul>
+        <li>Lập trình viên A gọi sản phẩm là <code>Item</code>, lập trình viên B gọi là <code>SKU</code>, còn database lại đặt tên là <code>Product</code>.</li>
+        <li>Hành động giữ hàng người thì gọi là <code>Hold</code>, người gọi là <code>Booking</code>, người gọi là <code>Reservation</code>.</li>
+      </ul>
+      <p>Khi làm việc với các AI coding agents, sự không nhất quán về thuật ngữ sẽ gây <strong>Context Degradation</strong>, khiến mô hình sinh code sai lệch và tạo ra các hàm trùng lặp. Kỹ năng <code>/domain-modeling</code> giúp chuẩn hóa toàn bộ khái niệm thành <strong>Ubiquitous Language</strong> duy nhất trước khi tạo Schema Database.</p>
+    </div>
+
+    <h2>1. Cấu trúc Single-context Repository theo chuẩn Matt Pocock</h2>
+    <p>Đối với hầu hết các dự án phần mềm (không phân chia thành nhiều bounded contexts riêng biệt), Matt Pocock quy định cấu trúc tối giản và sắc bén như sau:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Cấu trúc chuẩn cho Single-context Repository</span></div>
+      <pre><code>/
+├── CONTEXT.md        <span class="cmt"># Từ điển Ubiquitous Language duy nhất của dự án</span>
+├── docs/
+│   └── adr/          <span class="cmt"># Thư mục lưu các Architecture Decision Records</span>
+│       ├── 0001-atomic-stock-reservation-over-redis-lock.md
+│       └── ...
+└── src/              <span class="cmt"># Mã nguồn triển khai</span></code></pre>
+    </div>
+
+    <h3>Quy tắc cốt lõi của file CONTEXT.md</h3>
+    <ol>
+      <li><strong>Glossary thuần túy:</strong> <code>CONTEXT.md</code> tuyệt đối KHÔNG chứa implementation details, không chứa danh sách API endpoint, không chứa câu lệnh SQL hay giải pháp kiến trúc. Nó chỉ trả lời câu hỏi: <em>"Từ này trong dự án của chúng ta có nghĩa là gì?"</em></li>
+      <li><strong>Tight definitions:</strong> Mỗi thuật ngữ chỉ giải thích trong 1 đến 2 câu. Định nghĩa rõ nó LÀ GÌ, không lan man sang việc nó LÀM GÌ.</li>
+      <li><strong>Domain-specific only:</strong> Không đưa các khái niệm lập trình phổ biến (như timeout, error type, json, utility) vào <code>CONTEXT.md</code>.</li>
+      <li><strong>Be opinionated with `_Avoid_`:</strong> Khi có nhiều từ đồng nghĩa cùng chỉ một khái niệm, chọn từ chuẩn mực nhất và liệt kê toàn bộ các từ đồng nghĩa khác vào mục <code>_Avoid_</code> để cấm sử dụng.</li>
+    </ol>
+
+    <div class="code-block">
+      <div class="code-label"><span>Trích đoạn CONTEXT.md của VibeCoding ERP</span></div>
+      <pre><code><span class="kw">**Stock Reservation**</span>:
+A temporary 15-minute hold on a product's available stock while an order is awaiting payment.
+<span class="cmt">_Avoid_: Hold, lock, booking, soft reservation</span>
+
+<span class="kw">**Available Stock**</span>:
+The quantity of a product currently unreserved and eligible for purchase, equal to physical stock minus active reservations.
+<span class="cmt">_Avoid_: Free stock, sellable inventory, usable count</span></code></pre>
+    </div>
+
+    <h2>2. Quản lý Quyết định Kiến trúc với ADR</h2>
+    <p>Không phải mọi quyết định kỹ thuật đều cần viết ADR. Viết quá nhiều tài liệu vụn vặt sẽ gây quá tải Context Window.</p>
+
+    <div class="callout warn">
+      <div class="ct">⚖️ 3 Điều kiện BẮT BUỘC để tạo một ADR (Matt Pocock Rule)</div>
+      <p>Chỉ tạo file ADR trong <code>docs/adr/</code> khi thỏa mãn đồng thời cả 3 tiêu chí sau:</p>
+      <ol style="margin-top: 6px;">
+        <li><strong>Hard to reverse:</strong> Chi phí để thay đổi quyết định sau này là đáng kể (ví dụ: đổi database, đổi mô hình transaction).</li>
+        <li><strong>Surprising without context:</strong> Một kỹ sư khác khi đọc code sẽ thắc mắc lý do lựa chọn thay vì cách tiếp cận thông thường.</li>
+        <li><strong>The result of a real trade-off:</strong> Có nhiều phương án khả thi và chúng ta đã cân nhắc kỹ để chọn một phương án vì lý do cụ thể.</li>
+      </ol>
+    </div>
+
+    <p>Matt Pocock quy định mẫu ADR cực kỳ ngắn gọn (không dài dòng hình thức, thường chỉ từ 1 đến 3 câu):</p>
+    <div class="code-block">
+      <div class="code-label"><span>docs/adr/0001-atomic-stock-reservation-over-redis-lock.md</span></div>
+      <pre><code># Use PostgreSQL Check Constraints and TTL Reservations for Stock Concurrency
+
+We use PostgreSQL atomic statements with `CHECK (stock >= 0)` constraints and explicit 15-minute `stock_reservations` records instead of an external Redis distributed lock. This keeps inventory balance enforcement strictly ACID-compliant within Supabase without introducing external caching infrastructure or split-brain failure modes.</code></pre>
+    </div>
+
+    <h2>3. Chuyển hóa Domain Model thành Schema Supabase PostgreSQL</h2>
+    <p>Từ các định nghĩa trong <a href="../CONTEXT.md" target="_blank"><code>CONTEXT.md</code></a> và quyết định trong ADR-0001, chúng ta đã thiết lập file migration đầu tiên cho hệ thống tại <a href="../supabase/migrations/20260928000001_init_inventory_and_orders.sql" target="_blank"><code>supabase/migrations/20260928000001_init_inventory_and_orders.sql</code></a>.</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Bảng dữ liệu</th>
+          <th>Khái niệm Domain trong CONTEXT.md</th>
+          <th>Ràng buộc toàn vẹn & Kỹ thuật đặc thù</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>products</code></td>
+          <td><strong>Product</strong>, <strong>Physical Stock</strong></td>
+          <td><code>CONSTRAINT positive_stock CHECK (stock >= 0)</code>: Đảm bảo tồn kho vật lý không bao giờ bị âm ngay ở tầng database engine.</td>
+        </tr>
+        <tr>
+          <td><code>orders</code></td>
+          <td><strong>Order</strong>, <strong>Order Status</strong></td>
+          <td><code>CHECK (status IN ('DRAFT', 'PAID', 'SHIPPED', 'DONE', 'CANCELLED'))</code>: Khóa cứng State Machine, ngăn chặn các giá trị trạng thái lạ.</td>
+        </tr>
+        <tr>
+          <td><code>order_items</code></td>
+          <td><strong>Order Item</strong></td>
+          <td>Khóa ngoại <code>REFERENCES orders(id) ON DELETE CASCADE</code> và <code>CHECK (quantity > 0)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>stock_reservations</code></td>
+          <td><strong>Stock Reservation</strong> (Active, Committed, Released, Expired)</td>
+          <td>Có cột <code>expires_at TIMESTAMPTZ</code> phục vụ kiểm tra TTL 15 phút. Tạo Partial Index trên <code>(expires_at) WHERE status = 'ACTIVE'</code> để quét dọn cực nhanh.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Quy tắc bất biến: Tính toán Available Stock thời gian thực qua View</h3>
+    <p>Thay vì lưu một cột <code>available_stock</code> dễ bị Desynchronization bug khi có tranh chấp đồng thời, chúng ta sử dụng một Database View tính toán trực tiếp từ tồn kho vật lý và các lượt giữ hàng còn hiệu lực:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>supabase/migrations/... — View tính toán Invariant</span></div>
+      <pre><code><span class="kw">CREATE OR REPLACE VIEW</span> <span class="tbl">view_inventory_available</span> <span class="kw">AS</span>
+<span class="kw">SELECT</span> 
+    p.id <span class="kw">AS</span> product_id,
+    p.sku,
+    p.name,
+    p.stock <span class="kw">AS</span> physical_stock,
+    <span class="fn">COALESCE</span>(<span class="fn">SUM</span>(r.quantity), <span class="num">0</span>)::INTEGER <span class="kw">AS</span> active_reservations,
+    (p.stock - <span class="fn">COALESCE</span>(<span class="fn">SUM</span>(r.quantity), <span class="num">0</span>))::INTEGER <span class="kw">AS</span> available_stock
+<span class="kw">FROM</span> products p
+<span class="kw">LEFT JOIN</span> stock_reservations r 
+    <span class="kw">ON</span> p.id = r.product_id 
+    <span class="kw">AND</span> r.status = <span class="str">'ACTIVE'</span> 
+    <span class="kw">AND</span> r.expires_at > <span class="fn">now</span>()
+<span class="kw">GROUP BY</span> p.id, p.sku, p.name, p.price, p.stock;</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Trong kỹ năng /domain-modeling của Matt Pocock, mục tiêu cốt lõi của file CONTEXT.md là gì?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. CONTEXT.md tuyệt đối không chứa chi tiết triển khai kỹ thuật hay code SQL. Đó là nhiệm vụ của spec và migrations.">A. Chứa bản đặc tả chi tiết kiến trúc hệ thống, schema database và các hàm API.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! CONTEXT.md là một Glossary thuần túy định nghĩa Ubiquitous Language của dự án, dùng _Avoid_ để loại bỏ từ đồng nghĩa gây nhiễu context.">B. Là một Glossary thuần túy định nghĩa Ubiquitous Language cho dự án, loại bỏ từ đồng nghĩa mơ hồ và không chứa chi tiết triển khai.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. CONTEXT.md là tài liệu sống cho cả con người và AI Agent xuyên suốt dự án, không phải file ghi chú tạm thời.">C. Là nơi lưu trữ ghi chú tạm thời của lập trình viên trước khi tạo ticket.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Trường hợp nào sau đây là ĐỦ TIÊU CHUẨN để tạo một bản ghi ADR trong docs/adr/?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đổi tên hàm là quyết định cục bộ, cực kỳ dễ đảo ngược và không mang tính kiến trúc.">A. Quyết định đổi tên một hàm helper từ formatPrice sang formatCurrency.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Đây là quyết định khó đảo ngược, gây ngạc nhiên nếu không có ngữ cảnh (kỹ sư sau có thể thắc mắc sao không dùng Redis), và là kết quả của một sự đánh đổi kiến trúc có chủ đích.">B. Quyết định sử dụng PostgreSQL Atomic Updates với Check Constraints thay vì Redis Distributed Lock để kiểm soát tranh chấp kho.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Đây là cấu hình hiển thị giao diện cơ bản, không phải quyết định kiến trúc sâu sắc có tính đánh đổi.">C. Quyết định sử dụng tông màu xanh da trời (#0284c7) làm màu chủ đạo cho giao diện.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 04</div>
+      <ul class="checklist">
+        <li>Thiết lập thành công file từ điển chuẩn mực <a href="../CONTEXT.md" target="_blank"><code>CONTEXT.md</code></a> theo đúng định dạng <code>CONTEXT-FORMAT.md</code> của Matt Pocock.</li>
+        <li>Tạo bản ghi quyết định kiến trúc đầu tiên <a href="../docs/adr/0001-atomic-stock-reservation-over-redis-lock.md" target="_blank"><code>docs/adr/0001-atomic-stock-reservation-over-redis-lock.md</code></a>.</li>
+        <li>Thiết kế hoàn chỉnh file migration Supabase PostgreSQL tại <a href="../supabase/migrations/20260928000001_init_inventory_and_orders.sql" target="_blank"><code>supabase/migrations/20260928000001_init_inventory_and_orders.sql</code></a>.</li>
+        <li>Bảo toàn nguyên tắc bất biến: <code>Available Stock = Physical Stock - Active Reservations</code> ở cả cấp độ Table Constraint và View.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 05 -->
+    <h2>4. Câu hỏi tư duy (Bắc cầu sang Bài 05)</h2>
+    <p>Chúng ta đã có từ điển thuật ngữ trong <code>CONTEXT.md</code> và cấu trúc bảng trong PostgreSQL Migration. Tuy nhiên, nếu một lập trình viên hoặc AI Agent bắt đầu viết code ngay lúc này, họ sẽ gặp phải các câu hỏi:</p>
+    <ul>
+      <li><em>User Stories cụ thể là gì?</em></li>
+      <li><em>Seams nào trong code cần được kiểm thử độc lập mà không cần kết nối Supabase?</em></li>
+      <li><em>Quy trình xử lý lỗi khi không đủ tồn kho trả về mã lỗi cụ thể nào?</em></li>
+    </ul>
+    <p>Làm thế nào để chuyển đổi các yêu cầu này thành một <strong>Technical Specification</strong> chuẩn mực trước khi chia nhỏ thành các tickets? Đó là nội dung của Bài 05 với kỹ năng <code>/to-spec</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 05 · /to-spec — Soạn Bản Đặc tả Kỹ thuật chuẩn mực cho Module Kho & Đơn hàng</div>
+      <p class="nd">Cách viết specs/inventory-and-order.md chi tiết User Stories, Seams cần test, Implementation & Testing Decisions theo chuẩn Matt Pocock.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0003-prototype-order-state-machine.html">← Bài 03</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0005-to-spec-technical-specification.html">Bài 05 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <code>CONTEXT.md</code> ở thư mục gốc để xem từ điển Ubiquitous Language đã được thiết lập chặt chẽ như thế nào.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

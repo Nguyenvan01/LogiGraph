@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 26: /teach — Sư Phạm AI: Thiết Kế Không Gian Học Tập Tương Tác
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 26 · /teach — Sư Phạm AI: Không Gian Học Tập Tương Tác & Phản Hồi Tức Thì</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 26 (Meta-Skills)</span>
+    <h1>/teach — Sư Phạm AI: Thiết Kế Không Gian Học Tập Tương Tác & Vòng Lặp Phản Hồi Tức Thì</h1>
+    <p class="subtitle">Phương pháp sư phạm của Matt Pocock: Tam giác học sâu (Knowledge - Skills - Wisdom), kiến trúc Stateful Workspace, và điều phối Vùng phát triển gần (ZPD).</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/teach</code>, biết cách biến AI thành một người thầy cá nhân hóa tận tụy, thiết lập hệ thống tài liệu theo dõi tiến trình và tạo ra các bài học HTML trực quan.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Bí Mật Đằng Sau Chính Khóa Học Bạn Đang Học!</div>
+      <p>Bạn đã trải qua hơn 25 bài học HTML trực quan, mỗi bài đều có mục tiêu rõ ràng, bài tập phản xạ tức thì, thanh điều hướng mượt mà và nhật ký tiến bộ được lưu lại từng ngày. Bạn có bao giờ tự hỏi: <em>"Làm thế nào mà toàn bộ cấu trúc sư phạm chuẩn mực này được dựng nên?"</em></p>
+      <p>Câu trả lời nằm ở kỹ năng <code>/teach</code> của Matt Pocock. Đây là phương pháp sư phạm hiện đại, biến một thư mục dự án bình thường thành một <strong>Stateful Workspace</strong>, giúp việc học sâu diễn ra tự nhiên và bền bỉ qua hàng chục phiên làm việc.</p>
+    </div>
+
+    <!-- TAM GIÁC HỌC SÂU -->
+    <h2>1. Tam Giác Học Sâu: Knowledge, Skills & Wisdom</h2>
+    <p>Để một người thực sự làm chủ một lĩnh vực kỹ thuật phức tạp, họ cần thu nạp trọn vẹn 3 yếu tố:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Tam giác học sâu của Matt Pocock</span></div>
+      <pre><code>                     [WISDOM (Trí tuệ)]
+                             ▲
+                            ╱ ╲
+                           ╱   ╲  Giao lưu, cọ xát với cộng đồng
+                          ╱     ╲ chuyên gia thực tế bên ngoài
+                         ╱       ╲
+     [KNOWLEDGE (Kiến thức)] ───► [SKILLS (Kỹ năng)]
+     Thu nạp từ tài liệu uy tín   Rèn luyện qua bài tập tương tác
+     (RESOURCES.md, reference/)   và vòng lặp phản hồi tức thì</code></pre>
+    </div>
+
+    <ul>
+      <li><strong>1. Knowledge (Kiến thức):</strong> Được thu thập từ các nguồn dữ liệu có độ tin cậy cao nhất (RFCs, official docs, sách kinh điển). Matt Pocock quy định: <em>"Never trust your parametric knowledge"</em> — AI không được dựa vào trí nhớ mơ hồ mà luôn phải tra cứu tài liệu thực tế.</li>
+      <li><strong>2. Skills (Kỹ năng):</strong> Được tôi luyện qua các bài tập tương tác, viết code thật, chạy test thật và nhận phản hồi ngay lập tức.</li>
+      <li><strong>3. Wisdom (Trí tuệ):</strong> Đúc kết từ những va vấp thực tế khi mang sản phẩm ra thị trường và trao đổi với cộng đồng lập trình viên.</li>
+    </ul>
+
+    <!-- STATEFUL TEACHING WORKSPACE -->
+    <h2>2. Cấu Trúc Stateful Workspace</h2>
+    <p>Khi kích hoạt <code>/teach</code>, toàn bộ tiến trình học tập được lưu giữ qua 6 thành phần tệp cốt lõi:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Bản đồ cấu trúc Stateful Workspace</span></div>
+      <pre><code>workspace/
+├── MISSION.md                 # TÔN CHỈ: Lý do người học muốn học chủ đề này (Neo định hướng toàn khóa)
+├── RESOURCES.md               # TÀI LIỆU NGUỒN: Danh sách tài liệu tham khảo chính thống, có trích dẫn uy tín
+├── NOTES.md                   # SỔ TAY NHÁP: Nơi ghi nhận sở thích, thói quen và ghi chú của người học
+├── reference/                 # TÀI LIỆU TRA CỨU: Cheat sheets, bảng tổng hợp thuật toán, sơ đồ in ấn đẹp
+│   └── *.html
+├── learning-records/          # NHẬT KÝ TIẾN BỘ: Ghi lại từng bài học, ngộ nhận được giải tỏa (0001-*.md)
+│   └── 0001-*.md
+└── lessons/                   # BÀI HỌC ĐƠN NHIỆM: Mỗi bài là 1 file HTML tự chứa, dạy đúng 1 điều duy nhất
+    └── 0001-*.html</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">🎯 Bài học HTML: Đơn vị truyền tải tri thức cốt lõi</div>
+      <p>Mỗi bài học trong <code>lessons/</code> bắt buộc phải tuân thủ nguyên tắc: <strong>Dạy đúng một điều duy nhất (Teach ONE thing)</strong>, hoàn thành nhanh chóng, mang lại kết quả rõ ràng, và mở ra bằng đúng một lệnh đơn giản trên trình duyệt.</p>
+    </div>
+
+    <!-- ZONE OF PROXIMAL DEVELOPMENT -->
+    <h2>3. Vùng Phát Triển Gần (ZPD)</h2>
+    <p>Một khóa học thất bại khi nó quá dễ (gây nhàm chán) hoặc quá khó (gây nản lòng bỏ cuộc). Khái niệm <strong>ZPD</strong> của nhà tâm lý học Lev Vygotsky được Matt Pocock số hóa thành một thuật toán sư phạm:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Cơ chế xác định Vùng phát triển gần nhất (ZPD)</span></div>
+      <pre><code>[Vùng Quá Dễ: Đã biết rồi] ──► [VÙNG ZPD: Vừa đủ thử thách] ──► [Vùng Quá Khó: Bị ngợp]
+       (Nhàm chán)               (ĐIỂM RƠI HOÀN HẢO ĐỂ DẠY!)            (Bỏ cuộc)</code></pre>
+    </div>
+
+    <p>AI liên tục đọc các file <code>learning-records/*.md</code> để biết bạn đã vững kiến thức nào. Khi bạn gặp khó khăn ở một khái niệm, AI sẽ tự động hạ độ cao, tách thêm bài luyện tập; khi bạn nắm quá nhanh, AI sẽ đẩy nhanh tiến độ. Đó chính là <strong>Lộ trình co giãn</strong>.</p>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>4. Hộp Prompt Thực Chiến: Khởi Tạo Một Khóa Học Mới</h2>
+    <p>Khi bạn muốn học một công nghệ mới (ví dụ: Rust, WebAssembly, hay Kubernetes), bạn chỉ cần gõ:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /teach</div>
+      <pre><code>/teach "Tôi muốn học về Rust Memory Management và Ownership từ con số 0.
+Mục tiêu (Mission): Tôi muốn viết được một công cụ CLI xử lý file an toàn bằng Rust.
+Hãy thiết lập Teaching Workspace: tạo MISSION.md, RESOURCES.md và bắt đầu Bài 00 đầu tiên cho tôi."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Trong phương pháp sư phạm của Matt Pocock, tại sao mỗi bài học trong thư mục lessons/ chỉ được phép dạy đúng một điều duy nhất (Teach ONE thing)?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Trình duyệt không bị giới hạn dung lượng hiển thị.">A. Vì trình duyệt web sẽ bị chậm nếu bài học quá dài.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Giữ bài học đơn nhiệm giúp người học tập trung cao độ, hoàn thành nhanh chóng, nhận phản hồi tức thì và có cảm giác chiến thắng rõ rệt sau mỗi bước đi.">B. Để người học tập trung trọn vẹn vào một mục tiêu cụ thể, hoàn thành nhanh gọn và có một kết quả cụ thể để tiếp tục tiến lên.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Chia nhỏ bài học là vì mục tiêu nhận thức của người học, không phải vì AI.">C. Vì AI không có khả năng sinh nội dung dài hơn 1 bài học.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. File learning-records/*.md đóng vai trò gì trong việc xác định Vùng phát triển gần nhất (ZPD)?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Learning records ghi lại những kiến thức đã vững và những hiểu lầm đã được giải tỏa, giúp AI biết chính xác người học đang đứng ở đâu để đề xuất bài học tiếp theo vừa vặn nhất.">A. Là cơ sở dữ liệu nhật ký học tập giúp AI đo lường chính xác trình độ hiện tại của người học, từ đó đưa ra thử thách tiếp theo "vừa đủ khó" mà không làm người học bị ngợp.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Learning records không phải bảng điểm để nộp cho nhà trường.">B. Dùng để tính điểm trung bình môn học và xếp loại tốt nghiệp.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 26</div>
+      <ul class="checklist">
+        <li>Hiểu sâu tam giác học sâu: Kiến thức - Kỹ năng - Trí tuệ.</li>
+        <li>Nắm vững cấu trúc 6 thành phần của một Stateful Workspace chuẩn Matt Pocock.</li>
+        <li>Biết cách áp dụng Vùng phát triển gần (ZPD) để tạo ra các bài học vừa vặn và hấp dẫn.</li>
+        <li>Tự tin chỉ đạo AI thiết lập một không gian học tập cho bất kỳ chủ đề kỹ thuật nào bạn muốn chinh phục.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 27 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 27)</h2>
+    <p>Một khóa học tuyệt vời không thể chỉ có lý thuyết đọc xuông. Để người học có được kỹ năng thực chiến, bạn cần tạo ra hàng chục, thậm chí hàng trăm bài tập lập trình thực hành có cấu trúc chuẩn mực.</p>
+    <p><em>Làm thế nào để tự động hóa việc dựng khung hàng loạt bài tập lập trình theo cấu trúc 3 phần (problem/ với TODOs, solution/ chuẩn, explainer/ lý thuyết), tích hợp linter kiểm chuẩn tự động và quản lý phiên bản bài tập bằng Git?</em></p>
+    <p>Đó là bài học khép lại toàn bộ chương trình: <strong>Bài 27: Tự Động Hóa Dựng Khung Bài Tập Thực Hành Lập Trình (`/scaffold-exercises`)</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 27 — BÀI TỔNG KẾT TOÀN KHÓA)</div>
+      <div class="nt">Bài 27 · /scaffold-exercises — Tự Động Hóa Dựng Khung Bài Tập Thực Hành Lập Trình</div>
+      <p class="nd">Cấu trúc thư mục 3 phần (problem/ TODOs, solution/ chuẩn, explainer/ lý thuyết), quy trình Plan-to-Scaffold, kiểm chuẩn Linter và khép lại trọn vẹn 38 skills của Matt Pocock!</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0025-writing-shape-expert-prose.html">← Bài 25</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0027-scaffold-exercises-automation.html">Bài 27 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở thư mục <code>learning-records/</code> và file <code>MISSION.md</code> của chính dự án này để quan sát không gian học tập thực tế đang vận hành.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

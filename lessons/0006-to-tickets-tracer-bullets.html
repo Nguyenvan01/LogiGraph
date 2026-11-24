@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 06: /to-tickets & /triage — Phân rã Tracer-bullet Tickets & Blockers Graph
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 06 · /to-tickets & /triage — Phân rã Tracer-bullet Tickets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 2 · Bài 06</span>
+    <h1>/to-tickets & /triage — Phân rã Tracer-bullet Tickets & Thiết lập Dependency Graph</h1>
+    <p class="subtitle">Phân rã bản Spec thành các Vertical Slice, xây dựng Blockers Graph và vận hành Frontier cho AI Agent.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Ứng dụng kỹ năng <code>/to-tickets</code> và <code>/triage</code>, phân biệt Vertical Slice với Horizontal Slice, thiết lập Blockers Graph và quản lý nhãn Triage.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Rủi ro khi đưa Monolithic Spec cho AI Agent</div>
+      <p>Ở Bài 05, chúng ta đã xuất bản bản đặc tả kỹ thuật hoàn chỉnh tại <a href="../specs/inventory-and-order.md" target="_blank"><code>specs/inventory-and-order.md</code></a> với 14 User Stories và các quyết định Seams chi tiết. Tuy nhiên, nếu bạn yêu cầu AI Agent: <em>"Hãy đọc bản spec này và viết toàn bộ code cho hệ thống"</em>, phiên làm việc sẽ nhanh chóng thất bại:</p>
+      <ul>
+        <li><strong>Context Degradation:</strong> Quy mô của toàn bộ tính năng vượt quá Context Window tối ưu, khiến Agent phân tán attention, bỏ quên các ràng buộc kỹ thuật hoặc sinh mã nguồn chắp vá.</li>
+        <li><strong>Big Bang Integration:</strong> Triển khai đồng thời nhiều thành phần dẫn đến xung đột khi tích hợp ở giai đoạn cuối, làm tăng chi phí debug và sửa lỗi.</li>
+      </ul>
+      <p>Kỹ năng <code>/to-tickets</code> và <code>/triage</code> giải quyết vấn đề này bằng cách phân rã yêu cầu thành các <strong>Tracer-bullet Tickets</strong> độc lập, có cấu trúc quan hệ phụ thuộc rõ ràng để Agent thực thi tuần tự trong từng fresh context window.</p>
+    </div>
+
+    <h2>1. Khái niệm Tracer-bullet: Vertical Slice vs Horizontal Slice</h2>
+    <p>Khái niệm <strong>Tracer Bullet</strong> bắt nguồn từ cuốn <em>The Pragmatic Programmer</em> (Dave Thomas & Andy Hunt): triển khai một lát cắt nhỏ nhưng đi xuyên suốt toàn bộ hệ thống từ giao diện đến cơ sở dữ liệu để kiểm chứng tính khả thi của kiến trúc ngay từ giai đoạn đầu.</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Tiêu chí</th>
+          <th>Horizontal Slice (Anti-pattern)</th>
+          <th>Vertical Slice / Tracer Bullet</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Cách phân chia</strong></td>
+          <td>Tách theo tầng kỹ thuật: Ticket 1 tạo toàn bộ Database, Ticket 2 viết toàn bộ API Backend, Ticket 3 vẽ UI.</td>
+          <td>Cắt một lát mỏng nhưng <strong>xuyên suốt mọi tầng</strong>: Schema, Domain Logic, Seam Interface, Unit Test.</td>
+        </tr>
+        <tr>
+          <td><strong>Khả năng kiểm chứng</strong></td>
+          <td>Không thể chạy thử hay nghiệm thu cho đến khi cả 3 tầng được ghép lại ở ngày cuối cùng.</td>
+          <td>Mỗi ticket khi hoàn thành đều <strong>tự kiểm chứng được ngay lập tức</strong> (verifiable / demoable on its own).</td>
+        </tr>
+        <tr>
+          <td><strong>Kích thước</strong></td>
+          <td>Thường quá lớn, dễ làm tràn Context Window của Agent.</td>
+          <td>Được định cỡ vừa vặn trong <strong>MỘT phiên làm việc (Fresh Context Window)</strong>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout why">
+      <div class="ct">💡 Trường hợp ngoại lệ: Wide Refactors</div>
+      <p>Khi có một thay đổi cơ học nhưng có tầm ảnh hưởng bao phủ toàn bộ codebase (ví dụ: đổi tên một cột cơ sở dữ liệu dùng ở 50 file, hoặc định kiểu lại một interface lõi), việc cắt theo lát cắt dọc sẽ làm vỡ CI ở mọi nơi. Matt Pocock quy định phải tuần tự hóa theo kỹ thuật <strong>Expand – Contract</strong>:</p>
+      <ol style="margin-top: 6px;">
+        <li><strong>Expand:</strong> Thêm cấu trúc mới nằm song song bên cạnh cấu trúc cũ (CI vẫn xanh 100%).</li>
+        <li><strong>Migrate:</strong> Di chuyển các điểm gọi sang cấu trúc mới theo từng lô nhỏ (mỗi lô là 1 ticket).</li>
+        <li><strong>Contract:</strong> Xóa bỏ hoàn toàn cấu trúc cũ khi không còn bất kỳ caller nào sử dụng.</li>
+      </ol>
+    </div>
+
+    <h2>2. Blockers Graph & Cơ chế Frontier</h2>
+    <p>Một danh sách công việc tuyến tính (To-do list) thông thường không thể hiện được tính song song và mối quan hệ ràng buộc giữa các tác vụ. <code>/to-tickets</code> gắn cho mỗi ticket các <strong>Blocking Edges</strong> (<code>Blocked by: ...</code>) để kiến tạo một đồ thị có hướng không chu trình (DAG).</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Đồ thị phụ thuộc của 5 Tickets trong VibeCoding ERP</span></div>
+      <pre><code>                    ┌────────────────────────────────────────┐
+                    │ 01: In-Memory Repository Seam          │  ← FRONTIER BAN ĐẦU
+                    │ (Blocked by: None)                     │    (Sẵn sàng làm ngay)
+                    └───────────────────┬────────────────────┘
+                                        │
+                    ┌───────────────────┴────────────────────┐
+                    ▼                                        ▼
+    ┌───────────────────────────────────┐    ┌───────────────────────────────────┐
+    │ 02: Stock Reservation Service     │    │ 04: Supabase PostgreSQL Adapter   │
+    │ (Blocked by: 01)                  │    │ (Blocked by: 01)                  │
+    └─────────────────┬─────────────────┘    └─────────────────┬─────────────────┘
+                      │                                        │
+                      ▼                                        │
+    ┌───────────────────────────────────┐                      │
+    │ 03: Order State Machine Engine    │                      │
+    │ (Blocked by: 02)                  │                      │
+    └─────────────────┬─────────────────┘                      │
+                      │                                        │
+                      └────────────────────┬───────────────────┘
+                                           ▼
+                    ┌────────────────────────────────────────┐
+                    │ 05: Next.js Server Actions E2E Seam    │
+                    │ (Blocked by: 03, 04)                   │
+                    └────────────────────────────────────────┘</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">🎯 Khái niệm Frontier</div>
+      <p><strong>Frontier</strong> là tập hợp tất cả các ticket đang mở mà <em>toàn bộ các blocker của nó đã được giải quyết</em> (hoặc không có blocker nào). AI Agent luôn gắp việc (Claim) từ Frontier.</p>
+      <ul>
+        <li>Ban đầu, chỉ có <strong>Ticket 01</strong> nằm trong Frontier. Agent bắt buộc phải giải quyết Ticket 01 trước.</li>
+        <li>Khi Ticket 01 hoàn thành, <strong>Ticket 02</strong> và <strong>Ticket 04</strong> lập tức được mở khóa (Unblocked) và trở thành Frontier mới — hai ticket này có thể chạy <em>hoàn toàn song song</em> bởi 2 Agent độc lập!</li>
+        <li>Khi cả 03 và 04 hoàn tất, <strong>Ticket 05</strong> trở thành Frontier cuối cùng để khép lại lát cắt dọc.</li>
+      </ul>
+    </div>
+
+    <h2>3. Chuẩn hóa Nhãn Triage theo Matt Pocock (/triage)</h2>
+    <p>Kỹ năng <code>/triage</code> phân loại mọi issue/ticket theo một State Machine chặt chẽ gồm 2 nhóm vai trò:</p>
+
+    <div class="metric-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+      <div class="callout" style="margin: 0; background: #f8fafc;">
+        <div class="ct">🏷️ 2 Phân loại Nghiệp vụ (Category)</div>
+        <ul style="padding-left: 20px; margin: 8px 0;">
+          <li><code>bug</code>: Phát hiện lỗi hoặc hành vi sai khác so với thiết kế.</li>
+          <li><code>enhancement</code>: Tính năng mới hoặc cải tiến kiến trúc.</li>
+        </ul>
+      </div>
+      <div class="callout" style="margin: 0; background: #f8fafc;">
+        <div class="ct">🚦 5 Trạng thái Xử lý (State Roles)</div>
+        <ul style="padding-left: 20px; margin: 8px 0;">
+          <li><code>needs-triage</code>: Đang chờ Maintainer đánh giá.</li>
+          <li><code>needs-info</code>: Đang chờ người báo cáo làm rõ thêm.</li>
+          <li><code>ready-for-agent</code>: Đã đặc tả đủ 100%, sẵn sàng cho AI gắp việc.</li>
+          <li><code>ready-for-human</code>: Cần con người xử lý (phê duyệt, quyền truy cập...).</li>
+          <li><code>wontfix</code>: Đã từ chối hoặc đã được giải quyết.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>Toàn bộ 5 tickets chúng ta vừa tạo ra đều được gắn nhãn <code>Status: ready-for-agent</code> vì chúng đã được định nghĩa đầy đủ tiêu chí chấp nhận (Acceptance Criteria) từ bản Spec ở Bài 05.</p>
+
+    <h2>4. Kiểm tra Danh mục 5 Tickets đã Thiết lập trong Repo</h2>
+    <p>Các tickets đã được lưu độc lập tại thư mục <a href="../.scratch/inventory-and-order/issues/" target="_blank"><code>.scratch/inventory-and-order/issues/</code></a> (và đồng bộ tại <code>.scratch/issues/</code>):</p>
+
+    <ol>
+      <li><code>01-in-memory-inventory-repository.md</code>: Xây dựng Seam giao diện <code>IInventoryRepository</code> và In-memory adapter (Frontier).</li>
+      <li><code>02-stock-reservation-service.md</code>: Thi công logic giữ hàng 15-phút TTL và cơ chế tự động giải phóng tồn kho.</li>
+      <li><code>03-order-state-machine-engine.md</code>: Xây dựng động cơ chuyển trạng thái đơn hàng (Draft → Paid → Shipped → Done).</li>
+      <li><code>04-supabase-inventory-repository-adapter.md</code>: Triển khai Adapter PostgreSQL chạy atomic SQL với <code>CHECK (stock >= 0)</code>.</li>
+      <li><code>05-order-server-actions-and-e2e-seam.md</code>: Kết nối Next.js Server Actions với Zod validation hoàn tất chu trình end-to-end.</li>
+    </ol>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Vì sao kỹ năng /to-tickets ưu tiên phân chia công việc theo Vertical Slice thay vì Horizontal Slice?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Việc chia nhỏ thành lát cắt dọc không liên quan đến cấu hình Git hay merge conflict.">A. Để lập trình viên có thể commit code mà không cần tạo nhánh Git mới.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Lát cắt dọc đi xuyên qua mọi tầng, giúp mỗi ticket có thể tự chạy thử và nghiệm thu ngay, đồng thời vừa vặn trong dung lượng của 1 fresh context window.">B. Vì mỗi lát cắt dọc mang lại giá trị có thể kiểm chứng được ngay lập tức (demoable/verifiable) và vừa vặn trong một Context Window của AI Agent.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Lát cắt ngang theo tầng là cách làm cũ, mang lại rủi ro rất lớn khi tích hợp ở giai đoạn cuối.">C. Vì lát cắt ngang đòi hỏi phải có cơ sở dữ liệu hoàn chỉnh mới bắt đầu viết được code logic.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Trong Blockers Graph, một ticket được coi là thuộc "Frontier" khi nào?</div>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Frontier là tập hợp các ticket không bị cản trở bởi bất kỳ blocker nào chưa xong, AI Agent luôn bắt đầu gắp việc từ Frontier.">A. Khi ticket đó không có blocker nào, hoặc tất cả các ticket trong danh sách Blocked by của nó đều đã hoàn thành (resolved).</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Ticket có độ ưu tiên cao nhưng vẫn bị block bởi ticket khác thì chưa thể bắt đầu được.">B. Khi ticket đó có độ ưu tiên cao nhất do Product Manager đánh dấu.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Frontier là các task sẵn sàng thực hiện, không phải task đang bị chặn.">C. Khi ticket đó đang bị chặn bởi nhiều ticket khác nhất.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 06 (Khép lại Module 2)</div>
+      <ul class="checklist">
+        <li>Làm chủ tư duy Tracer-bullet Vertical Slices và chiến lược Expand-Contract khi tái cấu trúc diện rộng.</li>
+        <li>Nắm vững cơ chế vận hành Frontier trên Blockers Graph.</li>
+        <li>Thiết lập thành công 5 tickets chuẩn mực tại <code>.scratch/inventory-and-order/issues/</code>.</li>
+        <li>Chuẩn hóa hệ thống nhãn Triage (<code>ready-for-agent</code>, <code>ready-for-human</code>) chuẩn bị sẵn sàng cho khâu thi công.</li>
+      </ul>
+    </div>
+
+    <!-- TỔNG KẾT MODULE 2 & BẮC CẦU SANG MODULE 3 -->
+    <h2>5. Bước Chuyển tiếp sang Module 3: Thi công & Kiến trúc sâu</h2>
+    <p>Chúng ta đã hoàn thành trọn vẹn <strong>Module 2: Mô hình hóa Domain & Lập Đặc tả Kỹ thuật</strong>:</p>
+    <ul>
+      <li>Bài 04: Chuẩn hóa từ điển nghiệp vụ trong <code>CONTEXT.md</code> và tạo Schema Migration Supabase.</li>
+      <li>Bài 05: Soạn bản đặc tả kỹ thuật chi tiết với 14 User Stories và thiết lập Seams trong <code>specs/inventory-and-order.md</code>.</li>
+      <li>Bài 06: Phân rã thành 5 Tracer-bullet Tickets độc lập với đồ thị phụ thuộc rõ ràng.</li>
+    </ul>
+
+    <p>Toàn bộ khâu chuẩn bị chiến lược đã hoàn tất. Ở <strong>Module 3</strong>, chúng ta sẽ bắt đầu triển khai mã nguồn bằng kiến trúc <strong>Deep Modules</strong> của John Ousterhout và phương pháp <strong>TDD</strong> với Vitest.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 3 · Bài 07)</div>
+      <div class="nt">Bài 07 · /codebase-design — Thiết kế Deep Modules & Seams cho Inventory Core</div>
+      <p class="nd">Cách áp dụng triết lý Deep Modules của John Ousterhout: Interface nhỏ gọn 3 hàm giấu kín sự phức tạp bên trong, sẵn sàng cắm 2 Adapter.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0005-to-spec-technical-specification.html">← Bài 05</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0007-codebase-design-deep-modules.html">Bài 07 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy kiểm tra thư mục <code>.scratch/inventory-and-order/issues/</code> để xem Ticket 01 hiện đang là Frontier sẵn sàng cho việc thi công.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

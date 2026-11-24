@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 14: /domain-modeling & /to-spec — Cấu Trúc Dự Án, Seams & Đặc Tả Kế Toán
+  Tiêu chuẩn: Cầm tay chỉ việc cho người mới Next.js; tiếng Anh chuyên ngành chuẩn, tiếng Việt sáng rõ.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình Capstone Chặng 2: Cấu Trúc Dự Án & Đặc Tả Kỹ Thuật.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 14 · /domain-modeling & /to-spec — Thiết Kế Cấu Trúc Phân Hệ, Seams Độc Lập & Lập Đặc Tả Kế Toán</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 14 (Capstone Chặng 2)</span>
+    <h1>/domain-modeling & /to-spec — Thiết Kế Cấu Trúc Phân Hệ, Seams Độc Lập & Lập Đặc Tả Kế Toán</h1>
+    <p class="subtitle">Chặng 2 Dự án Capstone ERP Mini: Tự tay tạo cấu trúc thư mục chuẩn mực, định nghĩa Seam ILedgerRepository trong types.ts, cập nhật CONTEXT.md, lập ADR-0002 và phân rã 4 tickets thi công.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ chuỗi phối hợp kỹ năng <code>/domain-modeling</code> &rarr; <code>/to-spec</code> &rarr; <code>/to-tickets</code>, thiết lập nền móng kiến trúc vững chắc trước khi gõ những dòng code đầu tiên.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Chuyển hóa Nghiệp vụ thành Kiến trúc Phần mềm</div>
+      <p>Ở Bài 13, chúng ta đã hiểu sâu sắc nguyên lý Kế toán kép: Hai túi tiền luôn cân bằng ($\sum \text{Debit} === \sum \text{Credit}$) và Sổ cái hoạt động theo quy tắc Append-only. Nhưng làm thế nào để biến những ý niệm này thành mã nguồn phần mềm mà không làm biến dạng dự án Next.js đang có?</p>
+      <p>Một lập trình viên chuyên nghiệp không bao giờ nhảy ngay vào viết code. Chúng ta tuân thủ đúng quy trình: <strong>Khởi tạo cấu trúc thư mục &rarr; Thiết kế Seam Interface &rarr; Chuẩn hóa thuật ngữ Domain &rarr; Soạn bản Đặc tả &rarr; Phân rã Tickets</strong>. Bài học này sẽ cầm tay chỉ việc từng bước một.</p>
+    </div>
+
+    <!-- BƯỚC 1: CẤU TRÚC THƯ MỤC -->
+    <h2>1. Khởi Tạo Cấu Trúc Thư Mục Phân Hệ Mới Từ Con Số 0</h2>
+    <p>Để thêm phân hệ Kế toán (Billing & Ledger) mà không làm ảnh hưởng đến phân hệ Kho đã hoàn thành, bạn mở terminal và gõ các lệnh sau:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>terminal (bash) — Lệnh tạo cấu trúc thư mục phân hệ mới</span></div>
+      <pre><code><span class="cmt"># 1. Tạo thư mục lõi Domain và thư mục cắm nối Adapters</span>
+mkdir -p src/modules/ledger/domain
+mkdir -p src/modules/ledger/adapters
+
+<span class="cmt"># 2. Tạo thư mục chứa đặc tả kỹ thuật và issues</span>
+mkdir -p specs
+mkdir -p .scratch/billing-and-ledger/issues</code></pre>
+    </div>
+
+    <p>Hãy cùng nhìn lại bản đồ kiến trúc thư mục để hiểu rõ lý do vì sao dự án chuyên nghiệp lại chia thành <code>domain/</code> và <code>adapters/</code>:</p>
+
+    <div class="callout why">
+      <div class="ct">📁 Giải mã Kiến trúc Phân lớp Thư mục (Modular Architecture)</div>
+      <pre style="background: transparent; border: none; padding: 0; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; color: var(--text);">
+src/modules/ledger/
+├── domain/                    <span style="color: #0284c7;"># VÙNG LÕI: types.ts, errors.ts, Seam Interfaces (KHÔNG import Supabase/Next.js)</span>
+├── adapters/                  <span style="color: #16a34a;"># VÙNG NGOẠI VI: in-memory.ts (cho test siêu tốc), supabase.ts (cho database thật)</span>
+├── service.ts                 <span style="color: #d97706;"># LOGIC DỊCH VỤ: Hạch toán Nợ/Có, xuất hóa đơn, kiểm tra cân bằng</span>
+└── ledger.test.ts             <span style="color: #9333ea;"># BỘ KIỂM THỬ: Vitest chạy độc lập trong bộ nhớ RAM (17ms)</span>
+specs/
+└── billing-and-ledger.md      <span style="color: #0284c7;"># BẢN ĐẶC TẢ KỸ THUẬT: Quy định chi tiết các hành vi trước khi thi công</span>
+.scratch/billing-and-ledger/
+└── issues/                    <span style="color: #64748b;"># DANH SÁCH 4 TICKETS: Chia nhỏ bài toán thành các lát cắt độc lập</span></pre>
+      <p style="margin-top: 10px;">
+        <strong>Quy tắc bất biến:</strong> Vùng lõi <code>domain/</code> tuyệt đối không được phụ thuộc vào công nghệ bên ngoài. Nhờ đó, logic kế toán có thể kiểm thử cực nhanh bằng RAM mà không cần kết nối mạng hay dựng database Supabase.
+      </p>
+    </div>
+
+    <!-- BƯỚC 2: THIẾT KẾ SEAM INTERFACE -->
+    <h2>2. Thiết Kế Seam Interface: "Chiếc Ổ Cắm Tiêu Chuẩn"</h2>
+    <p>Một <strong>Seam</strong> là một Interface thuần TypeScript quy định cách tầng Service giao tiếp với tầng lưu trữ. Bạn tạo file <code>src/modules/ledger/domain/types.ts</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/ledger/domain/types.ts — Định nghĩa Seam và Data Models</span></div>
+      <pre><code><span class="kw">export type</span> AccountType = <span class="str">'ASSET'</span> | <span class="str">'LIABILITY'</span> | <span class="str">'EQUITY'</span> | <span class="str">'REVENUE'</span> | <span class="str">'EXPENSE'</span>;
+
+<span class="kw">export interface</span> Account {
+  id: <span class="kw">string</span>;
+  code: <span class="kw">string</span>;        <span class="cmt">// Ví dụ: '111', '112', '156', '511', '632'</span>
+  name: <span class="kw">string</span>;
+  type: AccountType;
+}
+
+<span class="kw">export interface</span> LedgerEntry {
+  id: <span class="kw">string</span>;
+  transactionId: <span class="kw">string</span>;
+  accountId: <span class="kw">string</span>;
+  debit: <span class="kw">number</span>;         <span class="cmt">// Số tiền Nợ</span>
+  credit: <span class="kw">number</span>;        <span class="cmt">// Số tiền Có</span>
+  description: <span class="kw">string</span>;
+  createdAt: Date;
+}
+
+<span class="cmt">// SEAM INTERFACE: Chiếc ổ cắm chuẩn mực cho Repository</span>
+<span class="kw">export interface</span> ILedgerRepository {
+  createAccount(account: Omit&lt;Account, <span class="str">'id'</span>&gt;): Promise&lt;Account&gt;;
+  getAccountByCode(code: <span class="kw">string</span>): Promise&lt;Account | <span class="kw">null</span>&gt;;
+  recordTransaction(params: {
+    referenceId: <span class="kw">string</span>;
+    description: <span class="kw">string</span>;
+    entries: Array&lt;{ accountId: <span class="kw">string</span>; debit: <span class="kw">number</span>; credit: <span class="kw">number</span>; description: <span class="kw">string</span> }&gt;;
+  }): Promise&lt;{ transactionId: <span class="kw">string</span>; entries: LedgerEntry[] }&gt;;
+  getAccountBalance(accountId: <span class="kw">string</span>): Promise&lt;<span class="kw">number</span>&gt;;
+}</code></pre>
+    </div>
+
+    <!-- BƯỚC 3: DOMAIN MODELING -->
+    <h2>3. Áp Dụng Skill `/domain-modeling`: Cập Nhật `CONTEXT.md` & Lập ADR-0002</h2>
+    <p>Để toàn bộ đội ngũ và các AI Agent sau này hiểu đúng nghĩa vụ của từng thuật ngữ, chúng ta dùng <code>/domain-modeling</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt kích hoạt /domain-modeling (Copy-paste)</div>
+      <pre><code>/domain-modeling "Cập nhật file CONTEXT.md và tạo bản ghi ADR-0002 cho phân hệ Kế toán:
+1. Thêm vào CONTEXT.md các thuật ngữ: Account, AccountingTransaction, LedgerEntry, TrialBalance, Invoice.
+2. Tạo file docs/adr/0002-immutable-ledger-and-transaction-invariants.md ghi lại quyết định kiến trúc: 
+   Sổ cái hoạt động theo quy tắc Append-Only, cấm UPDATE/DELETE, mọi điều chỉnh phải dùng Compensatory Reversal."</code></pre>
+    </div>
+
+    <!-- BƯỚC 4: TO-SPEC & TO-TICKETS -->
+    <h2>4. Áp Dụng Skill `/to-spec` & `/to-tickets`: Soạn Bản Vẽ & Phân Rã 4 Tickets</h2>
+    <p>Tiếp theo, bạn ra lệnh cho AI sinh bản đặc tả kỹ thuật hoàn chỉnh và phân rã thành các tickets thi công:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt kích hoạt /to-spec & /to-tickets</div>
+      <pre><code>/to-spec "Soạn thảo bản đặc tả kỹ thuật chi tiết tại specs/billing-and-ledger.md cho phân hệ Kế toán kép:
+Bao gồm: User Stories (Thanh toán đơn hàng, Xuất hóa đơn, Đối soát cân đối), Seams cần test, Implementation Decisions."
+
+/to-tickets "Phân rã spec thành 4 Tracer-bullet Tickets độc lập lưu trong thư mục .scratch/billing-and-ledger/issues/:
+- Ticket 01: Ledger Repository Seam & In-Memory Adapter
+- Ticket 02: Ledger Service Core & Balance Invariants (TDD 11 tests)
+- Ticket 03: Order Billing Integration & Invoice Generation
+- Ticket 04: Supabase Ledger Adapter & PostgreSQL RLS"</code></pre>
+    </div>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Mã Ticket</th>
+          <th>Tên Nhiệm Vụ</th>
+          <th>Sản Phẩm Đầu Ra</th>
+          <th>Điều Kiện Tiên Quyết</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Ticket 01</code></td>
+          <td>Ledger Seam & In-Memory Adapter</td>
+          <td><code>src/modules/ledger/domain/types.ts</code> & <code>adapters/in-memory.ts</code></td>
+          <td>Frontier (Làm ngay)</td>
+        </tr>
+        <tr>
+          <td><code>Ticket 02</code></td>
+          <td>Ledger Core Service & Invariants</td>
+          <td><code>src/modules/ledger/index.ts</code> & <code>ledger.test.ts</code> (11 tests pass)</td>
+          <td>Chờ Ticket 01</td>
+        </tr>
+        <tr>
+          <td><code>Ticket 03</code></td>
+          <td>Billing Integration & Invoicing</td>
+          <td>Hàm cấp phát số hóa đơn và tích hợp Kho - Kế toán nguyên tử</td>
+          <td>Chờ Ticket 02</td>
+        </tr>
+        <tr>
+          <td><code>Ticket 04</code></td>
+          <td>Supabase Adapter & RLS</td>
+          <td>Migration SQL, Supabase Adapter và khóa quyền UPDATE/DELETE</td>
+          <td>Chờ Ticket 02</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Tại sao trong kiến trúc Deep Module, thư mục `domain/` tuyệt đối không được import Supabase hay Next.js?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Trình biên dịch TypeScript không cấm import thư viện ngoài.">A. Vì trình biên dịch TypeScript sẽ báo lỗi cú pháp.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Giữ vùng lõi Domain không phụ thuộc (Zero-dependency) giúp logic kế toán chạy độc lập trên bộ nhớ RAM, cho phép kiểm thử TDD chỉ mất vài mili-giây và có thể di chuyển sang bất kỳ framework nào mà không phải sửa code.">B. Để giữ vùng lõi độc lập hoàn toàn (Zero-dependency), cho phép chạy kiểm thử siêu tốc trên RAM và dễ dàng bảo trì hoặc đổi công nghệ lưu trữ sau này.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Supabase JS client hoàn toàn miễn phí.">C. Vì Supabase tính phí trên mỗi dòng lệnh import trong code.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Seam Interface `ILedgerRepository` đóng vai trò kỹ thuật gì trong hệ thống?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Seam là một hợp đồng Interface chuẩn mực. Lớp Service chỉ giao tiếp qua Seam này, muốn cắm vào In-Memory Adapter để chạy test hay cắm vào Supabase Adapter để chạy thật đều hoạt động trơn tru.">A. Là hợp đồng tiêu chuẩn quy định các hàm lưu trữ dữ liệu, giúp tách rời tầng Service khỏi công nghệ cơ sở dữ liệu cụ thể.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Interface TypeScript không tồn tại ở runtime và không mã hóa mật khẩu.">B. Tự động mã hóa mật khẩu người dùng trước khi gửi lên đám mây.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Seam không liên quan đến việc render CSS.">C. Giúp giao diện web dashboard đổi màu sắc theo thời gian thực.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- KẾT QUẢ ĐẠT ĐƯỢC -->
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Chặng 2 (Bài 14)</div>
+      <ul class="checklist">
+        <li>Tự tay setup cấu trúc thư mục chuẩn mực phân tách rõ ràng giữa <code>domain/</code> và <code>adapters/</code>.</li>
+        <li>Thiết kế Seam Interface <code>ILedgerRepository</code> chuẩn mực trong <code>domain/types.ts</code>.</li>
+        <li>Cập nhật từ điển Ubiquitous Language trong <code>CONTEXT.md</code> và lưu lại quyết định kiến trúc <code>docs/adr/0002</code>.</li>
+        <li>Soạn thảo bản đặc tả <code>specs/billing-and-ledger.md</code> và phân rã 4 tickets thi công với đồ thị phụ thuộc rõ ràng.</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG CHẶNG 3 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Chặng 3: Bài 15)</h2>
+    <p>Cấu trúc thư mục đã sẵn sàng, Seam Interface đã định hình, bản đặc tả kỹ thuật và 4 tickets đã mở ra vạch xuất phát tại <strong>Ticket 01 & Ticket 02</strong>.</p>
+    <p><em>Làm thế nào để bắt đầu từ một file TypeScript trắng trơn, từng bước hướng dẫn AI viết bài test TDD đầu tiên bị đỏ (Red), rồi viết code tối thiểu để xanh (Green), đạt 11 bài test pass trong 17ms mà không cần Supabase?</em></p>
+    <p>Đó là nội dung của <strong>Chặng 3 (Bài 15): Thi Công Zero-dependency Core Service Sổ Cái Bằng `/implement` & `/tdd`</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 15 · /implement & /tdd — Thi Công Zero-dependency Core Service Sổ Cái</div>
+      <p class="nd">Chặng 3 Capstone: Bắt đầu từ file trắng trơn types.ts, in-memory.ts, vòng lặp Red-Green, né bẫy số thực JavaScript, 11 tests pass trong 17ms.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0013-grill-with-docs-double-entry-accounting.html">← Bài 13</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0015-tdd-ledger-core-service.html">Bài 15 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy mở file <code>specs/billing-and-ledger.md</code> trong dự án để xem bản đặc tả kỹ thuật chi tiết của phân hệ Kế toán.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

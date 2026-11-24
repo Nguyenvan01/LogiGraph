@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 11: Thi Công Core Service Bằng TDD Từ File Trắng Trơn Đến 11 Tests Xanh Lét
+  Tiêu chuẩn: Văn phong kỹ thuật điềm tĩnh, chuẩn xác; hướng dẫn từ sơ khai đến nâng cao.
+  Giao diện: Nền sáng (Light Theme).
+  Lộ trình: Setup files -> Viết Seam -> In-Memory Adapter -> TDD Red-Green -> 11 Tests.
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 15 · /codebase-design & /tdd — Thi Công Zero-dependency Core Service Sổ Cái</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 4 · Bài 15 (Capstone Chặng 3)</span>
+    <h1>/codebase-design & /tdd — Thi Công Zero-dependency Core Service Sổ Cái</h1>
+    <p class="subtitle">Chặng 3 Dự án Capstone ERP Mini: Tự tay khởi tạo từ file trắng trơn types.ts, in-memory.ts, vận hành chu trình Red - Green, né bẫy số thực JavaScript, đạt 11 tests pass trong 17ms.</p>
+    <p class="meta-line">⏱ ~25 phút · 🎯 Mục tiêu: Làm chủ kỹ năng xây dựng Zero-dependency Core Service bằng TDD cùng AI, nhận diện bẫy sai số dấu phẩy động của JavaScript và tạo ra bộ code kế toán an toàn tuyệt đối.</p>
+
+    <!-- BẮC CẦU TỪ BÀI 10 -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh thực tế: Bắt Đầu Viết Dòng Code Đầu Tiên</div>
+      <p>Ở Bài 10, chúng ta đã setup cấu trúc thư mục rỗng và có bản đặc tả kỹ thuật <a href="../specs/billing-and-ledger.md" target="_blank"><code>specs/billing-and-ledger.md</code></a>. Bây giờ là lúc chúng ta thực hiện <strong>Ticket 01</strong> và <strong>Ticket 02</strong>.</p>
+      <p>Nhiều người học băn khoăn: <em>"Bây giờ tôi mở trình soạn thảo ra thì phải gõ dòng code nào đầu tiên? Làm sao bảo AI viết code mà không bị lỗi?"</em>. Bài học này sẽ dẫn dắt bạn qua từng nấc thang sơ khai nhất, từ việc tạo file rỗng đến khi nhìn thấy toàn bộ test chạy xanh lét trên màn hình.</p>
+    </div>
+
+    <!-- GIAI ĐOẠN 1: TẠO FILE TYPES & SEAM INTERFACE -->
+    <h2>1. Giai đoạn 1: Bắt Đầu Từ File Trắng Trơn — Setup Types & Seam Interface</h2>
+    <p>Quy tắc vàng của lập trình hướng domain: <strong>Luôn định nghĩa hình dạng của dữ liệu (Types) trước khi viết logic thực thi</strong>.</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Terminal: Tạo file định nghĩa kiểu dữ liệu</span></div>
+      <pre><code>touch src/modules/ledger/domain/types.ts</code></pre>
+    </div>
+
+    <p>Mở file <code>types.ts</code> vừa tạo và cùng xem các khái niệm cốt lõi nhất được mô hình hóa bằng TypeScript:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/ledger/domain/types.ts — Định nghĩa kiểu dữ liệu thuần túy</span></div>
+      <pre><code><span class="cmt">// 1. Chiều của bút toán: Chỉ có thể là Ghi Nợ (DEBIT) hoặc Ghi Có (CREDIT)</span>
+<span class="kw">export type</span> <span class="tbl">EntryDirection</span> = <span class="str">'DEBIT'</span> | <span class="str">'CREDIT'</span>;
+
+<span class="cmt">// 2. Một tài khoản trong Sổ cái</span>
+<span class="kw">export interface</span> <span class="tbl">Account</span> {
+  id: <span class="kw">string</span>;
+  code: <span class="kw">string</span>;  <span class="cmt">// Ví dụ: '112' (Tiền gửi), '511' (Doanh thu)</span>
+  name: <span class="kw">string</span>;
+  type: <span class="str">'ASSET'</span> | <span class="str">'LIABILITY'</span> | <span class="str">'EQUITY'</span> | <span class="str">'REVENUE'</span> | <span class="str">'EXPENSE'</span>;
+  createdAt: <span class="tbl">Date</span>;
+}
+
+<span class="cmt">// 3. Một dòng bút toán chi tiết (Append-Only)</span>
+<span class="kw">export interface</span> <span class="tbl">LedgerEntry</span> {
+  id: <span class="kw">string</span>;
+  transactionId: <span class="kw">string</span>;
+  accountId: <span class="kw">string</span>;
+  amount: <span class="kw">number</span>;
+  direction: <span class="tbl">EntryDirection</span>;
+  createdAt: <span class="tbl">Date</span>;
+}
+
+<span class="cmt">// 4. Seam Interface: Hợp đồng lưu trữ dữ liệu (Không chứa bất kỳ chữ 'supabase' nào!)</span>
+<span class="kw">export interface</span> <span class="tbl">ILedgerRepository</span> {
+  <span class="fn">createAccount</span>(account: <span class="tbl">Omit</span>&lt;<span class="tbl">Account</span>, <span class="str">'id'</span> | <span class="str">'createdAt'</span>&gt;): <span class="tbl">Promise</span>&lt;<span class="tbl">Account</span>&gt;;
+  <span class="fn">getAccountByCode</span>(code: <span class="kw">string</span>): <span class="tbl">Promise</span>&lt;<span class="tbl">Account</span> | <span class="kw">null</span>&gt;;
+  <span class="fn">recordTransaction</span>(
+    description: <span class="kw">string</span>,
+    entries: { accountId: <span class="kw">string</span>; amount: <span class="kw">number</span>; direction: <span class="tbl">EntryDirection</span> }[],
+    referenceId?: <span class="kw">string</span>
+  ): <span class="tbl">Promise</span>&lt;{ transaction: <span class="tbl">AccountingTransaction</span>; entries: <span class="tbl">LedgerEntry</span>[] }&gt;;
+  <span class="fn">getTrialBalance</span>(): <span class="tbl">Promise</span>&lt;<span class="tbl">TrialBalanceRow</span>[]&gt;;
+}</code></pre>
+    </div>
+
+    <!-- GIAI ĐOẠN 2: TẠO IN-MEMORY ADAPTER -->
+    <h2>2. Giai đoạn 2: Tạo In-Memory Adapter Để Chạy Test Không Cần Mạng</h2>
+    <p>Thay vì phải bật database Supabase tốn kém thời gian kết nối mạng, chúng ta viết một Adapter lưu trữ bằng RAM:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Terminal: Tạo file In-memory Adapter</span></div>
+      <pre><code>touch src/modules/ledger/adapters/in-memory.ts</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">⚡ Sức mạnh của In-Memory Adapter: Chạy 100 bài test trong chớp mắt</div>
+      <p>Trong file <a href="../src/modules/ledger/adapters/in-memory.ts" target="_blank"><code>src/modules/ledger/adapters/in-memory.ts</code></a>, dữ liệu được lưu bằng <code>Map&lt;string, Account&gt;</code> và mảng JavaScript thông thường. Ngay khi được tạo ra, nó tự động nạp sẵn 5 tài khoản chuẩn:</p>
+      <ul>
+        <li><code>111</code> — Tiền mặt</li>
+        <li><code>112</code> — Tiền gửi ngân hàng</li>
+        <li><code>156</code> — Hàng tồn kho</li>
+        <li><code>511</code> — Doanh thu bán hàng</li>
+        <li><code>632</code> — Giá vốn hàng bán</li>
+      </ul>
+      <p>Nhờ có Adapter này, các bài kiểm thử TDD có thể chạy độc lập 100% trong chưa đầy 20 mili-giây!</p>
+    </div>
+
+    <!-- GIAI ĐOẠN 3: VIẾT TEST ĐẦU TIÊN BỊ ĐỎ (RED) -->
+    <h2>3. Giai đoạn 3: Áp dụng /tdd — Viết test case đầu tiên (Red)</h2>
+    <p>Bây giờ chúng ta áp dụng triết lý TDD: <strong>Không bao giờ viết code trước khi có một bài test bị đỏ</strong>.</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Terminal: Tạo file test Vitest</span></div>
+      <pre><code>touch src/modules/ledger/ledger.test.ts</code></pre>
+    </div>
+
+    <h3>Hộp Prompt Mẫu Kích Hoạt /tdd:</h3>
+    <div class="code-block">
+      <div class="code-label"><span>Prompt chỉ đạo AI viết test case đầu tiên</span></div>
+      <pre><code>/tdd hãy mở file src/modules/ledger/ledger.test.ts và viết test case đầu tiên:
+- Kiểm tra tính bất biến: Khi gọi ledgerService.recordTransaction() với tổng số tiền bên Nợ khác tổng số tiền bên Có, hệ thống PHẢI ném ra lỗi LedgerBalanceError.
+- Hãy dùng InMemoryLedgerRepository làm mock storage.
+- Chỉ viết test case này, chưa viết mã nguồn trong service.ts để quan sát test bị đỏ (RED).</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/ledger/ledger.test.ts — Bài test đầu tiên</span></div>
+      <pre><code><span class="kw">import</span> { describe, it, expect, beforeEach } <span class="kw">from</span> <span class="str">'vitest'</span>;
+<span class="kw">import</span> { InMemoryLedgerRepository } <span class="kw">from</span> <span class="str">'./adapters/in-memory'</span>;
+<span class="kw">import</span> { LedgerService, LedgerBalanceError } <span class="kw">from</span> <span class="str">'./service'</span>;
+
+<span class="fn">describe</span>(<span class="str">'LedgerService Core'</span>, () =&gt; {
+  <span class="kw">let</span> repo: <span class="tbl">InMemoryLedgerRepository</span>;
+  <span class="kw">let</span> service: <span class="tbl">LedgerService</span>;
+
+  <span class="fn">beforeEach</span>(() =&gt; {
+    repo = <span class="kw">new</span> <span class="tbl">InMemoryLedgerRepository</span>();
+    service = <span class="kw">new</span> <span class="tbl">LedgerService</span>(repo);
+  });
+
+  <span class="fn">it</span>(<span class="str">'phải ném ra lỗi khi tổng Nợ không bằng tổng Có'</span>, <span class="kw">async</span> () =&gt; {
+    <span class="kw">const</span> act = () =&gt; service.<span class="fn">recordTransaction</span>(<span class="str">'Test unbalanced'</span>, [
+      { accountCode: <span class="str">'112'</span>, amount: <span class="num">100</span>, direction: <span class="str">'DEBIT'</span> },
+      { accountCode: <span class="str">'511'</span>, amount: <span class="num">90</span>, direction: <span class="str">'CREDIT'</span> }, <span class="cmt">// Lệch 10 đồng!</span>
+    ]);
+
+    <span class="kw">await</span> <span class="fn">expect</span>(act).<span class="fn">rejects</span>.<span class="fn">toThrow</span>(<span class="tbl">LedgerBalanceError</span>);
+  });
+});</code></pre>
+    </div>
+
+    <p>Chạy kiểm thử trong terminal: <code>npx vitest run src/modules/ledger</code> &rarr; <strong>BÁO ĐỎ (FAIL)!</strong> Vì file <code>service.ts</code> chưa hề tồn tại.</p>
+
+    <!-- GIAI ĐOẠN 4: VIẾT CODE TỐI THIỂU ĐỂ XANH & NÉ BẪY AI -->
+    <h2>4. Giai đoạn 4: Viết Code Tối Thiểu Để Xanh (GREEN) & Né Bẫy AI</h2>
+    <p>Bây giờ chúng ta tạo file <a href="../src/modules/ledger/service.ts" target="_blank"><code>src/modules/ledger/service.ts</code></a> để làm cho test chuyển sang màu xanh.</p>
+
+    <div class="callout warn">
+      <div class="ct">⚠️ Bẫy ngầm của AI: Sai số dấu phẩy động (0.1 + 0.2 === 0.30000000000000004)</div>
+      <p>Khi bảo AI so sánh hai vế Nợ và Có, AI thường viết câu lệnh ngây thơ:</p>
+      <p style="font-family: var(--mono); background: #fef2f2; padding: 6px 10px; border-radius: 4px; margin: 6px 0;">
+        if (debitSum !== creditSum) throw new LedgerBalanceError(...);
+      </p>
+      <p>Trong JavaScript, nếu một bút toán có số tiền lẻ như <code>19.99</code> và <code>10.01</code>, tổng số có thể bị sai lệch phần triệu và phép tính so sánh <code>!==</code> sẽ từ chối oan một giao dịch hoàn toàn hợp lệ! Lập trình viên phải yêu cầu AI bọc hàm làm tròn tiền tệ:</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label"><span>src/modules/ledger/service.ts — Code tối thiểu vượt qua test</span></div>
+      <pre><code><span class="kw">export class</span> <span class="tbl">LedgerService</span> {
+  <span class="kw">constructor</span>(<span class="kw">private readonly</span> repo: <span class="tbl">ILedgerRepository</span>) {}
+
+  <span class="kw">private</span> <span class="fn">roundMoney</span>(val: <span class="kw">number</span>): <span class="kw">number</span> {
+    <span class="kw">return</span> Math.<span class="fn">round</span>((val + Number.EPSILON) * <span class="num">100</span>) / <span class="num">100</span>;
+  }
+
+  <span class="kw">async</span> <span class="fn">recordTransaction</span>(desc: <span class="kw">string</span>, entries: CreateEntryDTO[]) {
+    <span class="kw">let</span> debitSum = <span class="num">0</span>;
+    <span class="kw">let</span> creditSum = <span class="num">0</span>;
+
+    <span class="kw">for</span> (<span class="kw">const</span> e <span class="kw">of</span> entries) {
+      <span class="kw">if</span> (e.amount &lt;= <span class="num">0</span>) <span class="kw">throw new</span> <span class="tbl">LedgerValidationError</span>(<span class="str">'Số tiền phải > 0'</span>);
+      <span class="kw">if</span> (e.direction === <span class="str">'DEBIT'</span>) debitSum += e.amount;
+      <span class="kw">else</span> creditSum += e.amount;
+    }
+
+    <span class="kw">if</span> (<span class="kw">this</span>.<span class="fn">roundMoney</span>(debitSum) !== <span class="kw">this</span>.<span class="fn">roundMoney</span>(creditSum)) {
+      <span class="kw">throw new</span> <span class="tbl">LedgerBalanceError</span>(<span class="str">'Mất cân bằng Nợ/Có'</span>);
+    }
+
+    <span class="cmt">// Lưu vào repository</span>
+    <span class="kw">return this</span>.repo.<span class="fn">recordTransaction</span>(desc, entries);
+  }
+}</code></pre>
+    </div>
+
+    <p>Chạy lại lệnh kiểm thử: Test lập tức chuyển sang màu <strong>XANH (PASS)!</strong> Đó chính là bản chất của vòng lặp Red-Green.</p>
+
+    <!-- GIAI ĐOẠN 5: MỞ RỘNG RA 11 TESTS -->
+    <h2>5. Giai đoạn 5: Mở Rộng Ra 6 Slices & Đạt 11 Tests Xanh Trong 17ms</h2>
+    <p>Lặp lại quy trình trên cho 5 lát cắt nghiệp vụ còn lại:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Hộp Prompt mở rộng trọn vẹn 6 Slices</span></div>
+      <pre><code>/tdd hãy bổ sung các test cases cho 5 slices còn lại tại src/modules/ledger/ledger.test.ts:
+- Slice 2: Hạch toán thanh toán đơn hàng (tự động tìm tài khoản 112 và 511).
+- Slice 3: Hạch toán xuất kho giao hàng (tài khoản 632 và 156).
+- Slice 4: Tự động cấp mã hóa đơn INV-YYYY-XXXX tuần tự.
+- Slice 5: Bút toán đảo chiều khi hủy đơn và hoàn tiền.
+- Slice 6: Tính toán Bảng cân đối thử nghiệm (Trial Balance) thời gian thực.
+
+Viết test đến đâu, bổ sung logic vào service.ts đến đó cho đến khi toàn bộ tests đều xanh.</code></pre>
+    </div>
+
+    <h3>Nghiệm thu Kết quả Thực tế:</h3>
+    <div class="code-block">
+      <div class="code-label"><span>Kết quả thực thi Vitest</span></div>
+      <pre><code> ✓ src/modules/ledger/ledger.test.ts (11 tests) 17ms
+   ✓ Slice 1: Balance Invariants & Validation (3 tests)
+   ✓ Slice 2: Order Payment Accounting (2 tests)
+   ✓ Slice 3: Order Fulfillment COGS (1 test)
+   ✓ Slice 4: Invoice Generation (2 tests)
+   ✓ Slice 5: Compensatory Reversal & Refund (1 test)
+   ✓ Slice 6: Trial Balance Calculation (2 tests)
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Duration  172ms (tests 17ms)</code></pre>
+    </div>
+
+    <!-- QUIZ ĐÁNH GIÁ TỨC THÌ -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+
+      <div class="q">Câu 1. Tại sao trong quy trình TDD, chúng ta bắt buộc phải nhìn thấy bài test fail (Red) trước khi viết code thực thi?</div>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Trình biên dịch không bắt buộc điều này.">A. Vì trình biên dịch TypeScript không cho phép viết code nếu chưa có file test.</button>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Nhìn thấy test đỏ chứng minh bài test thực sự kiểm tra đúng điều kiện và có khả năng bắt lỗi. Nếu chưa viết code mà test đã xanh, bài test đó vô dụng (False Positive).">B. Để xác nhận bài test thực sự có khả năng bắt lỗi và không bị xanh giả tạo (False Positive) trước khi có code.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. Màu sắc test không ảnh hưởng đến bộ nhớ RAM.">C. Để giải phóng bộ nhớ RAM cho Vitest.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi AI viết code kiểm tra số tiền `amount <= 0`, tại sao điều kiện này là bắt buộc trong hệ thống Sổ cái Kế toán?</div>
+      <button class="opt" data-correct="true"
+        data-explain="Chính xác! Nếu cho phép số tiền âm, một kẻ tấn công hoặc lỗi người dùng có thể nhập -100k bên Nợ, bản chất tương đương với +100k bên Có, làm đảo lộn hoàn toàn chiều hạch toán của sổ sách.">A. Vì số tiền âm có thể làm đảo lộn chiều bút toán và tạo ra lỗ hổng bảo mật gian lận tài chính.</button>
+      <button class="opt" data-correct="false"
+        data-explain="Sai. JavaScript xử lý số âm hoàn toàn bình thường.">B. Vì JavaScript không hỗ trợ biểu diễn số âm.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <!-- KẾT QUẢ ĐẠT ĐƯỢC -->
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Chặng 3 (Bài 15)</div>
+      <ul class="checklist">
+        <li>Tự tay khởi tạo từ file trắng trơn: <code>types.ts</code>, <code>in-memory.ts</code>, <code>service.ts</code> và <code>ledger.test.ts</code>.</li>
+        <li>Làm chủ kỹ năng <code>/codebase-design</code>: Xây dựng Seam <code>ILedgerRepository</code> cô lập hoàn toàn logic nghiệp vụ.</li>
+        <li>Biết cách phát hiện và khắc phục bẫy sai số dấu phẩy động trong JavaScript.</li>
+        <li>Chạy thành công 11 bài kiểm thử TDD với tốc độ siêu tốc 17 mili-giây.</li>
+      </ul>
+    </div>
+
+    <!-- BẮC CẦU SANG BÀI 16 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Chặng 4: Bài 16)</h2>
+    <p>Chúng ta đã có <code>LedgerService</code> và <code>InventoryService</code> chạy hoàn hảo ở tầng Core với test xanh 100%. Tuy nhiên, chúng ta chưa có cách nào để gọi các service này từ giao diện web một cách an toàn.</p>
+    <p><em>Làm thế nào để điều phối AI xây dựng các Next.js Server Actions, dùng Zod làm lá chắn thẩm định dữ liệu đầu vào và kết nối với Supabase mà vẫn giữ nguyên tính nguyên tử giữa Kho và Kế toán?</em></p>
+    <p>Đó là nội dung của <strong>Chặng 4 (Bài 16): Tầng Ứng Dụng: Setup Server Actions, Lá Chắn Zod & Supabase RLS</strong>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 16 · Next.js Server Actions, Lá Chắn Zod & Supabase RLS</div>
+      <p class="nd">Chặng 4 Capstone: Tạo Zod Schemas tại src/actions/schemas.ts, điều phối multi-domain flow và cấu hình RLS bảo vệ Sổ cái Append-only.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0014-setup-project-ledger-spec.html">← Bài 14</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0016-server-actions-zod-supabase.html">Bài 16 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở file <a href="../src/modules/ledger/service.ts" target="_blank"><code>src/modules/ledger/service.ts</code></a> và xem cách hàm <code>roundMoney()</code> bảo vệ tính cân bằng của sổ sách như thế nào.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

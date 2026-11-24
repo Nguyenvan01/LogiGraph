@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 00: Khởi tạo Project Next.js 15, Supabase & Cấu hình Vitest
+  Tiêu chuẩn: Ngôn ngữ kỹ thuật mộc mạc, trực diện, dễ hiểu, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài 00 · Khởi tạo Project Next.js 15, Supabase & Cấu hình Vitest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lesson.css">
+</head>
+<body>
+<div class="wrap">
+
+  <span class="lesson-tag">Module 0 · Bài 00</span>
+  <h1>Khởi tạo Project Next.js 15, Supabase & Cấu hình Vitest</h1>
+  <p class="subtitle">Thiết lập cấu trúc thư mục dự án VibeCoding ERP Mini, cài đặt Supabase client và tạo test mẫu kiểm tra môi trường.</p>
+  <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Chạy lệnh <code>npm test</code> đạt kết quả Pass.</p>
+
+  <!-- BẮC CẦU -->
+  <div class="callout bridge">
+    <div class="ct">🌉 Tại sao cần cấu hình Test Runner trước khi viết code?</div>
+    <p>Khi sử dụng AI để lập trình, nếu không có sẵn hệ thống test tự động, bạn sẽ phải kiểm tra code thủ công bằng tay sau mỗi lần AI sinh code. Cách làm này rất chậm và dễ bỏ sót lỗi khi codebase lớn dần.</p>
+    <p>Matt Pocock đề xuất nguyên tắc: <strong>Thiết lập một automated test chạy nhanh và đáng tin cậy trước khi bắt đầu viết logic nghiệp vụ</strong> (thuật ngữ của Matt là <em>"a loop you believe in"</em>). Khi có sẵn test runner, AI sinh code đến đâu có thể chạy test kiểm tra ngay đến đó, kết quả đúng/sai rõ ràng.</p>
+  </div>
+
+  <h2>1. Kiểm tra môi trường máy tính của bạn</h2>
+  <p>Cấu hình máy tính hiện tại đã có sẵn các công cụ cần thiết:</p>
+  <table class="data">
+    <thead>
+      <tr><th>Công cụ</th><th>Phiên bản hiện tại</th><th>Ghi chú</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Node.js</td><td><code>v25.9.0</code></td><td>Tương thích tốt với Next.js 15 và TypeScript</td></tr>
+      <tr><td>npm</td><td><code>11.12.1</code></td><td>Trình quản lý package tiêu chuẩn</td></tr>
+      <tr><td>Git</td><td><code>2.43.0</code></td><td>Quản lý phiên bản mã nguồn</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout why">
+    <div class="ct">💡 Tổ chức code trực tiếp trên dự án thật</div>
+    <p>Thay vì viết các đoạn code ví dụ rời rạc ở nhiều thư mục nháp, chúng ta xây dựng trực tiếp vào cấu trúc project <code>VibeCoding ERP Mini</code>. Mọi file mã nguồn và test bạn viết ra đều nằm trong project và có thể chạy được ngay.</p>
+  </div>
+
+  <h2>2. Các bước cài đặt dự án</h2>
+  <p>Bạn thực hiện lần lượt các bước sau trong terminal tại thư mục dự án:</p>
+
+  <h3>Bước 1: Cài đặt các thư viện cần dùng</h3>
+  <p>Cài đặt Next.js, React, Supabase JS client, Zod để validate dữ liệu và Vitest để chạy tests:</p>
+
+  <div class="code-block">
+    <span class="code-label">terminal (bash)</span>
+<pre><code><span class="cmt"># Cài đặt thư viện chính</span>
+npm install next@latest react@latest react-dom@latest @supabase/supabase-js zod
+
+<span class="cmt"># Cài đặt thư viện phục vụ môi trường phát triển và test</span>
+npm install -D typescript @types/node @types/react vitest</code></pre>
+  </div>
+
+  <h3>Bước 2: Cấu hình `vitest.config.ts`</h3>
+  <p>Tạo file cấu hình Vitest ở thư mục gốc để hỗ trợ alias <code>@/*</code> trỏ vào thư mục <code>src/</code>:</p>
+
+  <div class="code-block">
+    <span class="code-label">vitest.config.ts</span>
+<pre><code><span class="kw">import</span> { defineConfig } <span class="kw">from</span> <span class="str">"vitest/config"</span>;
+<span class="kw">import</span> path <span class="kw">from</span> <span class="str">"path"</span>;
+
+<span class="kw">export default</span> <span class="fn">defineConfig</span>({
+  test: {
+    <span class="cmt">// Cho phép dùng trực tiếp describe, it, expect mà không cần import thủ công</span>
+    globals: <span class="kw">true</span>,
+    environment: <span class="str">"node"</span>,
+  },
+  resolve: {
+    alias: {
+      <span class="cmt">// Cấu hình alias @/ trỏ vào thư mục src/</span>
+      <span class="str">"@"</span>: path.<span class="fn">resolve</span>(__dirname, <span class="str">"./src"</span>),
+    },
+  },
+});</code></pre>
+  </div>
+
+  <h3>Bước 3: Khởi tạo Supabase client</h3>
+  <p>Tạo file khởi tạo kết nối Supabase tại <code>src/lib/supabase.ts</code>:</p>
+
+  <div class="code-block">
+    <span class="code-label">src/lib/supabase.ts</span>
+<pre><code><span class="kw">import</span> { createClient } <span class="kw">from</span> <span class="str">"@supabase/supabase-js"</span>;
+
+<span class="cmt">// Đọc URL và Anon Key từ biến môi trường (dùng giá trị mặc định khi chạy test cục bộ)</span>
+<span class="kw">const</span> supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || <span class="str">"https://mock-project.supabase.co"</span>;
+<span class="kw">const</span> supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || <span class="str">"mock-anon-key"</span>;
+
+<span class="kw">export const</span> supabase = <span class="fn">createClient</span>(supabaseUrl, supabaseAnonKey);</code></pre>
+  </div>
+
+  <h3>Bước 4: Cấu hình hệ thống file cho Agent Skills (`setup-matt-pocock-skills`)</h3>
+  <p>Theo chuẩn của Matt Pocock, các skills kỹ thuật (như <code>/to-spec</code>, <code>/to-tickets</code>, <code>/wayfinder</code>) cần biết dự án lưu trữ issues và tài liệu ở đâu thông qua 3 file trong thư mục <code>docs/agents/</code>:</p>
+  <ul>
+    <li><code>docs/agents/issue-tracker.md</code>: Quy định nơi lưu issues (dự án này dùng local markdown trong thư mục <code>.scratch/</code>).</li>
+    <li><code>docs/agents/domain.md</code>: Quy định cách đọc tài liệu nghiệp vụ (<code>CONTEXT.md</code> và các ADRs trong <code>docs/adr/</code>).</li>
+    <li><code>docs/agents/triage-labels.md</code>: Danh sách 5 nhãn phân loại task (<code>needs-triage</code>, <code>needs-info</code>, <code>ready-for-agent</code>, <code>ready-for-human</code>, <code>wontfix</code>).</li>
+  </ul>
+
+  <h3>Bước 5: Thiết lập Hàng rào Pre-commit (`/setup-pre-commit`) & Wizard (`/wizard`)</h3>
+  <p>Để ngăn chặn những đoạn code hỏng hoặc lỗi kiểu dữ liệu bị commit vào Git, chúng ta sử dụng skill <code>/setup-pre-commit</code> để cài đặt Husky và lint-staged:</p>
+  <div class="code-block">
+    <span class="code-label">terminal (bash)</span>
+<pre><code><span class="cmt"># Chạy wizard tương tác hướng dẫn thiết lập pre-commit</span>
+/wizard "Cài đặt husky và pre-commit hook chạy vitest và tsc trước mỗi commit"</code></pre>
+  </div>
+
+  <h2>3. La bàn Định tuyến: Khám phá Bộ 38 Skills Bằng `/ask-matt`</h2>
+  <div class="callout tip">
+    <div class="ct">🧭 Skill Router: /ask-matt — Chiếc La Bàn Cho Người Lập Trình</div>
+    <p>Bộ kỹ năng của Matt Pocock bao gồm <strong>38 skills chuyên biệt</strong> bao phủ trọn vẹn vòng đời phần mềm. Khi đứng trước một nhiệm vụ mới và phân vân không biết nên dùng skill nào, bạn chỉ cần gọi <code>/ask-matt</code>:</p>
+    <div class="code-block">
+      <span class="code-label">Prompt gọi Skill Router</span>
+<pre><code>/ask-matt "Tôi vừa khởi tạo xong repo Next.js 15 và Supabase, giờ tôi muốn bắt đầu làm rõ yêu cầu nghiệp vụ kho vận thì nên dùng skill nào?"</code></pre>
+    </div>
+    <p>AI đóng vai trò Matt Pocock sẽ phân tích tình huống hiện tại và điều hướng bạn đến chính xác kỹ năng cần dùng tiếp theo (ví dụ: <code>/grill-me</code> để phỏng vấn nghiệp vụ, <code>/wayfinder</code> để lập bản đồ codebase).</p>
+  </div>
+
+  <h2>4. Chạy Sanity Check Test</h2>
+  <p>Tạo một file test đơn giản tại <code>tests/sanity.test.ts</code> để kiểm tra Vitest và TypeScript đã hoạt động đúng:</p>
+
+  <div class="code-block">
+    <span class="code-label">tests/sanity.test.ts</span>
+<pre><code><span class="kw">import</span> { describe, it, expect } <span class="kw">from</span> <span class="str">"vitest"</span>;
+<span class="kw">import</span> { supabase } <span class="kw">from</span> <span class="str">"@/lib/supabase"</span>;
+
+<span class="fn">describe</span>(<span class="str">"Kiểm tra môi trường VibeCoding ERP"</span>, () =&gt; {
+  <span class="fn">it</span>(<span class="str">"Phép tính cơ bản hoạt động đúng"</span>, () =&gt; {
+    <span class="fn">expect</span>(1 + 1).<span class="fn">toBe</span>(2);
+  });
+
+  <span class="fn">it</span>(<span class="str">"Supabase client được khởi tạo hợp lệ"</span>, () =&gt; {
+    <span class="fn">expect</span>(supabase).<span class="fn">toBeDefined</span>();
+    <span class="fn">expect</span>(<span class="kw">typeof</span> supabase.from).<span class="fn">toBe</span>(<span class="str">"function"</span>);
+  });
+});</code></pre>
+  </div>
+
+  <p>Chạy lệnh test trong terminal:</p>
+  <div class="code-block">
+    <span class="code-label">terminal (bash)</span>
+<pre><code>npx vitest run</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <div class="ct">🎯 Kết quả hiển thị khi test thành công</div>
+    <pre><code> ✓ tests/sanity.test.ts (2 tests) 2ms
+   ✓ Kiểm tra môi trường VibeCoding ERP > Phép tính cơ bản hoạt động đúng
+   ✓ Kiểm tra môi trường VibeCoding ERP > Supabase client được khởi tạo hợp lệ
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Duration  142ms</code></pre>
+  </div>
+
+  <!-- QUIZ TƯƠNG TÁC -->
+  <div class="quiz">
+    <h3>🧠 Câu hỏi ôn tập</h3>
+    <div class="q">Câu 1. Vì sao Matt Pocock khuyến nghị thiết lập test runner trước khi yêu cầu AI viết logic code?</div>
+    <button class="opt" data-correct="false" data-explain="Sai. Test tự động nhằm mục đích kỹ thuật để kiểm chứng code, không phải quy định hành chính.">A. Để hoàn thành thủ tục theo quy trình của dự án.</button>
+    <button class="opt" data-correct="true"  data-explain="Chính xác. Khi có test tự động, lập trình viên và AI có thể kiểm tra kết quả ngay lập tức (Pass hoặc Fail), tránh việc AI báo hoàn thành nhưng code thực tế không chạy được.">B. Cung cấp công cụ kiểm tra tự động nhanh chóng (Pass/Fail) để biết chính xác code AI sinh ra có chạy đúng hay không.</button>
+    <button class="opt" data-correct="false" data-explain="Sai. AI vẫn có thể sinh code bình thường mà không cần test runner.">C. Vì nếu không có test runner thì AI không thể sinh mã TypeScript hợp lệ.</button>
+    <div class="feedback"></div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ct">✅ Những nội dung bạn đã nắm được</div>
+    <ul class="checklist">
+      <li>Cấu hình project Next.js 15 và cài đặt các thư viện cần thiết.</li>
+      <li>Cấu hình Vitest và chạy test mẫu kiểm tra môi trường.</li>
+      <li>Hiểu vai trò của các file cấu hình Agent Skills trong thư mục <code>docs/agents/</code>.</li>
+    </ul>
+  </div>
+
+  <!-- KẾT BÀI -->
+  <h2>4. Câu hỏi chuẩn bị cho Bài 01</h2>
+  <p>Môi trường kỹ thuật đã sẵn sàng. Trước khi bắt tay vào code Module Inventory: <em>Làm thế nào để xác định rõ các yêu cầu và trường hợp đặc biệt (ví dụ: khách đặt hàng nhưng không thanh toán, hoặc 2 khách cùng mua 1 món hàng cuối cùng)?</em></p>
+  <p>Nếu không làm rõ các tình huống này từ đầu, code do AI sinh ra rất dễ gặp lỗi khi đưa vào sử dụng thực tế. Bài 01 sẽ hướng dẫn kỹ thuật phỏng vấn làm rõ yêu cầu bằng skill <code>/grill-me</code>.</p>
+
+  <!-- XEM TRƯỚC BÀI SAU -->
+  <div class="next-box">
+    <div class="nl">→ Bài tiếp theo</div>
+    <div class="nt">Bài 01 · /grill-me & /grilling — Làm rõ Yêu cầu Nghiệp vụ & Loại bỏ Giả định ngầm</div>
+    <p class="nd">Cách sử dụng /grill-me để AI đặt câu hỏi phản biện, làm rõ các trường hợp đặc biệt và thống nhất phương án xử lý trước khi code.</p>
+  </div>
+
+  <!-- THANH ĐIỀU HƯỚNG -->
+  <div class="navbar">
+    <a href="#" class="disabled">← Trước</a>
+    <a href="index.html">🏠 Mục lục</a>
+    <a href="0001-grilling-inventory-requirements.html">Sau →</a>
+  </div>
+
+  <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử chạy lệnh <code>npx vitest run</code> trên máy của mình để xác nhận các test mẫu đều pass.</p>
+
+</div>
+<script src="lesson-enhance.js"></script>
+</body>
+</html>

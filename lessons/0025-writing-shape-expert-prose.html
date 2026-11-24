@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 25: /writing-shape — Mài Giũa & Hoàn Thiện Bài Viết Chuyên Gia
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 25 · /writing-shape — Mài Giũa & Hoàn Thiện Bài Viết Chuyên Gia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 25 (Meta-Skills)</span>
+    <h1>/writing-shape — Mài Giũa & Hoàn Thiện Bài Viết Chuyên Gia</h1>
+    <p class="subtitle">Tư duy giai đoạn Exploit 2: Tạo hình bài viết từng đoạn văn nối tiếp, tranh luận định dạng trực diện (Prose vs List, Inline vs Callout) và kỹ thuật cắt gọt câu chữ thừa để luận điểm sắc bén.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/writing-shape</code>, biến AI thành một biên tập viên xuất bản khắt khe, không dung dưỡng những câu chuyển ý yếu ớt hay cấu trúc lặp lại vô nghĩa.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Từ Khung Nhịp Điệu Sang Đoạn Văn Thực Tế</div>
+      <p>Ở Bài 24, bạn đã xác lập được cấu trúc các beats của bài viết. Nhưng khi thực sự bắt tay vào viết văn phong chuyên gia, chúng ta thường đối mặt với câu hỏi: <em>"Đoạn này nên viết văn xuôi hay gạch đầu dòng? Đoạn code này nên đưa vào thân bài hay dùng callout cảnh báo?"</em></p>
+      <p>Nếu để AI tự do viết toàn bộ bài viết trong một lần sinh, nó thường tạo ra những văn bản đều đều, thiếu điểm nhấn và lạm dụng danh sách gạch đầu dòng vô tội vạ. Kỹ năng <code>/writing-shape</code> biến quá trình viết thành một <strong>phiên Grilling đảo ngược</strong>, mài giũa từng đoạn văn một.</p>
+    </div>
+
+    <!-- PHIÊN CHẤT VẤN NGƯỢC -->
+    <h2>1. Bản Chất Của /writing-shape: Phiên Chất Vấn Ngược</h2>
+    <p>Nếu trong giai đoạn ý tưởng (Grilling), câu hỏi của AI là <em>"Bạn đang nhận thấy điều gì?"</em>, thì trong <code>/writing-shape</code>, câu hỏi sẽ là:</p>
+    <p style="text-align: center; font-size: 1.15rem; font-weight: 700; color: var(--accent); margin: 12px 0;">
+      "Bài viết này thực sự đang muốn chứng minh điều gì, và độc giả cần nghe điều đó theo thứ tự nào?"
+    </p>
+
+    <div class="callout warn">
+      <div class="ct">🥊 Bốn câu hỏi phản biện của AI Biên tập viên:</div>
+      <ul>
+        <li><strong>1. "Đoạn văn này mang lại giá trị gì mới cho người đọc so với đoạn ngay trước nó?"</strong> &rarr; Nếu không có gì mới, xóa ngay lập tức!</li>
+        <li><strong>2. "Nếu cắt bỏ câu này đi, bài viết bị gãy vỡ cái gì?"</strong> &rarr; Nếu không ảnh hưởng mạch bài, chứng tỏ câu đó là câu thừa — hãy cắt bỏ.</li>
+        <li><strong>3. "Câu này đang gánh 2 nhiệm vụ cùng lúc: Tách nó làm đôi hay chọn một nhiệm vụ duy nhất?"</strong> &rarr; Tránh việc nhồi nhét hai ý tưởng vào một câu phức rườm rà.</li>
+        <li><strong>4. "Phần mở bài hứa hẹn chứng minh X, nhưng đến đây bạn đang lái sang Y. Quay lại mạch chính hay sửa lại mở bài?"</strong> &rarr; Kiểm soát triệt để hiện tượng trôi dạt luận điểm (Thesis drift).</li>
+      </ul>
+    </div>
+
+    <!-- NĂM CUỘC TRANH LUẬN ĐỊNH DẠNG -->
+    <h2>2. Năm Cuộc Tranh Luận Định Dạng (Format Arguments)</h2>
+    <p>Thay vì để AI tự tiện chọn định dạng hiển thị, Matt Pocock yêu cầu AI phải <strong>tranh luận trực tiếp với bạn</strong> về 5 lựa chọn cấu trúc sau:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Lựa chọn Định dạng</th>
+          <th>Khi nào nên dùng Phương án A?</th>
+          <th>Khi nào nên dùng Phương án B?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Văn xuôi (Prose) vs Danh sách (List)</strong></td>
+          <td><strong>Văn xuôi:</strong> Dùng khi cần dẫn dắt lập luận, giải thích nguyên nhân - kết quả.</td>
+          <td><strong>Danh sách:</strong> Chỉ dùng khi các ý thực sự bình đẳng, song song và cần độc giả quét nhanh.</td>
+        </tr>
+        <tr>
+          <td><strong>Inline vs Callout (`> [!NOTE]`)</strong></td>
+          <td><strong>Inline:</strong> Viết thẳng vào thân bài nếu thông tin đó nằm trên mạch lập luận chính.</td>
+          <td><strong>Callout:</strong> Chỉ dùng cho Tip/Warning nếu việc viết liền sẽ làm đứt gãy luồng đọc.</td>
+        </tr>
+        <tr>
+          <td><strong>Bảng biểu (Table) vs Lặp lại</strong></td>
+          <td><strong>Bảng biểu:</strong> Khi cùng một cấu trúc trường lặp lại từ 3 lần trở lên (như so sánh 5 tài khoản).</td>
+          <td><strong>Lặp lại:</strong> Dùng các đoạn văn ngắn có in đậm đầu dòng nếu cấu trúc không hoàn toàn đồng nhất.</td>
+        </tr>
+        <tr>
+          <td><strong>Trích dẫn (Quote) vs Diễn giải (Paraphrase)</strong></td>
+          <td><strong>Quote:</strong> Khi câu từ nguyên bản của tác giả là đắt giá và không thể thay thế.</td>
+          <td><strong>Paraphrase:</strong> Diễn giải lại bằng lời của bạn khi bạn chỉ cần mượn ý tưởng.</td>
+        </tr>
+        <tr>
+          <td><strong>Code block vs Inline code</strong></td>
+          <td><strong>Code block:</strong> Khi đoạn mã có nhiều dòng, có thể chạy được hoặc dùng làm ví dụ so sánh.</td>
+          <td><strong>Inline code:</strong> Chỉ dùng cho tên hàm đơn lẻ, tên biến hoặc một token (ví dụ: <code>balance</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- KHAI THÁC MỎ ĐÁ -->
+    <h2>3. Khai Thác Mỏ Tư Liệu Thô (Quarrying)</h2>
+    <p>Trong quá trình tạo hình bài viết, file tư liệu thô <code>fragments.md</code> đóng vai trò là một <strong>mỏ tư liệu</strong>:</p>
+    <ul>
+      <li>Bạn lấy một mảnh ý tưởng thô ra, gọt giũa và đặt nó vào bố cục bài viết.</li>
+      <li>Một fragment có thể được chia thành 2 đoạn văn, hoặc gộp 2 fragment làm một.</li>
+      <li><strong>Chỉ ra lỗ hổng tư liệu (Naming gaps):</strong> Nếu bài viết đến một đoạn cần một ví dụ code mà trong mỏ tư liệu thô chưa có, AI sẽ dừng lại và yêu cầu: <em>"Đoạn này bắt buộc phải có một ví dụ code thực tế, mà trong file thô chưa có. Hãy cung cấp cho tôi một ví dụ ngay bây giờ hoặc chúng ta phải cắt bỏ luận điểm này!"</em></li>
+    </ul>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>4. Hộp Prompt Thực Chiến: Tạo Hình Từng Đoạn Văn</h2>
+    <p>Bạn ra lệnh cho AI bắt đầu phiên định hình văn phong:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /writing-shape</div>
+      <pre><code>/writing-shape "Đọc file fragments tại docs/notes/ledger-seams-fragments.md.
+Hãy cùng tôi tạo hình bài viết tại docs/articles/why-erp-needs-seams.md từng đoạn văn một.
+Quy tắc:
+1. Đề xuất 3 mở bài khác nhau để tôi lựa chọn góc nhìn.
+2. Sau mỗi đoạn văn, hãy tranh luận xem đoạn tiếp theo nên là văn xuôi hay kẻ bảng.
+3. Không tự tiện viết hàng loạt đoạn, chỉ ghi vào file khi tôi đã đồng ý với câu chữ của đoạn đó."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Trong quy chuẩn của /writing-shape, khi nào bạn nên chọn viết văn xuôi thay vì gạch đầu dòng?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Danh sách gạch đầu dòng mới là thứ giúp độc giả đọc lướt nhanh hơn.">A. Khi muốn độc giả đọc lướt thật nhanh qua các thông tin.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Văn xuôi là công cụ để dẫn dắt lập luận có chiều sâu, kết nối nguyên nhân và kết quả. Lạm dụng danh sách gạch đầu dòng làm biến bài viết thành một bản tóm tắt nông cạn.">B. Khi nội dung cần dẫn dắt một lập luận chặt chẽ, kết nối mạch lạc giữa nguyên nhân và hệ quả mà danh sách gạch đầu dòng không thể biểu đạt trọn vẹn.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Định dạng bài viết không phụ thuộc vào độ dài trang.">C. Khi bài viết còn quá ngắn và cần kéo dài số trang.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi AI phát hiện một lỗ hổng trong mỏ tư liệu thô (ví dụ thiếu một trường hợp kiểm thử thực tế), hành vi chuẩn mực của AI là gì?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Naming the gap giúp bảo vệ tính xác thực của bài viết, ngăn AI tự tiện bịa đặt các chi tiết kỹ thuật không có thật.">A. Dừng lại, chỉ rõ lỗ hổng và yêu cầu người dùng cung cấp thông tin thực tế hoặc cắt bỏ phần đó, không tự tiện bịa ra số liệu giả.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Tự động sinh dữ liệu giả sẽ làm mất uy tín kỹ thuật của bài viết.">B. Tự động sinh một ví dụ giả lập và tiếp tục viết tiếp mà không cần hỏi.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 25</div>
+      <ul class="checklist">
+        <li>Nắm vững phương pháp tạo hình bài viết từng đoạn văn nối tiếp (Paragraph-by-paragraph).</li>
+        <li>Làm chủ 5 cuộc tranh luận định dạng trực diện: Prose vs List, Inline vs Callout, Table vs Repetition...</li>
+        <li>Rèn luyện kỹ năng phản biện khắt khe cùng AI để gọt sạch mọi câu chữ thừa thãi.</li>
+        <li>Sở hữu một bài viết kỹ thuật sâu sắc, mạch lạc và thuyết phục được cả những độc giả khó tính nhất.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 26 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 26)</h2>
+    <p>Bạn đã làm chủ toàn bộ chu trình viết lách chuyên gia từ Viết cho Agent (Bài 22), Thu thập ý tưởng thô (Bài 23), Dẫn nhịp hành trình (Bài 24) đến Mài giũa văn phong (Bài 25). Bây giờ chúng ta bước sang chủ đề: <strong>Sư phạm AI (/teach)</strong>.</p>
+    <p><em>Làm thế nào để chỉ đạo AI thiết kế Stateful Learning Workspace, xây dựng giáo trình cá nhân hóa dựa trên Zone of Proximal Development (ZPD)?</em></p>
+    <p>Đó là trọng tâm của Bài 26 với kỹ năng: <code>/teach</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 26)</div>
+      <div class="nt">Bài 26 · /teach — Sư Phạm AI: Thiết Kế Không Gian Học Tập Tương Tác & Vòng Lặp Phản Hồi Trực Tiếp</div>
+      <p class="nd">Tam giác học sâu (Knowledge - Skills - Wisdom), thiết kế Stateful Workspace (MISSION.md, reference/, learning-records/), và ứng dụng Zone of Proximal Development.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0024-writing-beats-journey-grounding.html">← Bài 24</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0026-teach-ai-pedagogy-workspace.html">Bài 26 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy rà soát lại một đoạn văn kỹ thuật bạn từng viết và tự hỏi 4 câu hỏi phản biện: Đoạn này mang lại giá trị gì mới? Cắt đi thì vỡ cái gì? Câu nào đang gánh 2 nhiệm vụ?</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

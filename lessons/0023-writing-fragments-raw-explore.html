@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 23: /writing-fragments — Thu Thập & Khai Thác Ý Tưởng Thô Giai Đoạn Explore
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 23 · /writing-fragments — Thu Thập Ý Tưởng Thô Giai Đoạn Explore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 23 (Meta-Skills)</span>
+    <h1>/writing-fragments — Thu Thập & Khai Thác Ý Tưởng Thô Giai Đoạn Explore</h1>
+    <p class="subtitle">Tư duy giai đoạn Explore của Matt Pocock: Khai phá không gian ý tưởng không cấu trúc, mô hình nhật ký tiểu thuyết gia (The Novelist's Diary), và kỹ thuật đúc kết Leading Words làm trụ cột bài viết.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/writing-fragments</code>, giải phóng bản thân khỏi áp lực phải có dàn ý sớm, và biết cách cùng AI đào bới các mảnh ghép ý tưởng sắc bén.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh thực tế: Căn Bệnh "Sợ Trang Giấy Trắng" & Ép Khung Quá Sớm</div>
+      <p>Khi chuẩn bị viết một bài blog kỹ thuật, một bản thiết kế hệ thống hay một giáo trình khóa học, đa số mọi người thường mắc phải sai lầm: <strong>Cố gắng lập dàn ý (Outline) hoặc mục lục ngay từ phút đầu tiên</strong>.</p>
+      <p>Hành vi "đóng khung quá sớm" này sẽ lập tức bóp nghẹt sự sáng tạo. Bạn bị cuốn vào việc nghĩ xem tiêu đề Chương 1 là gì, Phần A có mấy mục nhỏ, trong khi những ý tưởng thực sự đắt giá — những phát hiện sâu sắc, những tình huống dở khóc dở cười trong dự án — vẫn chưa kịp bật ra ngoài.</p>
+      <p>Matt Pocock tách biệt rạch ròi giữa 2 giai đoạn: <strong>Explore</strong> và <strong>Exploit</strong>. Kỹ năng <code>/writing-fragments</code> phục vụ riêng cho giai đoạn Explore.</p>
+    </div>
+
+    <!-- KHÁM PHÁ THUẦN KHIẾT -->
+    <h2>1. Tư Duy Giai Đoạn Explore Thuần Khiết</h2>
+    <p>Trong giai đoạn Explore, mục tiêu duy nhất là: <strong>Mở rộng tối đa không gian những gì có thể viết mà không cam kết với bất kỳ cấu trúc nào</strong>.</p>
+
+    <div class="callout warn">
+      <div class="ct">🚫 Những điều TUYỆT ĐỐI KHÔNG LÀM trong giai đoạn Explore:</div>
+      <ul>
+        <li>Không chia chương hồi (Phần 1, Phần 2).</li>
+        <li>Không lập mục lục hay dàn ý (Outline).</li>
+        <li>Không lo lắng về thứ tự logic trước - sau.</li>
+        <li>Không sửa lỗi ngữ pháp hay trau chuốt câu từ của người đọc.</li>
+      </ul>
+    </div>
+
+    <!-- MẢNH Ý TƯỞNG LÀ GÌ -->
+    <h2>2. Định Nghĩa Fragment</h2>
+    <p>Một <strong>Fragment</strong> là bất kỳ đoạn văn bản nào có tiềm năng sống sót vào bài viết cuối cùng. Tiêu chuẩn duy nhất: <em>Tác giả đọc lại hiểu mình đang nói gì</em>, chứ không cần người ngoài đọc hiểu ngay.</p>
+
+    <p>Các dạng Fragment phong phú mà bạn và AI sẽ cùng đào bới:</p>
+    <div class="code-block">
+      <div class="code-label"><span>Các dạng mảnh ghép ý tưởng (Fragments) điển hình</span></div>
+      <pre><code>1. Một câu đúc kết sắc lẹm (Sharp sentence):
+   "Mọi dòng code viết trước khi có test đều là nợ kỹ thuật phải trả giá bằng uy tín."
+
+2. Một nhận định kèm lý giải 1 dòng (Claim with justification):
+   "Next.js Server Actions tốt hơn API Routes vì nó tự động typecheck dữ liệu hai đầu."
+
+3. Một hoạt cảnh thực tế (Vignette):
+   "Hôm qua lúc 2h sáng, 2 khách cùng mua cái bánh kem cuối cùng và số dư bị nhảy đè lên nhau."
+
+4. Một nửa-ý niệm mơ hồ (Half-thought):
+   "Hình như cơ chế Seams giống hệt như ổ cắm điện Lioa, để lúc sau nghĩ kỹ lại xem."
+
+5. Một lời thú nhận hoặc than phiền (Confession / Punchline):
+   "Tôi ghét phải viết mock database cho Supabase, nó vừa chậm vừa dễ gãy."
+
+6. Một LEADING WORD (Từ neo tư duy — Đắt giá nhất!):
+   Một phép ẩn dụ cô đọng có thể gánh cả bài viết, như 'Tracer Bullets', 'Seam', 'Fog of War'.</code></pre>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">💎 Leading Word: Mảnh Ghép Trọng Lượng Nhất</div>
+      <p>Trong số tất cả các fragment, việc tìm ra một <strong>Leading Word</strong> là chiến thắng lớn nhất. Đặt đúng tên cho một ý niệm (ví dụ gọi việc cô lập core là <em>Seam</em>) sẽ định hình toàn bộ cấu trúc, tiêu đề và những nhịp chuyển tiếp sau này trong giai đoạn Exploit.</p>
+    </div>
+
+    <!-- ĐỊNH DẠNG FILE FRAGMENTS -->
+    <h2>3. Định Dạng File Thu Nhận: Mô Hình Nhật Ký Tiểu Thuyết Gia</h2>
+    <p>Toàn bộ các mảnh ý tưởng được lưu trong một file markdown duy nhất với định dạng cực kỳ tối giản:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Định dạng file fragments chuẩn mực</span></div>
+      <pre><code># Tên tiêu đề nháp của bài viết
+
+Mảnh ý tưởng thứ nhất được ghi nhận ở đây.
+Có thể dài vài câu, có thể kèm đoạn code ngắn.
+
+---
+
+Mảnh ý tưởng thứ hai xuất hiện từ cuộc trò chuyện.
+
+---
+
+> Một câu trích dẫn tâm đắc mà bạn muốn giữ lại.
+Phản ứng và suy nghĩ của bạn về câu trích dẫn đó.
+
+---
+
+- Cụm các quan sát nhỏ
+- Tự nhiên đi cùng nhau theo cảm tính</code></pre>
+    </div>
+
+    <p><strong>Quy tắc trình bày:</strong> Mỗi fragment cách nhau bằng một đường kẻ ngang (<code>---</code>). Tuyệt đối không dùng tiêu đề H2, H3 bên trong thân bài. Không gắn thẻ tags. Thứ tự duy nhất là thứ tự thời gian chúng xuất hiện.</p>
+
+    <!-- NHỊP ĐIỆU LÀM VIỆC VỚI AI -->
+    <h2>4. Nhịp Điệu Làm Việc Cùng AI (Writing Rhythm)</h2>
+    <p>Khi kích hoạt <code>/writing-fragments</code>, AI đóng vai trò như một phóng viên điều tra phỏng vấn bạn liên tục:</p>
+    <ul>
+      <li><strong>Phỏng vấn chi tiết:</strong> AI liên tục hỏi: <em>"Tại sao bạn lại nhận thấy điều đó?", "Có ví dụ cụ thể nào không?", "Cảm giác lúc gặp bug đó thế nào?"</em>.</li>
+      <li><strong>Tự động ghi chép:</strong> Mỗi khi một ý tưởng hay xuất hiện từ lời bạn nói hoặc từ suy luận của AI, AI sẽ tự động ghi thêm vào cuối file mà không ngắt lời bạn bằng các hộp thoại hỏi quyền lưu file.</li>
+      <li><strong>Bảo toàn quyền tác giả:</strong> Trước mỗi lần ghi thêm, AI luôn đọc lại file từ đĩa để giữ nguyên bất kỳ sửa đổi nào mà bạn vừa tự tay chỉnh sửa trên file.</li>
+    </ul>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>5. Hộp Prompt Thực Chiến: Đào Bới Ý Tưởng Cho Bài Viết Về ERP</h2>
+    <p>Bạn bắt đầu một phiên khai phá ý tưởng bằng lệnh sau:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /writing-fragments</div>
+      <pre><code>/writing-fragments "Tôi muốn viết một bài phân tích chuyên sâu về lý do tại sao các lập trình viên Next.js 
+thường thất bại khi xây dựng hệ thống Kế toán Sổ cái nếu không áp dụng kiến trúc Seams.
+Hãy phỏng vấn tôi liên tục, săn tìm các fragments và lưu vào file docs/notes/ledger-seams-fragments.md."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Mục tiêu cốt lõi của giai đoạn Explore trong kỹ năng /writing-fragments là gì?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Dàn ý là nhiệm vụ của giai đoạn Exploit, không làm trong Explore.">A. Xây dựng một dàn ý chi tiết gồm 3 chương và 10 tiểu mục cho bài viết.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Giai đoạn Explore là mở rộng biên độ tối đa, đào bới các ý tưởng thô và đúc kết Leading Words mà không bị kìm hãm bởi việc đóng khung cấu trúc sớm.">B. Mở rộng tối đa không gian ý tưởng thô (Fragments) và săn tìm Leading Words mà không cam kết với bất kỳ cấu trúc hay dàn ý nào.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Kiểm tra chính tả là bước sau cùng.">C. Sửa chữa toàn bộ lỗi ngữ pháp và dấu câu của bản nháp.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Trong các loại fragments, tại sao Leading Word lại được Matt Pocock đánh giá là tài sản giá trị nhất?</div>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Một Leading Word đúng tầm sẽ trở thành chiếc neo tư duy, định hình toàn bộ cấu trúc bài viết, các nhịp chuyển tiếp và tiêu đề trong toàn bộ giai đoạn sau.">A. Vì nó là một phép ẩn dụ cô đọng có khả năng làm cột trụ gánh vác toàn bộ cấu trúc và mạch dẫn dắt của bài viết sau này.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Leading Word không liên quan đến thuật toán SEO của Google.">B. Vì nó giúp bài viết đạt điểm SEO cao nhất trên công cụ tìm kiếm.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 23</div>
+      <ul class="checklist">
+        <li>Hiểu rõ sự khác biệt giữa hai giai đoạn Explore (Mở rộng tự do) và Exploit (Khai thác có cấu trúc).</li>
+        <li>Biết cách nhận diện và rút trích 6 dạng fragments phong phú từ những quan sát đời thường.</li>
+        <li>Nắm vững định dạng file tối giản ngăn cách bằng <code>---</code> theo mô hình nhật ký tiểu thuyết gia.</li>
+        <li>Tự tin làm việc cùng AI để đào bới một mỏ tư liệu thô phong phú trước khi bắt tay vào viết bài.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 24 -->
+    <h2>6. Câu hỏi tư duy (Bắc cầu sang Bài 24)</h2>
+    <p>Giai đoạn Explore đã hoàn tất. Bạn đang có trong tay một file markdown chứa hàng chục mảnh ý tưởng thô (the raw pile) cực kỳ đắt giá. Bây giờ chúng ta bước sang giai đoạn <strong>Exploit</strong>: Khóa mỏ tư liệu lại và bắt đầu hành trình viết.</p>
+    <p><em>Làm thế nào để dẫn dắt độc giả đi qua từng nhịp khám phá (Beat-by-beat) theo kiểu "Choose-your-own-adventure", đảm bảo mọi thuật ngữ đều được giải thích (Grounding) trước khi sử dụng?</em></p>
+    <p>Đó là nội dung của Bài 24 với kỹ năng: <code>/writing-beats</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 24)</div>
+      <div class="nt">Bài 24 · /writing-beats — Nghệ Thuật Dẫn Nhịp Bài Viết Kỹ Thuật: Chu Trình Beat-by-Beat & Grounding</div>
+      <p class="nd">Tư duy giai đoạn "Exploit 1", kỹ thuật Grounding khái niệm (Prerequisites vs Introduced), hành trình tương tác Choose-your-own-adventure mở khóa từng beat một.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0022-writing-for-agents.html">← Bài 22</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0024-writing-beats-journey-grounding.html">Bài 24 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử tạo một file nháp <code>fragments.md</code> và ghi lại 3 điều bạn tâm đắc nhất sau khi hoàn thành dự án ERP Mini theo định dạng ngăn cách <code>---</code>.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

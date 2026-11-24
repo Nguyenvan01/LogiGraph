@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 24: /writing-beats — Dẫn Nhịp Bài Viết Kỹ Thuật: Chu Trình Beat-by-Beat & Grounding
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 24 · /writing-beats — Nghệ Thuật Dẫn Nhịp Bài Viết Kỹ Thuật: Chu Trình Beat-by-Beat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 6 · Bài 24 (Meta-Skills)</span>
+    <h1>/writing-beats — Nghệ Thuật Dẫn Nhịp Bài Viết Kỹ Thuật: Chu Trình Beat-by-Beat & Grounding</h1>
+    <p class="subtitle">Tư duy giai đoạn Exploit 1: Biến mỏ tư liệu thô thành một hành trình khám phá cuốn hút theo mô hình Choose-your-own-adventure, kỹ thuật Grounding tiền đề và nguyên tắc một nhịp - một chuyển động.</p>
+    <p class="meta-line">⏱ ~20 phút · 🎯 Mục tiêu: Làm chủ skill <code>/writing-beats</code>, biết cách dẫn dắt độc giả qua từng nấc thang nhận thức mà không làm họ bị "lạc trôi" bởi các khái niệm chưa được giải thích.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Chuyển Từ Mỏ Tư Liệu Thô Sang Hành Trình Khám Phá</div>
+      <p>Ở Bài 23, chúng ta đã thu thập được một file <code>fragments.md</code> chứa đầy ắp những quan sát, code snippets và các ý niệm đắt giá. Tuy nhiên, nếu bạn chỉ đơn giản gom các mảnh ghép này lại và dán vào bài viết, độc giả sẽ cảm thấy rời rạc, khó hiểu và dễ bỏ cuộc giữa chừng.</p>
+      <p>Một bài viết kỹ thuật xuất sắc giống như một bản nhạc: Nó có nhịp điệu và có sự chuẩn bị nền tảng trước khi bước lên cao trào. Kỹ năng <code>/writing-beats</code> sẽ chỉ đạo AI cùng bạn xây dựng hành trình này từng bước một.</p>
+    </div>
+
+    <!-- KHÁI NIỆM GROUNDING -->
+    <h2>1. Kỹ Thuật "Grounding": Chiếc Neo Cho Người Đọc</h2>
+    <p>Quy tắc bất biến số 1 của việc viết lách kỹ thuật: <strong>Mọi khái niệm đều phải được Grounded trước khi một câu văn có thể dựa vào nó</strong>.</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Hai cách duy nhất để một khái niệm được Grounded</span></div>
+      <pre><code>CÁCH 1: PREREQUISITE (Tiền đề người đọc mang theo khi bước vào bài)
+┌────────────────────────────────────────────────────────┐
+│ Người đọc đã biết sẵn từ trước (Ví dụ: TypeScript, SQL) │ ◄── Thống nhất ngay từ đầu bài!
+└────────────────────────────────────────────────────────┘
+
+CÁCH 2: INTRODUCED (Khái niệm được nạp trong một Beat của bài viết)
+┌────────────────────────────────────────────────────────┐
+│ [Beat 01]: Giới thiệu khái niệm "Seam Interface"        │
+└────────────────────────────────────────────────────────┘
+                           │
+                           ▼ MỞ KHÓA CHO CÁC BEAT TIẾP THEO
+┌────────────────────────────────────────────────────────┐
+│ [Beat 02]: Bắt đầu dùng từ "Seam" để nói về In-memory  │ ◄── Độc giả hiểu ngay, không bị hẫng!
+└────────────────────────────────────────────────────────┘</code></pre>
+    </div>
+
+    <div class="callout warn">
+      <div class="ct">⚠️ Thảm họa khi vi phạm Grounding</div>
+      <p>Nếu ở ngay đầu bài viết mà bạn đã viết: <em>"Hệ thống áp dụng kiến trúc Seams với In-memory Adapter..."</em> trong khi người đọc chưa từng nghe từ <em>Seam</em> bao giờ, người đọc sẽ bị ngợp và mất phương hướng. Đó là lý do mọi khái niệm mới đều phải có một Beat làm nhiệm vụ "khai sinh" (Introduce) trước khi được sử dụng.</p>
+    </div>
+
+    <!-- BEAT LÀ GÌ -->
+    <h2>2. Định Nghĩa "Beat": Một Nhịp — Một Chuyển Động</h2>
+    <p>Một <strong>Beat</strong> là một bước di chuyển đơn lẻ trong hành trình bài viết. Mỗi beat chỉ làm đúng <strong>MỘT việc duy nhất</strong>:</p>
+    <ul>
+      <li>Dựng bối cảnh.</li>
+      <li>Chốt một luận điểm.</li>
+      <li>Đặt ra câu hỏi suy ngẫm.</li>
+      <li>Đưa ra ví dụ so sánh.</li>
+      <li>Chuyển góc nhìn tiếp cận.</li>
+    </ul>
+
+    <p><strong>Kích thước của một Beat:</strong> Tùy thuộc vào nội dung nó chuyển tải. Nó có thể là một câu đơn lẻ sắc bén, một đoạn văn ngắn, hoặc vài đoạn văn nếu là một câu chuyện tình huống. Nhưng nếu một beat dài tới 5 đoạn văn và 3 tiêu đề phụ, nó không còn là một beat nữa — nó là 2 beat bị dính vào nhau và bắt buộc phải tách ra!</p>
+
+    <!-- QUY TRÌNH CHOOSE YOUR OWN ADVENTURE -->
+    <h2>3. Quy Trình "Choose-Your-Own-Adventure" Cùng AI</h2>
+    <p>Khi vận hành <code>/writing-beats</code>, bạn và AI tương tác theo một chu trình thú vị như trò chơi phiêu lưu chọn nhánh rẽ:</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Vòng lặp 5 bước của /writing-beats</span></div>
+      <pre><code>[Bước 1: Chốt Prerequisites] ──► [Bước 2: AI đề xuất 2-3 Starting Beats] ──► [Bước 3: Bạn chọn 1 Beat]
+                                                                                    │
+                                                                                    ▼
+[Bước 5: Lặp lại đến khi xong] ◄── [Bước 4: AI ghi beat đó & đề xuất 2-3 Next Beats] ◄┘</code></pre>
+    </div>
+
+    <ol style="margin: 8px 0; padding-left: 20px;">
+      <li><strong>Thống nhất Prerequisites:</strong> Xác định độc giả mục tiêu đã biết gì (ví dụ: đã biết Next.js cơ bản, chưa biết Kế toán kép).</li>
+      <li><strong>Đề xuất các điểm xuất phát:</strong> AI đưa ra 2-3 phương án mở màn khác nhau (ví dụ: mở bằng câu chuyện tiệm bánh, hoặc mở bằng một vụ bug nghiêm trọng). Bạn chọn 1 phương án.</li>
+      <li><strong>Chỉ ghi MỘT beat:</strong> AI chỉ ghi đúng beat bạn đã chọn vào file bài viết. Tuyệt đối không viết tràn lan ra trước.</li>
+      <li><strong>Đề xuất các bước tiếp theo:</strong> Dựa trên các khái niệm đã được Grounded, AI đưa ra 2-3 hướng phát triển tiếp theo kèm theo phân tích: <em>"Nếu chọn nhánh A, ta sẽ mở khóa cho chủ đề X; nếu chọn nhánh B, ta sẽ đi sâu vào kỹ thuật Y"</em>.</li>
+      <li><strong>Kết thúc tự nhiên:</strong> Bài viết dừng lại khi hành trình hoàn tất, chứ không nhất thiết phải dùng hết toàn bộ mỏ tư liệu thô.</li>
+    </ol>
+
+    <!-- HỘP PROMPT THỰC CHIẾN -->
+    <h2>4. Hộp Prompt Thực Chiến: Dẫn Nhịp Cho Bài Viết</h2>
+    <p>Bạn khởi động phiên dẫn nhịp bài viết bằng prompt sau:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /writing-beats</div>
+      <pre><code>/writing-beats "Đọc file tư liệu thô docs/notes/ledger-seams-fragments.md.
+Bài viết này hướng đến các lập trình viên TypeScript và Next.js (đây là Prerequisite đã grounded).
+Khái niệm cần Grounded trong bài: Double-Entry Ledger, Seams, In-memory Adapter.
+Hãy đề xuất 3 starting beats khác nhau để tôi lựa chọn và lưu bài viết vào docs/articles/why-erp-needs-seams.md."</code></pre>
+    </div>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Trong phương pháp luận của Matt Pocock, tại sao một Beat không được phép sử dụng các khái niệm chưa được Grounded?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Dung lượng file không bị ảnh hưởng bởi việc giải thích khái niệm.">A. Vì làm tăng dung lượng file markdown.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Một thuật ngữ hoặc ý niệm xuất hiện bất ngờ mà người đọc chưa có nền tảng sẽ làm đứt mạch đọc, khiến người đọc cảm thấy lạc lõng và mất kết nối với bài viết.">B. Vì việc dựa vào khái niệm chưa được giải thích sẽ làm độc giả bị mất phương hướng, đứt gãy mạch nhận thức và mất kết nối với nội dung.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. AI hoàn toàn có thể hiểu được thuật ngữ nếu được nạp ngữ cảnh.">C. Vì AI sẽ không thể viết tiếp được beat tiếp theo.</button>
+      <div class="feedback"></div>
+
+      <div class="q">Câu 2. Khi nào thì hành trình của một bài viết theo phương pháp /writing-beats kết thúc?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Mỏ tư liệu thô là một mỏ đá, không nhất thiết phải vác toàn bộ đá vào một ngôi nhà.">A. Khi toàn bộ các fragments trong file thô ban đầu đều đã được đưa vào bài viết.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Bài viết dừng lại khi hành trình luận điểm đã đạt đến đích đến tự nhiên, trọn vẹn và thuyết phục. Việc thừa lại các fragments không dùng tới là điều hoàn toàn bình thường và lành mạnh.">B. Khi hành trình khám phá đã đạt đến kết luận tự nhiên và trọn vẹn luận điểm, bất kể mỏ tư liệu thô vẫn còn những mảnh ghép chưa dùng tới.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 24</div>
+      <ul class="checklist">
+        <li>Hiểu sâu nguyên lý Concept Grounding: Phân định Prerequisite và Introduced.</li>
+        <li>Nắm vững định nghĩa một Beat: Mỗi nhịp làm đúng một việc, append từng beat một.</li>
+        <li>Thành thạo chu trình tương tác Choose-your-own-adventure cùng AI để mở khóa các nhánh rẽ luận điểm.</li>
+        <li>Biết cách dừng bài viết khi hành trình hoàn tất thay vì cố nhồi nhét cạn kiệt tư liệu thô.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 25 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 25)</h2>
+    <p>Lộ trình các beats đã được xác lập vững chắc. Bây giờ là lúc chúng ta đi vào từng đoạn văn cụ thể: Từng câu từng chữ cần được mài giũa ra sao? Khi nào nên viết văn xuôi, khi nào nên kẻ bảng, khi nào nên dùng danh sách gạch đầu dòng hay khối cảnh báo?</p>
+    <p><em>Làm thế nào để phản biện và gọt giũa từng đoạn văn với AI theo phong cách biên tập viên chuyên nghiệp nhất?</em></p>
+    <p>Đó là nội dung của Bài 25 với kỹ năng: <code>/writing-shape</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo (Module 6 · Bài 25)</div>
+      <div class="nt">Bài 25 · /writing-shape — Mài Giũa & Hoàn Thiện Bài Viết Chuyên Gia</div>
+      <p class="nd">Tư duy giai đoạn "Exploit 2", tranh luận trực diện về định dạng từng đoạn (Prose vs List, Inline vs Callout, Table vs Repetition), và rèn luyện kỹ năng phản biện văn phong.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0023-writing-fragments-raw-explore.html">← Bài 23</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0025-writing-shape-expert-prose.html">Bài 25 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Bạn hãy thử chọn ra 1 khái niệm kỹ thuật trong dự án ERP (ví dụ: <em>Seams</em>) và viết thử 1 câu Beat ngắn để "Grounding" nó cho một người chưa từng nghe tới bao giờ.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>

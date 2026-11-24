@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Bài 09: /implement-spec — Kỹ Nghệ Thực Thi Đặc Tả: Task Graph & Subagents
+  Tiêu chuẩn: Ưu tiên thuật ngữ tiếng Anh chuyên ngành, tiếng Việt gãy gọn, không cường điệu hóa.
+  Giao diện: Nền sáng (Light Theme).
+  ============================================================================
+-->
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bài 09 · /implement-spec — Kỹ Nghệ Thực Thi Đặc Tả: Task Graph & Subagents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="lesson.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <span class="lesson-tag">Module 3 · Bài 09</span>
+    <h1>/implement-spec — Kỹ Nghệ Thực Thi Đặc Tả: Task Graph & Subagents</h1>
+    <p class="subtitle">Chuyển hóa tài liệu kỹ thuật thành Đồ thị Nhiệm vụ (DAG), xác định tập Frontier và điều phối các Implementer Subagents độc lập trên Git Worktrees.</p>
+    <p class="meta-line">⏱ ~15 phút · 🎯 Mục tiêu: Làm chủ skill <code>/implement-spec</code>, nắm vững kỹ thuật quản lý đồ thị phụ thuộc giữa các tickets và tự động hóa thi công mà không làm tràn Context Window.</p>
+
+    <!-- BẮC CẦU -->
+    <div class="callout bridge">
+      <div class="ct">🌉 Bối cảnh kỹ thuật: Bẫy "Làm tất cả trong một lần chat" (Context Bloat)</div>
+      <p>Sau khi hoàn tất bản đặc tả <code>specs/inventory-and-order.md</code> và phân rã thành 5 tickets ở Bài 06, một sai lầm phổ biến của người mới dùng AI coding là nạp toàn bộ file spec vào prompt và ra lệnh: <em>"Hãy code hết toàn bộ spec này cho tôi"</em>.</p>
+      <p>Cách làm này luôn thất bại vì hai lý do:</p>
+      <ol style="margin: 8px 0; padding-left: 20px;">
+        <li><strong>Context Degradation:</strong> Sau vài nghìn dòng code sinh ra, bộ nhớ của AI bị bão hòa (Attention Dilution). AI bắt đầu quên các ràng buộc ở đầu spec, sinh code lặp, hoặc âm thầm xóa bỏ các kiểm tra quan trọng.</li>
+        <li><strong>Xung đột thứ tự phụ thuộc:</strong> AI viết tầng UI trước khi tầng Service hoàn thành, dẫn đến việc phải liên tục sửa đi sửa lại các hàm giả định.</li>
+      </ol>
+      <p>Skill <code>/implement-spec</code> giải quyết triệt để vấn đề này bằng mô hình <strong>Task Graph & Frontier Subagents</strong>.</p>
+    </div>
+
+    <h2>1. Mô Hình Task Graph: Biến Danh Sách Tickets Thành Đồ Thị Phụ Thuộc</h2>
+    <p>Thay vì xem các task như một danh sách phẳng từ trên xuống dưới, <code>/implement-spec</code> tổ chức chúng thành một đồ thị có hướng không chu trình (Directed Acyclic Graph - DAG):</p>
+
+    <div class="code-block">
+      <div class="code-label"><span>Mô hình Task Graph và Tập Frontier cho Phân hệ Kho</span></div>
+      <pre><code>[Ticket 01: In-Memory Repo Seam] ◄── [TẬP FRONTIER: Sẵn sàng làm ngay (In-degree = 0)]
+            │
+            ▼
+[Ticket 02: Stock Reservation Service] (Chờ Ticket 01)
+            │
+            ├──────────────────────────────────────────┐
+            ▼                                          ▼
+[Ticket 03: Order State Machine]             [Ticket 04: Supabase Postgres Adapter]
+(Chờ Ticket 02)                              (Chờ Ticket 02)
+            │                                          │
+            └────────────────────┬─────────────────────┘
+                                 ▼
+                     [Ticket 05: Server Actions E2E] (Chờ Ticket 03 & 04)</code></pre>
+    </div>
+
+    <p>Thuật toán vận hành cốt lõi:</p>
+    <ul>
+      <li><strong>Tập Frontier:</strong> Là tập hợp các task hiện đang có số lượng phụ thuộc bằng 0 (in-degree = 0). Chỉ những task thuộc Frontier mới được phép đưa vào thi công.</li>
+      <li><strong>Mở khóa tuần tự (Unblocking):</strong> Khi Ticket 01 hoàn thành và kiểm thử xanh 100%, Ticket 02 lập tức trở thành Frontier mới.</li>
+      <li><strong>Thi công song song (Parallel execution):</strong> Khi Ticket 02 hoàn thành, cả Ticket 03 và Ticket 04 cùng lúc bước vào Frontier, cho phép phân bổ 2 subagents thực thi song song hoàn toàn độc lập!</li>
+    </ul>
+
+    <h2>2. Cách Ly Không Gian Làm Việc Bằng Git Worktrees</h2>
+    <p>Để ngăn chặn tình trạng hai subagent cùng ghi đè lên thư mục làm việc (dirty working tree), <code>/implement-spec</code> sử dụng <strong>Git Worktrees</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-label">terminal (bash)</div>
+      <pre><code><span class="cmt"># Tạo worktree riêng biệt cho Ticket 01</span>
+git worktree add .worktrees/ticket-01-in-memory-repo -b feat/ticket-01-in-memory
+
+<span class="cmt"># Sau khi hoàn thành và verify test xanh 100%, merge lại nhánh chính và dọn dẹp</span>
+git merge feat/ticket-01-in-memory
+git worktree remove .worktrees/ticket-01-in-memory-repo</code></pre>
+    </div>
+
+    <h2>3. Hộp Prompt Thực Chiến: Điều Phối Thi Công Phân Hệ Kho</h2>
+    <p>Bạn ra lệnh cho Claude Code khởi động quy trình <code>/implement-spec</code>:</p>
+
+    <div class="code-block">
+      <div class="code-label">Prompt gọi /implement-spec</div>
+      <pre><code>/implement-spec "Đọc bản đặc tả specs/inventory-and-order.md và danh sách tickets trong .scratch/inventory-and-order/issues/.
+Hãy xây dựng Task Graph, xác định tập Frontier hiện tại và phân bổ Implementer Subagent cho ticket đầu tiên.
+Bắt buộc chạy Vitest kiểm chứng trước khi đánh dấu hoàn thành ticket."</code></pre>
+    </div>
+
+    <h2>4. Ranh Giới Giữa `/implement-spec` và `/implement`</h2>
+    <p>Hãy phân biệt rõ vai trò của hai kỹ năng này trong bộ công cụ của Matt Pocock:</p>
+
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Tiêu chí</th>
+          <th><code>/implement-spec</code> (Nhạc trưởng điều phối)</th>
+          <th><code>/implement</code> (Thợ thi công TDD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Phạm vi (Scope)</strong></td>
+          <td>Toàn bộ đặc tả hệ thống và đồ thị phụ thuộc giữa nhiều tickets.</td>
+          <td>Duy nhất MỘT ticket hoặc MỘT vertical slice cụ thể.</td>
+        </tr>
+        <tr>
+          <td><strong>Cơ chế hoạt động</strong></td>
+          <td>Xây dựng Task Graph, quản lý trạng thái Frontier, điều phối subagents.</td>
+          <td>Vận hành chu trình Red - Green - Refactor, type checking, viết mã nguồn.</td>
+        </tr>
+        <tr>
+          <td><strong>Mục tiêu cốt lõi</strong></td>
+          <td>Đảm bảo không bỏ sót task, tránh context rot, tối ưu hóa thứ tự thi công.</td>
+          <td>Đảm bảo 100% test case pass, mã nguồn sạch đẹp, tuân thủ Seam interface.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- QUIZ TƯƠNG TÁC -->
+    <div class="quiz">
+      <h3>🧠 Trắc nghiệm củng cố</h3>
+      <div class="q">Câu 1. Tại sao trong mô hình /implement-spec, chỉ những task thuộc tập Frontier mới được phép thi công?</div>
+      <button class="opt" data-correct="false" data-explain="Sai. Frontier không phải quy định ngẫu nhiên mà xuất phát từ ràng buộc phụ thuộc logic.">A. Vì đó là các task do Tech Lead tự tay chỉ định.</button>
+      <button class="opt" data-correct="true" data-explain="Chính xác! Một task chỉ thuộc Frontier khi toàn bộ các điều kiện tiên quyết (dependencies) của nó đã được hiện thực hóa và kiểm chứng xong xuôi. Thi công task chưa thuộc Frontier sẽ dẫn đến việc code trên các giả định mong manh và phải đập đi xây lại.">B. Vì các task thuộc Frontier đã có đầy đủ tiền đề kỹ thuật hoàn tất (in-degree = 0), không bị phụ thuộc vào mã nguồn chưa viết.</button>
+      <button class="opt" data-correct="false" data-explain="Sai. Task Frontier có thể là backend core, database adapter hoặc bất kỳ thành phần nào đã sẵn sàng.">C. Vì Frontier là tập hợp các task giao diện người dùng đơn giản nhất.</button>
+      <div class="feedback"></div>
+    </div>
+
+    <div class="callout tip">
+      <div class="ct">✅ Kết quả đạt được từ Bài 09</div>
+      <ul class="checklist">
+        <li>Nắm vững nguyên lý Task Graph (DAG) và cơ chế tính toán tập Frontier sẵn sàng thi công.</li>
+        <li>Hiểu cách áp dụng Git Worktrees để cách ly không gian làm việc giữa các Subagents.</li>
+        <li>Phân biệt rõ ràng vai trò điều phối của <code>/implement-spec</code> so với vai trò thi công của <code>/implement</code>.</li>
+      </ul>
+    </div>
+
+    <!-- CÂU HỎI TƯ DUY BẮC CẦU SANG BÀI 10 -->
+    <h2>5. Câu hỏi tư duy (Bắc cầu sang Bài 10)</h2>
+    <p>Ticket 01 và 02 đã được xác định là Frontier sẵn sàng thi công. Bây giờ Subagent sẽ bắt đầu viết những dòng mã nguồn TypeScript đầu tiên cho phân hệ Kho.</p>
+    <p><em>Làm thế nào để áp dụng kỷ luật TDD (Test-Driven Development) nghiêm ngặt: Viết test trước (Red), viết code vừa đủ để xanh (Green), refactor loại bỏ ép kiểu bừa bãi bằng thư viện Shoehorn?</em></p>
+    <p>Đó là trọng tâm của Bài 10 với bộ ba kỹ năng: <code>/implement</code>, <code>/tdd</code>, và <code>/migrate-to-shoehorn</code>.</p>
+
+    <!-- XEM TRƯỚC BÀI SAU -->
+    <div class="next-box">
+      <div class="nl">→ Bài tiếp theo</div>
+      <div class="nt">Bài 10 · /implement & /tdd — Thi Công Mã Nguồn Bằng Kỷ Luật TDD (Red - Green - Refactor)</div>
+      <p class="nd">Thi công mã nguồn cho từng Vertical Slice của phân hệ Kho qua chu trình Red - Green - Refactor, quản lý test fixtures an toàn bằng Shoehorn thay vì ép kiểu as.</p>
+    </div>
+
+    <!-- THANH ĐIỀU HƯỚNG -->
+    <div class="navbar">
+      <a href="0008-improve-codebase-architecture.html">← Bài 08</a>
+      <a href="index.html">🏠 Mục lục</a>
+      <a href="0010-implement-and-tdd-inventory.html">Bài 10 →</a>
+    </div>
+
+    <p class="try-it">💬 <strong>Thực hành:</strong> Hãy mở thư mục <code>.scratch/inventory-and-order/issues/</code> để xem các file ticket đã được gắn cờ phụ thuộc lẫn nhau như thế nào.</p>
+
+  </div>
+  <script src="lesson-enhance.js"></script>
+</body>
+
+</html>
