@@ -7,4 +7,4 @@
     - Tránh dịch văn vẻ hoặc ẩn dụ kỳ lạ: KHÔNG dùng "ô nhiễm context" (hãy dùng: "làm đầy/tràn context window"), KHÔNG dùng "sương mù tan dần" (hãy giải thích: "các phần việc chưa xác định chi tiết, khi chốt xong quyết định trước thì sẽ làm rõ thành ticket"), KHÔNG dùng "chất vấn dồn dập" (hãy dùng: "đặt câu hỏi từng bước để làm rõ yêu cầu").
     - Giữ văn phong kỹ thuật điềm tĩnh, chuẩn xác, dễ hiểu của Senior Software Engineer.
 - **Giao diện bài học**: Người học yêu cầu **BACKGROUND SÁNG (Light Mode)**, sạch sẽ, tương phản cao, dễ đọc.
-- **Dự án thực tế song song**: `VibeCoding ERP Mini` sử dụng Next.js 15 (App Router) + Supabase (PostgreSQL) + Vitest.
+- **Dự án hiện tại**: `LogiGraph` — Đề tài 4 đồ án CTDL & GT nâng cao, Python + pytest (xem `MISSION.md`).

@@ -1,75 +1,73 @@
-# VibeCoding ERP Mini
+# LogiGraph
 
-A lightweight, enterprise-grade ERP engine managing inventory, order lifecycle state machines, and double-entry accounting.
+Hệ thống định tuyến giao hàng và quy hoạch mạng lưới kho trên bản đồ giao thông đô thị.
 
 ## Language
 
-### Inventory
+### Bản đồ
 
-**Product**:
-A physical unit of inventory available for sale with tracked stock levels.
-_Avoid_: Item, SKU, merchandise, good
+**Road Network**:
+Đồ thị có hướng, có trọng số, biểu diễn bản đồ giao thông. Đỉnh là **Intersection**, cạnh là **Road Segment**.
+_Avoid_: Map graph, street graph
 
-**Physical Stock**:
-The actual quantity of a product physically present in the warehouse.
-_Avoid_: On-hand inventory, real stock, total quantity
+**Intersection**:
+Một đỉnh của Road Network (giao lộ, điểm đầu/cuối đường, hoặc vị trí kho), định danh bằng số nguyên liên tục `0..n-1`.
+_Avoid_: Node, point, junction
 
-**Available Stock**:
-The quantity of a product currently unreserved and eligible for purchase, equal to physical stock minus active reservations.
-_Avoid_: Free stock, sellable inventory, usable count
+**Road Segment**:
+Một cạnh có hướng giữa hai Intersection, định danh bằng `edge_id`. Đường hai chiều là hai Road Segment ngược hướng nhau.
+_Avoid_: Edge (trong tài liệu nghiệp vụ), link, street
 
-**Stock Reservation**:
-A temporary 15-minute hold on a product's available stock while an order is awaiting payment.
-_Avoid_: Hold, lock, booking, soft reservation
+**Travel Time**:
+Trọng số dùng để định tuyến của một Road Segment, tính bằng giây. Luôn ≥ 0.
+_Avoid_: Cost, weight (trong tài liệu nghiệp vụ)
 
-**Active Reservation**:
-A stock reservation that has not yet expired (within its 15-minute TTL) and has not been committed or released.
-_Avoid_: Pending hold, valid reservation
+**District**:
+Đơn vị hành chính quận/huyện mà mỗi Intersection thuộc về.
+_Avoid_: Zone, area, region
 
-**Committed Reservation**:
-A stock reservation permanently converted into a physical stock deduction upon successful payment.
-_Avoid_: Finalized hold, confirmed reservation
+### Sự cố và định tuyến
 
-**Released Reservation**:
-A stock reservation that was cancelled or expired, returning the held quantity back to available stock.
-_Avoid_: Cancelled hold, unlocked stock
+**Traffic Incident**:
+Sự kiện làm thay đổi Travel Time của một Road Segment. Có hai loại: **Congestion** (tắc đường, Travel Time tăng) và **Closure** (cấm đường, Road Segment không đi được).
+_Avoid_: Event, jam, block
 
-### Order
+**Route**:
+Dãy Road Segment liên tiếp đi từ một Intersection tới một Intersection khác với tổng Travel Time nhỏ nhất.
+_Avoid_: Path (trong tài liệu nghiệp vụ), way, itinerary
 
-**Order**:
-A customer's binding request to purchase one or more products progressing through discrete lifecycle states.
-_Avoid_: Purchase, transaction, cart, checkout
+**Reroute**:
+Tính lại Route từ vị trí hiện tại của xe khi có Traffic Incident.
+_Avoid_: Recalculate, re-plan
 
-**Order Status**:
-The current lifecycle phase of an order, strictly restricted to DRAFT, PAID, SHIPPED, DONE, or CANCELLED.
-_Avoid_: State, phase, order stage
+### Mạng lưới kho
 
-**Order Item**:
-A specific product line and quantity requested within an order.
-_Avoid_: Line item, order entry, cart product
+**Hub**:
+Kho trung chuyển, đặt tại một Intersection.
+_Avoid_: Warehouse, depot, station
 
-### Ledger
+**Backbone Network**:
+Tập tuyến nối mọi Hub với tổng chi phí xây dựng nhỏ nhất (cây khung nhỏ nhất trên đồ thị Hub vô hướng).
+_Avoid_: Trunk line, core network
 
-**Double-entry Ledger**:
-The financial record where every monetary movement produces balanced debit and credit entries.
-_Avoid_: Accounting book, transaction log
+**Delivery Cluster**:
+Nhóm Delivery Point gần nhau, được giao chung một chuyến hoặc một khu vực.
+_Avoid_: Zone, group, partition
 
-**Account**:
-A categorized financial bucket within the Chart of Accounts tracking assets, liabilities, equity, revenue, or expenses.
-_Avoid_: Ledger account, balance category, account head
+### Giao hàng
 
-**Chart of Accounts**:
-The complete structured registry of defined accounts used for financial categorization.
-_Avoid_: Account list, category tree
+**Parcel**:
+Kiện hàng cần giao, có khối lượng (số nguyên, đơn vị 0,1 kg), cước phí và Delivery Point.
+_Avoid_: Package, item, order, shipment
 
-**Accounting Transaction**:
-An atomic business event bundling two or more balanced ledger entries.
-_Avoid_: Journal batch, voucher, transaction group
+**Delivery Point**:
+Intersection nơi một Parcel được giao.
+_Avoid_: Stop, destination, drop-off
 
-**Ledger Entry**:
-A single line item within an accounting transaction debiting or crediting a specific account.
-_Avoid_: Journal item, posting line, debit/credit split
+**Truck**:
+Xe tải có tải trọng tối đa, xuất phát và quay về một Hub.
+_Avoid_: Vehicle, van
 
-**Invoice**:
-A formal financial document requesting payment for an order and serving as the accounting source document.
-_Avoid_: Bill, receipt, payment request
+**Trip**:
+Một chuyến của một Truck: tập Parcel được chọn (tối đa hóa cước trong giới hạn tải trọng) và thứ tự đi qua các Delivery Point (vòng ngắn nhất xuất phát và quay về Hub).
+_Avoid_: Tour, run, journey

@@ -1,6 +1,6 @@
 # Kế hoạch chuyển dự án sang Đề tài 4: LogiGraph
 
-Status: needs-triage (chờ nhóm chốt các quyết định ở mục 3)
+Status: ready-for-human. D1–D7 đã chốt ngày 2026-11-24, nhóm 5 người, P0 xong. Còn chờ ngày bảo vệ và vùng bản đồ (R1).
 
 Nguồn đề bài: `../De_Tai_Nhom_Thi_Ket_Thuc_HP_CTDL_GT_Nang_Cao.pdf`, Đề tài 4 — *Hệ thống tối ưu hóa mạng lưới giao hàng logistics và định tuyến vận tải đô thị*.
 
@@ -42,9 +42,9 @@ Rubric quyết định thứ tự ưu tiên: CTDL tự cài đặt (25%) và v�
 
 ---
 
-## 3. Quyết định đề xuất (cần nhóm chốt)
+## 3. Quyết định (đã chốt 2026-11-24)
 
-Sau khi chốt, mỗi quyết định ghi thành một ADR trong `docs/adr/`.
+Đã ghi thành ADR: D1 → ADR-0001, D2 → ADR-0002, D3 + D4 → ADR-0003 (vùng bản đồ chờ R1), D5 → ADR-0004. D6 đã thực hiện xong: commit `a6efe49`, tag `erp-mini-final`.
 
 | ID | Quyết định | Đề xuất | Lý do chính |
 |---|---|---|---|
@@ -110,7 +110,7 @@ Thời lượng tính theo tuần, mặc định 7 tuần. Lịch cụ thể ch�
 
 | Giai đoạn | Skill của khung | Việc làm | Đầu ra |
 |---|---|---|---|
-| P0 – Chuyển khung (T1) | — | Mốc git, dọn ERP, viết lại `MISSION.md`, `CONTEXT.md` (Ubiquitous Language cho logistics), `CODING_STANDARDS.md` (Python, quy tắc cấm dict), các ADR từ D1–D7, dựng khung `pyproject` + pytest + test cấm dict | Repo sạch, `pytest` xanh |
+| P0 – Chuyển khung (T1) ✅ | — | Mốc git, dọn ERP, viết lại `MISSION.md`, `CONTEXT.md` (Ubiquitous Language cho logistics), `CODING_STANDARDS.md` (Python, quy tắc cấm dict), ADR-0001…0004, dựng khung `pyproject` + pytest + test cấm dict | Xong: repo sạch, `pytest` 3/3 xanh |
 | P1 – Khám phá (T1) | `/wayfinder`, `/research`, `/grill-with-docs` | Các research ticket ở mục 7. Grilling chốt D1–D7 | `.scratch/logigraph/map.md` |
 | P2 – Đặc tả (T1–T2) | `/to-spec` | User stories cho điều phối viên, người lập kế hoạch mạng, người phân tích; seams; chiến lược test | `.scratch/logigraph/spec.md` |
 | P3 – Ticket (T2) | `/to-tickets`, `/triage` | Ticket tracer bullet, đánh dấu `Blocked by` | `.scratch/logigraph/issues/NN-*.md` |
@@ -158,8 +158,8 @@ Ticket 05, 07, 10, 11 chỉ phụ thuộc 01, nên M2, M3, M4 bắt đầu đư�
 
 ## 8. Chưa xác định (Not yet specified)
 
-- Ngày bảo vệ, số thành viên, tên thành viên trong từng vai.
-- Có giữ thư mục `lessons/` và `learning-records/` (tài liệu tự học 38 skill dùng ví dụ ERP) không, hay chỉ lưu trong lịch sử git.
+- Ngày bảo vệ. Tên thành viên trong từng vai TV1–TV5 (nhóm 5 người, phân công theo cột "Nhóm 5" ở mục 5).
+- `lessons/`, `learning-records/`, `GLOSSARY.md` (tài liệu tự học, dùng ví dụ ERP) tạm giữ nguyên. Nếu nhóm không cần thì xóa sau, vì bản cũ đã có trong tag `erp-mini-final`.
 - Cách sinh kho trung chuyển và đơn hàng (số lượng, phân bố theo quận), chốt sau R1.
 - Nhóm có dùng GitHub chung không (cần thiết khi 3–5 người cùng làm). Việc push lên repo do nhóm tự quyết.
 

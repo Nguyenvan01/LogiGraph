@@ -1,23 +1,22 @@
-# Mission: Master 30+ Skills Matt Pocock & Xây dựng VibeCoding ERP Mini
+# Mission: LogiGraph — Tối ưu hóa mạng lưới giao hàng logistics và định tuyến vận tải đô thị
 
 ## Why
-Trở thành Senior Agentic Engineer làm chủ toàn diện hơn 30 kỹ năng AI pair-programming của Matt Pocock, hiểu thấu bản chất kỹ nghệ prompt/context (Information Hierarchy, The Two Loads, Deep Modules, Seams, TDD), và ứng dụng trực tiếp để tự tay ship một sản phẩm Full-stack thực tế (VibeCoding ERP Mini với Next.js 15 App Router & Supabase) đạt chuẩn kiến trúc cao nhất.
+Bảo vệ đồ án nhóm (5 học viên) kết thúc học phần *Cấu trúc dữ liệu và Giải thuật nâng cao*, Đề tài 4. Đồ án chứng minh năng lực tự cài đặt Weighted Graph, Adaptable Priority Queue, Disjoint Set và Quy hoạch động, áp dụng vào bài toán giao hàng thực tế trên bản đồ đô thị. Quá trình làm tiếp tục dùng khung Golden Flow của bộ skill Matt Pocock đã học.
 
 ## Success looks like
-- Hiểu rõ bản chất, phân loại và cách gọi (User-invoked vs Model-invoked) của từng skill trong 30+ skills của Matt Pocock.
-- Vận hành trơn tru "The Golden Flow" từ ý tưởng thô đến Pull Request hoàn chỉnh: `/wayfinder` → `/grill-me` → `/to-spec` → `/to-tickets` → `/codebase-design` → `/tdd` / `/implement` → `/code-review` → `/pr`.
-- Hoàn thành sản phẩm thực tế VibeCoding ERP Mini (Next.js 15 App Router + Supabase PostgreSQL + Vitest) gồm đầy đủ 3 domain nghiệp vụ: Quản lý Kho (Inventory), Đơn hàng (Order State Machine), Kế toán hạch toán kép (Double-entry Ledger) kèm Web Dashboard realtime.
-- Tự thiết kế và đóng gói thành công ít nhất 1 Custom Skill độc quyền cho hệ thống ERP theo đúng tiêu chuẩn kiến trúc của Matt Pocock.
+- Mỗi thành viên tự cài đặt và giải thích được từng dòng của module mình: đồ thị và dữ liệu bản đồ, Dijkstra + Adaptable Heap có Locator, Union-Find + Kruskal, 0/1 Knapsack + TSP Held-Karp, benchmark.
+- Bản đồ thực tế ≥ 10.000 đỉnh, đồ thị sinh giả lập ≥ 10.000 đỉnh / 50.000 cạnh. Benchmark so sánh trung thực với baseline: Standard Heap, Bellman-Ford, mảng/danh sách.
+- Demo trực tiếp: tìm tuyến, gây tắc/cấm đường rồi tính lại tuyến, mạng xương sống MST giữa các kho, phân cụm giao hàng, xếp hàng lên xe.
+- Báo cáo IEEE 12–18 trang, slide 20–25 trang, bảng phân công.
 
 ## Constraints
-- Học bằng tiếng Việt, giải thích cặn kẽ bản chất "vì sao" và phân tích trade-offs, tuyệt đối không học vẹt.
-- Mỗi bài học xuất bản dưới dạng file HTML tương tác chuẩn UX (Dark mode, có code mẫu comment tiếng Việt, quiz phản hồi tức thì, checklist tự kiểm).
-- Sử dụng Next.js 15 (App Router, TypeScript) + Supabase (PostgreSQL) + Vitest cho sản phẩm thực tế.
-- Mỗi bài học đều đóng góp một mẩu chạy được vào sản phẩm thật; test phải chạy thật và kiểm chứng khách quan.
+- Python ≥ 3.12. Lõi (`logigraph/core/`) không dùng `dict`/`set` dựng sẵn hay thư viện ngoài (ADR-0001).
+- Mọi giải thuật có test đối chiếu với một lời giải chuẩn (vét cạn, Bellman-Ford, Prim, BFS).
+- Tài liệu và báo cáo viết bằng tiếng Việt theo `NOTES.md`.
 
 ## Out of scope
-- Triển khai hạ tầng microservices/Kubernetes phức tạp phân tán quy mô hàng triệu người dùng.
-- Tích hợp các cổng thanh toán trung gian thực tế (VNPay/Momo/Stripe live mode) trong phạm vi khóa học cơ bản.
+- Incremental SSSP, Contraction Hierarchies, dữ liệu giao thông live.
+- VRP nhiều xe có time window. Chỉ làm TSP quy mô nhỏ cho từng chuyến.
 
 ## Parallel project
-có — VibeCoding ERP Mini (Hệ thống ERP Full-stack bằng Next.js 15 App Router + Supabase + Vitest quản lý Kho, Đơn hàng và Kế toán hạch toán kép)
+Không. Sản phẩm chính là đồ án này. Kế hoạch chi tiết ở `.scratch/logigraph/plan.md`.

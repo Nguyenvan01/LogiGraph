@@ -1,60 +1,45 @@
-# Coding Standards — VibeCoding ERP Mini
+# Coding Standards — LogiGraph
 
-Tài liệu này xác định các tiêu chuẩn kỹ thuật bắt buộc cho toàn bộ mã nguồn của dự án VibeCoding ERP Mini (Next.js 15, Supabase PostgreSQL, TypeScript, Vitest).
-
----
-
-## 1. Kiến trúc Deep Modules & Seams (John Ousterhout)
-
-1. **Giao diện hẹp, hiện thực sâu (Small Interface, Deep Implementation)**:
-   - Mỗi module domain (như `InventoryService`, `LedgerService`) phải giấu toàn bộ độ phức tạp nghiệp vụ đằng sau một interface tối giản từ 3 đến 5 phương thức công khai.
-   - Không để lộ chi tiết nội bộ (như cấu trúc bảng cơ sở dữ liệu, câu lệnh SQL thô, hoặc thuật toán tính toán) ra ngoài interface công khai.
-2. **Điểm may kỹ thuật (Clean Seams)**:
-   - Tầng domain logic tuyệt đối không phụ thuộc trực tiếp vào Next.js Server Actions hoặc Supabase Client.
-   - Mọi tương tác dữ liệu phải đi qua interface kho dữ liệu (`IInventoryRepository`, `ILedgerRepository`).
-   - Cung cấp tối thiểu 2 Adapter cho mỗi Seam:
-     - `InMemoryAdapter`: Phục vụ unit test tốc độ cao (< 5ms) trong Vitest mà không cần mock mạng.
-     - `SupabaseAdapter`: Kết nối trực tiếp cơ sở dữ liệu thật với đầy đủ Row-level Lock và RLS.
+Tiêu chuẩn cho mã nguồn đồ án (Python ≥ 3.12, pytest). Phần review dùng file này làm trục Standards.
 
 ---
 
-## 2. Quy tắc Kiểu dữ liệu & Type Safety (TypeScript)
+## 1. Quy tắc lõi (bắt buộc theo đề bài)
 
-1. **Strict Mode**: `tsconfig.json` bắt buộc bật `strict: true`. Không sử dụng kiểu `any` tùy tiện ngoại trừ các stub/mock cơ bản.
-2. **Branded Types**: Định danh các thực thể quan trọng bằng branded type (`ProductId`, `OrderId`, `ReservationId`, `AccountCode`) để ngăn ngừa lỗi truyền nhầm kiểu chuỗi nguyên thủy (Primitive Obsession).
-3. **Zod Validation Guards**: Mọi đầu vào từ người dùng vào Server Actions phải được validate qua Zod schema trước khi chuyển tiếp vào Domain Services.
+1. `logigraph/core/` **không dùng** `dict`, `set`, `frozenset` (kể cả dạng literal/comprehension), không import `heapq`, `collections`, `functools`, `bisect`, `queue` hay thư viện ngoài. Danh sách import được phép nằm trong `tests/test_core_rules.py`. Test này chạy cùng bộ test và phải luôn xanh.
+2. Chỉ dùng mảng: `list`, `bytearray`, tuple. Intersection và Road Segment được đánh số nguyên liên tục, nên mọi tra cứu là truy cập chỉ số (ADR-0002).
+3. Thư viện ngoài (osmnx, matplotlib, …) chỉ được dùng trong `tools/`, `bench/`, `app/`.
 
----
+## 2. Deep Modules
 
-## 3. Quản lý Concurrency & Tính toàn vẹn Dữ liệu (Database Engine)
+1. Mỗi file trong `core/` là một module của một thành viên, có interface công khai nhỏ (3–6 hàm/phương thức). Hàm nội bộ đặt tên bắt đầu bằng `_`.
+2. Module giải thuật nhận dữ liệu thuần (đồ thị, danh sách cạnh, ma trận khoảng cách) và không đọc file. Chỉ `RoadNetwork.from_csv` và `tools/` được đọc ghi file.
+3. Không viết abstraction "để dành". Biến thể chỉ được thêm khi benchmark cần (ví dụ cờ `path_compression` của `DisjointSet`).
 
-1. **Anti-Overselling Invariant**: Tồn kho khả dụng phải luôn tuân thủ công thức:
-   $$\text{Available Stock} = \text{Physical Stock} - \text{Active Reservations} \ge 0$$
-2. **Row-level Locking**: Nghiêm cấm mô hình Check-Then-Act bằng các truy vấn đọc/ghi rời rạc trên tầng ứng dụng. Mọi thao tác đặt giữ hàng và trừ kho phải đóng gói trong Stored Procedure với `SELECT ... FOR UPDATE`.
-3. **Double-Entry Balance Invariant**: Mọi giao dịch sổ cái phải bảo đảm tổng số tiền Nợ bằng tổng số tiền Có ($\sum \text{Debit} === \sum \text{Credit}$). Bảng sổ cái là Append-only, không cho phép `UPDATE` hoặc `DELETE`.
+## 3. Đặt tên và kiểu
 
----
+1. Tên lấy từ `CONTEXT.md` (`Intersection`, `RoadSegment`, `travel_time`, `Parcel`, `Trip`…). Không dùng các từ trong mục _Avoid_.
+2. Có type hint cho mọi hàm công khai. Class tạo nhiều đối tượng (Locator, nút heap) dùng `__slots__` để giảm bộ nhớ, vì đề có đo Memory Footprint.
+3. Docstring của mỗi hàm công khai ghi độ phức tạp thời gian/bộ nhớ. Báo cáo IEEE và vấn đáp lấy từ đây.
 
-## 4. Kiểm thử Tự động (TDD & Vitest)
+## 4. Kiểm tra dữ liệu vào
 
-1. **Tốc độ thực thi**: Toàn bộ unit và integration test suite phải chạy trong dưới 1 giây.
-2. **Shoehorn Utility**: Trong các file test, sử dụng `fromPartial<T>()` từ `@total-typescript/shoehorn` để khởi tạo dữ liệu kiểm thử, tránh ép kiểu thô bạo bằng `as T`.
-3. **Không để sót debug probe**: Trước khi hoàn tất mã nguồn, toàn bộ log debug có tiền tố `[DEBUG-...]` phải được dọn dẹp sạch sẽ.
+1. Travel Time âm → `ValueError`. Closure được biểu diễn bằng cờ `closed`, không dùng trọng số âm.
+2. Chỉ số Intersection/Road Segment nằm ngoài khoảng → `IndexError` với thông báo rõ ràng.
+3. Khối lượng Parcel và tải trọng Truck phải là số nguyên dương.
 
----
+## 5. Kiểm thử
 
-## 5. Fowler Code Smells Baseline (Refactoring, Ch.3)
+1. TDD: viết test đỏ trước, rồi làm cho xanh, rồi refactor. Unit test của cả repo chạy dưới 5 giây.
+2. Mỗi giải thuật có **test đối chiếu** với lời giải chuẩn trên dữ liệu ngẫu nhiên có seed: Dijkstra ↔ Bellman-Ford, Kruskal ↔ Prim, Knapsack ↔ vét cạn, Held-Karp ↔ hoán vị, DSU ↔ BFS.
+3. Benchmark không đặt trong `tests/` mà đặt trong `bench/`.
 
-Mã nguồn phải được rà soát định kỳ để loại bỏ 12 Code Smells kinh điển:
-- `Mysterious Name` &rarr; Đặt tên tường minh theo Ubiquitous Language trong `CONTEXT.md`.
-- `Duplicated Code` &rarr; Trích xuất logic dùng chung.
-- `Feature Envy` &rarr; Chuyển phương thức về đúng đối tượng sở hữu dữ liệu.
-- `Data Clumps` &rarr; Đóng gói các tham số thường đi cùng nhau thành một kiểu dữ liệu.
-- `Primitive Obsession` &rarr; Thay thế chuỗi nguyên thủy bằng Branded Types hoặc Domain Value Objects.
-- `Repeated Switches` &rarr; Thay thế bằng Strategy Pattern hoặc Dictionary Mapping.
-- `Shotgun Surgery` &rarr; Gom các thành phần cùng thay đổi vào một module duy nhất.
-- `Divergent Change` &rarr; Tách module nếu một file phải sửa đổi vì nhiều lý do không liên quan.
-- `Speculative Generality` &rarr; Xóa bỏ các tham số, hook, abstraction dự phòng chưa có trong spec.
-- `Message Chains` &rarr; Ẩn chuỗi truy cập lồng nhau đằng sau một phương thức trực tiếp.
-- `Middle Man` &rarr; Loại bỏ các lớp trung gian không gia tăng giá trị.
-- `Refused Bequest` &rarr; Ưu tiên Composition hơn Inheritance khi không sử dụng hết hành vi kế thừa.
+## 6. Benchmark
+
+1. Mỗi phép đo chạy trong một subprocess riêng. Thời gian đo bằng `time.perf_counter`, bộ nhớ đỉnh bằng `tracemalloc`. Mỗi điểm lấy trung vị của ≥ 5 lần chạy, dùng seed cố định.
+2. Baseline phải viết bằng Python thuần giống như bản nâng cao. `heapq` chỉ là đường tham chiếu, ghi chú rõ trên biểu đồ.
+3. Ghi cấu hình máy (CPU, RAM, phiên bản Python) vào đầu mỗi file kết quả. Lần chạy nào quá thời gian thì ghi `timeout`, không bỏ khỏi bảng.
+
+## 7. Code smells
+
+Loại bỏ theo Fowler: Mysterious Name, Duplicated Code, Long Function, Speculative Generality, Primitive Obsession (dùng tên rõ ràng cho chỉ số: `u`, `v`, `edge_id`), Dead Code.

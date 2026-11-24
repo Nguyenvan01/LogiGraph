@@ -1,0 +1,10 @@
+[project]
+name = "logigraph"
+version = "0.1.0"
+description = "Tối ưu hóa mạng lưới giao hàng logistics và định tuyến vận tải đô thị (Đề tài 4, CTDL & GT nâng cao)"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
