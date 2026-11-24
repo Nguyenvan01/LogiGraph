@@ -15,8 +15,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-DISTRICTS = ["Quận Hoàn Kiếm", "Quận Ba Đình", "Quận Đống Đa", "Quận Hai Bà Trưng",
-             "Quận Cầu Giấy", "Quận Thanh Xuân"]
+# Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện; OSM admin_level=6 là phường/xã mới.
+# Vùng = mọi phường giao với khung nội thành Hà Nội (south, west, north, east).
+BBOX = (20.990, 105.800, 21.045, 105.865)
 MIRRORS = ["https://overpass.openstreetmap.fr/api/interpreter",
            "https://overpass-api.de/api/interpreter",
            "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
@@ -103,18 +104,22 @@ def largest_scc(n: int, adj: list[list[int]]) -> list[int]:
 def main() -> None:
     hw = "|".join(list(SPEED) + [k + "_link" for k in ("motorway", "trunk", "primary", "secondary", "tertiary")])
     coords, district_of, ways = {}, {}, {}
-    for name in DISTRICTS:
+    bbox = ",".join(map(str, BBOX))
+    wards = overpass(f'[out:json][timeout:120];rel["boundary"="administrative"]["admin_level"="6"]({bbox});out tags;',
+                     RAW / "wards.json")["elements"]
+    for ward in wards:
+        name = ward["tags"].get("name", str(ward["id"]))
         print(f"Tải {name} ...")
-        q = (f'[out:json][timeout:170];area["name"="{name}"]["admin_level"="6"]->.a;'
+        q = (f'[out:json][timeout:170];area({3600000000 + ward["id"]})->.a;'
              f'way(area.a)["highway"~"^({hw})$"];(._;>;);out body qt;')
-        data = overpass(q, RAW / f"{name}.json")
+        data = overpass(q, RAW / f"{ward['id']}.json")
         for el in data["elements"]:
             if el["type"] == "node":
                 coords[el["id"]] = (el["lat"], el["lon"])
             elif el["type"] == "way":
                 ways[el["id"]] = el
                 for nid in el["nodes"]:
-                    district_of.setdefault(nid, name.removeprefix("Quận "))
+                    district_of.setdefault(nid, name.removeprefix("Phường "))
 
     index, edges = {}, []
     for w in ways.values():
