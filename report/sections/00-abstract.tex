@@ -1,0 +1,16 @@
+\begin{abstract}
+Bài báo trình bày LogiGraph, hệ thống định tuyến giao hàng và quy hoạch mạng lưới kho trên dữ liệu bản đồ thật của 24 phường
+nội thành Hà Nội lấy từ OpenStreetMap (38\,604 đỉnh, 69\,411 cạnh có hướng). Toàn bộ cấu trúc dữ liệu lõi được tự cài đặt
+chỉ bằng mảng, không dùng bảng băm hay hàng đợi dựng sẵn: đồ thị có trọng số biểu diễn bằng Adjacency List; hàng đợi ưu tiên
+thích ứng có Locator phục vụ Dijkstra và tính lại tuyến khi có tắc hoặc cấm đường; Union-Find với union by rank và path
+compression phục vụ Kruskal, kiểm tra liên thông và phân cụm giao hàng; quy hoạch động cho bài toán xếp hàng 0/1 Knapsack và
+TSP bất đối xứng (Held-Karp). Mỗi giải thuật được kiểm tra chéo với một lời giải chuẩn bằng 81 test tự động. Thực nghiệm trên
+đồ thị tới 50\,000 đỉnh cho thấy: Union-Find giữ khoảng 1{,}2 bước mỗi thao tác từ $10^3$ đến $10^6$ phần tử; Bellman-Ford
+và Dijkstra dùng mảng chậm hơn Dijkstra dùng heap từ 13 tới hơn 146 lần; và lợi thế của hàng đợi thích ứng so với heap lazy
+phụ thuộc mật độ đồ thị, rõ rệt trên đồ thị dày nhưng không xuất hiện trên mạng đường gần phẳng. Quy tắc bỏ qua sự cố nằm ngoài
+tuyến giúp phản hồi trong 0{,}4 ms thay vì khoảng 110 ms khi phải tính lại.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Dijkstra, Adaptable Priority Queue, Union-Find, Kruskal, Knapsack, Held-Karp, định tuyến đô thị, OpenStreetMap
+\end{IEEEkeywords}

@@ -112,6 +112,8 @@ def main() -> None:
     series(axes[1], load("mst_dense"), "time_s", x="n", ylabel="Thời gian (ms)", xlabel="Số Hub (đồ thị đầy đủ)", transform=ms)
     axes[0].set_title("Đồ thị thưa (dạng mạng đường)", fontsize=8)
     axes[1].set_title("Đồ thị Hub đầy đủ (E = V(V-1)/2)", fontsize=8)
+    axes[1].set_xticks([50, 100, 200, 400], ["50", "100", "200", "400"])
+    axes[1].minorticks_off()
     axes[0].legend(fontsize=6)
     save(fig, "mst")
 

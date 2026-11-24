@@ -1,0 +1,18 @@
+\section{Kết luận}
+
+Nhóm đã xây dựng một hệ thống hoàn chỉnh cho Đề tài 4: từ dữ liệu bản đồ thật, qua các cấu trúc dữ liệu tự cài đặt, tới giao
+diện demo cho phép tìm tuyến, gây sự cố giao thông, xem mạng xương sống giữa các kho, phân cụm đơn hàng và lập chuyến xe.
+Lõi giải thuật khoảng 1\,300 dòng Python không dùng \texttt{dict}, \texttt{set} hay \texttt{heapq}, và quy tắc này được một
+test phân tích cú pháp kiểm tra tự động. Mỗi giải thuật có test đối chiếu với lời giải chuẩn: Dijkstra với Bellman-Ford,
+Kruskal với Prim, Knapsack và Held-Karp với vét cạn, Union-Find với BFS.
+
+Kết quả thực nghiệm khớp với phân tích Big-O ở những chỗ mà lý thuyết dự đoán xu hướng: cận $O(\alpha(n))$ của Union-Find,
+độ tăng $O(n^2 2^n)$ so với $O(n!)$ của TSP, tính tuyến tính theo $n$ của Knapsack khi $W$ cố định. Thực nghiệm cũng chỉ ra hai
+chỗ cần đọc lý thuyết cẩn thận hơn. Thứ nhất, lợi thế của Adaptable Priority Queue phụ thuộc vào tỉ lệ decrease-key, vốn rất
+thấp trên mạng đường. Thứ hai, ở quy mô vừa phải, hằng số của trình thông dịch có thể làm đảo thứ hạng giữa hai giải thuật có
+cận khác nhau, như trường hợp Prim và Kruskal.
+
+\textbf{Hướng phát triển.} Dùng A* với heuristic khoảng cách đường chim bay và Dijkstra hai chiều để giảm số đỉnh phải duyệt;
+cập nhật đường đi ngắn nhất tăng dần thay vì tính lại; rút gọn các đỉnh bậc 2 của dữ liệu OSM; mở rộng bài toán lập chuyến
+thành VRP nhiều xe có khung giờ giao; cài lại phần lõi bằng C++ để so sánh các giải thuật mà không bị ảnh hưởng bởi hằng số
+của trình thông dịch.

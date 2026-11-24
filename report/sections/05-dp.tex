@@ -8,7 +8,7 @@ Cho $n$ Parcel, Parcel $i$ có khối lượng $w_i \in \mathbb{Z}_{>0}$ (đơn 
 \begin{equation}
 \max \sum_{i=1}^{n} v_i x_i \quad \text{với} \quad \sum_{i=1}^{n} w_i x_i \le W .
 \end{equation}
-Trong demo, Truck chở tối đa 1 tấn, tức $W = 10\,000$, và mỗi Parcel nặng từ 1 đến 80\,kg ($10 \le w_i \le 800$). Khối lượng phải là số nguyên vì DP dùng tải trọng làm chỉ số mảng. Hàm \texttt{\_check} từ chối khối lượng không nguyên hoặc không dương, cước âm và tải trọng âm hoặc không nguyên.
+Trong demo, Truck là xe van chở tối đa 400\,kg, tức $W = 4\,000$, và mỗi Parcel nặng từ 1 đến 80\,kg ($10 \le w_i \le 800$). Khối lượng phải là số nguyên vì DP dùng tải trọng làm chỉ số mảng. Hàm \texttt{\_check} từ chối khối lượng không nguyên hoặc không dương, cước âm và tải trọng âm hoặc không nguyên.
 
 \subsubsection{Cấu trúc con tối ưu và công thức truy hồi}
 Gọi $B[i][c]$ là tổng cước lớn nhất khi chỉ dùng $i$ Parcel đầu tiên và tải trọng $c$.
@@ -156,13 +156,13 @@ Công thức~\eqref{eq:hk} dùng $d(k, j)$ theo đúng chiều đi từ $k$ tớ
 
 \texttt{plan\_trip} nối các bước trên thành một Trip:
 \begin{enumerate}
-\item Chạy \texttt{knapsack\_dp} trên các Parcel ứng viên với tải trọng $W$.
-\item Gom Parcel được chọn theo Delivery Point bằng mảng đánh dấu \texttt{slot} kích thước $V$ (không dùng \texttt{dict}). Nhiều Parcel cùng một Delivery Point chỉ tạo một điểm dừng, cước của điểm dừng là tổng cước các Parcel đó.
-\item Nếu số điểm dừng vượt \texttt{max\_stops}, giữ lại \texttt{max\_stops} điểm có tổng cước cao nhất và bỏ các Parcel thuộc những điểm còn lại.
+\item Gom các Parcel ứng viên theo Delivery Point bằng mảng đánh dấu \texttt{slot} kích thước $V$ (không dùng \texttt{dict}). Nhiều Parcel cùng một Delivery Point chỉ tạo một điểm dừng, cước của điểm là tổng cước các Parcel đó.
+\item Giữ tối đa \texttt{max\_stops} điểm có tổng cước cao nhất.
+\item Chạy \texttt{knapsack\_dp} trên các Parcel tại những điểm đó với tải trọng $W$; các điểm dừng là Delivery Point của các Parcel được chọn.
 \item Với danh sách đỉnh $[h] + \text{stops}$, \texttt{distance\_matrix} chạy một Dijkstra đầy đủ từ mỗi đỉnh để có ma trận $k \times k$ không đối xứng.
 \item Chạy \texttt{held\_karp} trên ma trận này với Hub ở chỉ số 0.
 \item Mở rộng từng chặng: với mỗi cặp đỉnh liên tiếp trong tour, chạy lại Dijkstra có dừng sớm và lấy dãy Road Segment để vẽ tuyến.
 \end{enumerate}
 Tổng thời gian là $O(nW) + O(k (V+E) \log V) + O(k^2 2^k)$ với $k \le$ \texttt{max\_stops}$+1$.
 
-Giới hạn của cách làm này là hai bài toán được tối ưu tách rời. Knapsack chọn Parcel mà không biết vị trí, nên có thể chọn các Parcel nằm rải rác ở nhiều điểm. Khi bước 3 bỏ bớt điểm dừng, phần tải trọng vừa được giải phóng không được lấp lại, nên kết quả không phải là tối ưu của bài toán ``tối đa cước với tải trọng $W$ và không quá \texttt{max\_stops} điểm dừng''. Trong demo, ảnh hưởng này được giảm bớt vì Parcel ứng viên của mỗi Trip được lấy từ cùng một Delivery Cluster nên ở gần nhau. Tối ưu đồng thời việc chọn điểm và thứ tự đi, cân bằng giữa cước thu được và thời gian chạy, là bài toán Orienteering hoặc VRP. Các bài toán này cũng NP-hard và nằm ngoài phạm vi đề tài.
+Vì chọn điểm diễn ra trước Knapsack, nghiệm Knapsack được dùng trọn, không bị cắt bớt sau đó. Với xe 400\,kg trong demo, sáu chuyến đạt 90--100\% tải trọng. Dù vậy hai bài toán vẫn được tối ưu tách rời: điểm được chọn theo tổng cước, không theo vị trí hay quãng đường. Tối ưu đồng thời việc chọn kiện, chọn điểm và thứ tự đi, cân bằng giữa cước thu được và thời gian chạy, là bài toán Orienteering hoặc VRP. Các bài toán này cũng NP-hard và nằm ngoài phạm vi đề tài.

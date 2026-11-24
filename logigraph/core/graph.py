@@ -55,8 +55,8 @@ class RoadNetwork:
         """Thêm Road Segment u→v, trả về edge_id. O(1) khấu hao."""
         self._check_vertex(u)
         self._check_vertex(v)
-        if length_m < 0 or travel_s < 0:
-            raise ValueError("length_m và travel_s phải >= 0")
+        if not (length_m >= 0 and travel_s >= 0):   # dạng này bắt cả NaN
+            raise ValueError("length_m và travel_s phải >= 0 và không phải NaN")
         e = len(self.head)
         self.tail.append(u)
         self.head.append(v)

@@ -20,7 +20,7 @@ from logigraph.core.trip import plan_trip
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
-N_PARCELS, TRUCK_CAPACITY = 400, 10_000          # 400 Parcel, xe 1 tấn (đơn vị 0,1 kg)
+N_PARCELS, TRUCK_CAPACITY = 400, 4_000           # 400 Parcel, xe van 400 kg (đơn vị 0,1 kg)
 
 
 def haversine(g: RoadNetwork, a: int, b: int) -> float:

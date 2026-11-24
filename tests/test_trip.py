@@ -50,3 +50,12 @@ def test_empty_selection_returns_trivial_trip():
 def test_rejects_too_many_stops():
     with pytest.raises(ValueError):
         plan_trip(grid(3), 0, [], [], [], 10, max_stops=20)
+
+
+def test_unreachable_delivery_point_raises():
+    g = RoadNetwork(3)
+    g.add_edge(0, 1, 1, 1)
+    g.add_edge(1, 0, 1, 1)
+    g.add_edge(0, 2, 1, 1)          # 2 tới được nhưng không quay về Hub được
+    with pytest.raises(ValueError):
+        plan_trip(g, 0, [1, 2], [1, 1], [5, 5], capacity=10)

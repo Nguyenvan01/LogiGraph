@@ -51,3 +51,8 @@ def test_from_csv_roundtrip(tmp_path):
     assert (g.n, g.m) == (3, 2)
     assert g.district_names == ["Đống Đa", "Ba Đình"]
     assert g.district == [0, 1, 0]
+
+
+def test_add_edge_rejects_nan():
+    with pytest.raises(ValueError):
+        RoadNetwork(2).add_edge(0, 1, math.nan, 1)

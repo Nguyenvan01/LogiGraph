@@ -16,7 +16,7 @@ LogiGraph là đồ án nhóm của học phần Cấu trúc dữ liệu và Gi�
 \end{enumerate}
 Kèm theo là hai ràng buộc: các cấu trúc lõi phải tự cài đặt, không dùng \texttt{dict}/\texttt{set} dựng sẵn để thay thế; và phải có benchmark trên bản đồ thật từ 10.000 đỉnh trở lên, so sánh với các baseline cơ bản. Bảng~\ref{tab:req} ánh xạ từng yêu cầu tới cấu trúc dữ liệu, module và thành viên phụ trách.
 
-Có hai điểm chúng tôi làm khác với câu chữ của đề và nêu rõ ở đây. Thứ nhất, từ ngày 01/07/2025 Việt Nam bỏ cấp quận/huyện, nên trên OpenStreetMap ranh giới \texttt{admin\_level=6} tại Hà Nội nay là các phường mới. Hệ thống vì vậy phân vùng theo 24 phường giao với vùng bản đồ đã chọn thay cho quận (Mục~\ref{sec:graph}). Thứ hai, hàm dựng Backbone giữa các Hub (\texttt{hub\_backbone}) gọi Prim cài bằng mảng, độ phức tạp $O(H^2)$, vì đồ thị Hub là đồ thị đầy đủ; Kruskal với Union-Find được cài đặt, kiểm tra chéo với Prim trên đồ thị ngẫu nhiên (cùng tổng trọng số), đo trong benchmark và dùng cho phân cụm single-linkage~\cite{gower1969} (Mục~IV).
+Có hai điểm chúng tôi làm khác với câu chữ của đề và nêu rõ ở đây. Thứ nhất, từ ngày 01/07/2025 Việt Nam bỏ cấp quận/huyện, nên trên OpenStreetMap ranh giới \texttt{admin\_level=6} tại Hà Nội nay là các phường mới. Hệ thống vì vậy phân vùng theo 24 phường giao với vùng bản đồ đã chọn thay cho quận (Mục~\ref{sec:graph}). Thứ hai, đồ thị Hub là đồ thị đầy đủ nên về lý thuyết Prim cài bằng mảng ($O(H^2)$) phù hợp hơn Kruskal ($O(H^2\log H)$). Chúng tôi vẫn dùng Kruskal với Union-Find như đề yêu cầu, vì thực nghiệm cho thấy ở quy mô vài trăm Hub, Kruskal nhanh hơn khoảng hai lần (Mục~\ref{sec:experiments}); Prim mảng được giữ làm lời giải đối chiếu trong test. Kruskal còn được dùng cho phân cụm single-linkage~\cite{gower1969} (Mục~IV).
 
 \begin{table*}[t]
 \centering
@@ -28,7 +28,7 @@ Yêu cầu & Cấu trúc dữ liệu / giải thuật & Module & Phụ trách \\
 \midrule
 (R1) Mạng đường và dữ liệu & Adjacency List trên id nguyên liên tục, mảng cạnh song song, cờ Closure \texttt{bytearray}; Kosaraju lặp khi chuẩn bị dữ liệu & \texttt{core/graph.py}, \texttt{tools/prepare\_osm.py} & TV1 \\
 (R2) Route và Reroute & Dijkstra với Adaptable Heap Priority Queue có Locator; mặt nạ \texttt{on\_route} cho quy tắc bỏ qua sự cố ngoài tuyến & \texttt{core/apq.py}, \texttt{core/routing.py} & TV2 \\
-(R3) Backbone giữa các Hub & Union-Find (path compression, union by rank), Kruskal; Prim mảng $O(H^2)$ & \texttt{core/dsu.py}, \texttt{core/network.py} & TV3 \\
+(R3) Backbone giữa các Hub & Union-Find (path compression, union by rank), Kruskal; Prim mảng để đối chiếu & \texttt{core/dsu.py}, \texttt{core/network.py} & TV3 \\
 (R4) Xếp hàng và thứ tự giao & 0/1 Knapsack DP (kèm branch-and-bound), Held-Karp cho TSP bất đối xứng & \texttt{core/loading.py}, \texttt{core/tsp.py} & TV4 \\
 (R5) Liên thông và phân vùng & Union-Find trên đồ thị con trong từng phường; single-linkage bằng Kruskal dừng ở $k$ tập & \texttt{core/network.py} & TV3 \\
 Tích hợp Trip, demo & Knapsack $\rightarrow$ ma trận khoảng cách (Dijkstra) $\rightarrow$ Held-Karp; \texttt{http.server} và Leaflet & \texttt{core/trip.py}, \texttt{app/} & TV1 \\
@@ -44,7 +44,7 @@ Benchmark & Bộ sinh đồ thị có seed, baseline lazy binary heap, hàng đ�
 \item Một bộ dữ liệu mạng đường thật của nội thành Hà Nội, sinh lại được bằng một script: 38.604 Intersection, 69.411 Road Segment, có hướng theo thẻ một chiều của OSM, gắn nhãn theo 24 phường mới.
 \item Reroute khi có Traffic Incident, kèm quy tắc bỏ qua có chứng minh: nếu sự cố là Closure hoặc làm tăng Travel Time trên một Road Segment ngoài tuyến thì tuyến hiện tại vẫn tối ưu, kiểm tra trong $O(1)$ (Mục~III).
 \item Module tích hợp lập một Trip bằng cách nối Knapsack, Dijkstra và Held-Karp, cùng ứng dụng web chạy không cần framework.
-\item 79 test pytest, trong đó có các test đối chiếu với lời giải chuẩn: Dijkstra với Bellman-Ford, Kruskal với Prim, Union-Find với BFS, Knapsack và Held-Karp với vét cạn, Adaptable Heap với danh sách đã sắp xếp; cùng benchmark trên đồ thị thật và đồ thị sinh giả lập (Mục~VI).
+\item 81 test pytest, trong đó có các test đối chiếu với lời giải chuẩn: Dijkstra với Bellman-Ford, Kruskal với Prim, Union-Find với BFS, Knapsack và Held-Karp với vét cạn, Adaptable Heap với danh sách đã sắp xếp; cùng benchmark trên đồ thị thật và đồ thị sinh giả lập (Mục~VI).
 \end{itemize}
 
 \subsection{Kiến trúc hệ thống}

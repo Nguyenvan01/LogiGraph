@@ -1,0 +1,83 @@
+\section{Mô hình hóa mạng đường}\label{sec:graph}
+
+\subsection{Định nghĩa}
+
+Road Network là đồ thị có hướng, có trọng số $G=(V,E,w)$ với $V=\{0,\dots,n-1\}$ là các Intersection. Mỗi Road Segment $e\in\{0,\dots,m-1\}$ có đỉnh đầu $\mathit{tail}(e)$, đỉnh cuối $\mathit{head}(e)$, độ dài $\ell(e)\ge 0$ (mét) và Travel Time $w(e)\ge 0$ (giây). Đường hai chiều là hai Road Segment ngược hướng; $G$ cho phép cạnh song song vì hai way OSM có thể cùng nối một cặp đỉnh. Closure được mô tả bằng $c:E\to\{0,1\}$, và đồ thị dùng để định tuyến là $G_c=(V,\{e : c(e)=0\},w)$. Đường đi $P=(e_1,\dots,e_k)$ với $\mathit{head}(e_i)=\mathit{tail}(e_{i+1})$ có chi phí $w(P)=\sum_i w(e_i)$; Route từ $s$ tới $t$ là đường đi có $w(P)$ nhỏ nhất trong $G_c$. Điều kiện $w\ge 0$ là điều kiện để Dijkstra đúng~\cite{dijkstra1959,clrs2022}. Trọng số là Travel Time chứ không phải độ dài, vì đường chính và ngõ nhỏ có tốc độ rất khác nhau và tắc đường được mô tả trực tiếp bằng việc tăng thời gian; $\ell(e)$ chỉ dùng để hiển thị.
+
+Dữ liệu OSM không được simplify, nên $V$ gồm cả giao lộ thật lẫn shape point mô tả hình dạng con đường: 30.216 đỉnh (78,3\%) có đúng hai hàng xóm phân biệt, 6.854 đỉnh có từ ba hàng xóm trở lên, 1.534 đỉnh là điểm cụt. Bậc ra trung bình là $m/n\approx 1{,}80$, lớn nhất là 5. Giữ shape point làm $V$ lớn gấp khoảng 4,6 lần số đỉnh không có đúng hai hàng xóm, đổi lại tuyến vẽ ra bám đúng hình con đường và mỗi Road Segment đủ ngắn (trung vị 18,2~m) để đặt sự cố tại một vị trí cụ thể.
+
+\subsection{Biểu diễn}
+
+Lớp \texttt{RoadNetwork} dùng Adjacency List trên id nguyên liên tục, kết hợp các mảng cạnh song song. Edge\_id $e$ là chỉ số chung của năm mảng \texttt{tail}, \texttt{head}, \texttt{length\_m}, \texttt{travel\_s} (\texttt{list}) và \texttt{closed} (\texttt{bytearray}, một byte mỗi cạnh). Mỗi Intersection $u$ có \texttt{lat[u]}, \texttt{lon[u]}, nhãn phường \texttt{district[u]} và danh sách \texttt{\_out[u]} các edge\_id đi ra. Thêm một Road Segment là append vào năm mảng và \texttt{\_out[u]}, $O(1)$ khấu hao; \texttt{out\_edges(u)} trả về chính danh sách nội bộ trong $O(1)$. Lớp khai báo \texttt{\_\_slots\_\_} nên đối tượng không có \texttt{\_\_dict\_\_}.
+
+Bảng~\ref{tab:repr} so sánh với ma trận kề và Adjacency Map của giáo trình~\cite{goodrich2013}. Với $V=38.604$, ma trận kề cần khoảng $1{,}49\cdot 10^{9}$ ô (1,49~GB nếu mỗi ô một byte, khoảng 11,9~GB nếu mỗi ô một số thực 8 byte) trong khi trung bình mỗi hàng chỉ có 1,8 ô khác rỗng, và duyệt hàng xóm tốn $O(V)$ nên Dijkstra không thể nhanh hơn $O(V^2)$. Adjacency Map có cùng cận $O(V+E)$ và tìm cạnh $(u,v)$ trong $O(1)$ kỳ vọng, nhưng dựa trên \texttt{dict}, điều đề bài không cho phép trong lõi, và chỉ giữ một cạnh cho mỗi cặp đỉnh. Khi id là số nguyên liên tục, chỉ số mảng đóng vai trò hàm băm hoàn hảo. Cái giá là \texttt{find\_edge(u,v)} tốn $O(\deg u)$ (trả về cạnh song song có Travel Time nhỏ nhất); thao tác này không nằm trong vòng lặp của Dijkstra. Sau khi nạp CSV, đồ thị chiếm khoảng 19~MB theo \texttt{tracemalloc}.
+
+\begin{table}[t]
+\centering
+\caption{So sánh ba cách biểu diễn ($^{*}$kỳ vọng, $^{\dagger}$khấu hao)}
+\label{tab:repr}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Thao tác & Ma trận kề & Adj.\ Map & LogiGraph \\
+\midrule
+Bộ nhớ & $O(V^2)$ & $O(V+E)$ & $O(V+E)$ \\
+Duyệt cạnh ra của $u$ & $O(V)$ & $O(\deg u)$ & $O(\deg u)$ \\
+Tìm cạnh $(u,v)$ & $O(1)$ & $O(1)^{*}$ & $O(\deg u)$ \\
+Đổi $w(e)$, Closure & $O(1)$ & $O(1)^{*}$ & $O(1)$ \\
+Thêm Road Segment & $O(1)$ & $O(1)^{*}$ & $O(1)^{\dagger}$ \\
+Cạnh song song & không & không & có \\
+Cần \texttt{dict} & không & có & không \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Edge\_id ổn định là điểm tựa cho các module sau: Traffic Incident được chỉ định bằng edge\_id; Dijkstra lưu cây đường đi bằng \texttt{parent\_edge[v]}, nên Route là một dãy edge\_id, không nhập nhằng khi có cạnh song song; \texttt{Router} đánh dấu cạnh thuộc tuyến bằng một \texttt{bytearray} cỡ $m$ (Mục~III).
+
+\subsection{Cập nhật trọng số và kiểm tra đầu vào}
+
+Congestion là \texttt{set\_travel\_time(e, s)}, ghi đè \texttt{travel\_s[e]} trong $O(1)$ và báo \texttt{ValueError} nếu $s<0$ hoặc $s$ là NaN. Trọng số âm phá bất biến của Dijkstra (đỉnh đã chốt không giảm khoảng cách nữa); NaN làm mọi phép so sánh đều sai, phép nới lỏng không xảy ra và kết quả sai mà không có lỗi. \texttt{add\_edge} từ chối độ dài và Travel Time âm; chỉ số đỉnh, cạnh ngoài khoảng gây \texttt{IndexError}. Closure là \texttt{close(e)} đặt \texttt{closed[e]=1}, \texttt{reopen(e)} đặt lại 0, đều $O(1)$; Dijkstra, Bellman-Ford và các hàm liên thông bỏ qua cạnh có cờ này. Chúng tôi dùng cờ thay vì xóa cạnh khỏi \texttt{\_out[u]}, vì xóa tốn $O(\deg u)$ và làm mất Travel Time gốc khi mở lại; cờ giữ nguyên edge\_id, đổi lại mỗi lần duyệt cạnh đọc thêm một byte. Việc có cần tính lại Route hay không do \texttt{Router} quyết định (Mục~III).
+
+\subsection{Dữ liệu bản đồ}
+
+Script \texttt{tools/prepare\_osm.py} chạy một lần ngoài lõi, chỉ dùng thư viện chuẩn (\texttt{urllib} gọi Overpass API, cache vào \texttt{data/raw/}):
+\begin{enumerate}
+\item Lấy các quan hệ \texttt{admin\_level=6} giao với khung $(20{,}990;105{,}800)$--$(21{,}045;105{,}865)$, được 24 phường; mỗi phường được lấy trọn nên đỉnh trải rộng hơn khung.
+\item Với mỗi phường, tải các way \texttt{highway} thuộc 13 lớp dành cho ô tô, từ \texttt{motorway} tới \texttt{living\_street} và năm lớp \texttt{\_link}; tổng cộng 10.168 way.
+\item Mỗi cặp node liên tiếp của một way tạo một Road Segment, độ dài là khoảng cách haversine (bán kính 6.371~km). Vì shape point được giữ, mỗi đoạn gần như thẳng và tổng haversine dọc way xấp xỉ tốt chiều dài thật.
+\item Travel Time bằng độ dài chia vận tốc: lấy thẻ \texttt{maxspeed} nếu đọc được số (4.856 way), nếu không thì dùng mặc định đô thị theo lớp đường, từ 80~km/h cho \texttt{motorway}, 50 cho \texttt{trunk}, 40 cho \texttt{primary}, 35 cho \texttt{secondary}, 30 cho \texttt{tertiary}, 25 cho \texttt{unclassified}, 20 cho \texttt{residential} tới 10 cho \texttt{living\_street}; lớp \texttt{\_link} theo lớp gốc.
+\item Way là một chiều khi \texttt{oneway} $\in\{$\texttt{yes}, \texttt{true}, \texttt{1}, \texttt{-1}$\}$ (với \texttt{-1} thì đảo thứ tự node), khi là vòng xuyến hoặc \texttt{motorway}; còn lại sinh hai Road Segment ngược hướng. Có 4.064 way một chiều; trên đồ thị cuối, 14.441 Road Segment không có cạnh ngược.
+\item Đồ thị thô có 40.266 đỉnh, 71.689 Road Segment. Kosaraju~\cite{clrs2022} cài bằng ngăn xếp tường minh (độ sâu DFS có thể cỡ $V$, vượt giới hạn đệ quy của Python), $O(V+E)$, giữ thành phần liên thông mạnh lớn nhất: 38.604 đỉnh, 69.411 Road Segment.
+\item Đánh lại id $0..n-1$, ghi \texttt{nodes.csv} (id, lat, lon, phường) và \texttt{edges.csv} (tail, head, length\_m, travel\_s). \texttt{RoadNetwork.from\_csv} kiểm tra id liên tục và nạp trong $O(V\cdot D+E)$ với $D=24$ phường.
+\end{enumerate}
+Giữ thành phần liên thông mạnh lớn nhất bảo đảm mọi cặp Intersection có Route hữu hạn khi chưa có Closure, nên ma trận khoảng cách cho TSP và Backbone luôn hữu hạn. Liên thông yếu là không đủ: trên đồ thị có hướng, đi được từ $s$ tới $t$ không có nghĩa là có đường quay về.
+
+\emph{Phân vùng theo phường.} Đề yêu cầu phân vùng theo quận/huyện, nhưng từ 01/07/2025 cấp này không còn và \texttt{admin\_level=6} trên OSM tại Hà Nội là phường mới; dùng ranh giới quận cũ là dùng một đơn vị đã hết hiệu lực, nên chúng tôi phân vùng theo 24 phường. Mỗi Intersection nhận tên phường đầu tiên mà truy vấn trả về một way chứa nó. Ở vùng giáp ranh nhãn này là xấp xỉ, vì một way cắt qua ranh giới được gán trọn cho phường tải trước; đây là một lý do khiến đồ thị con của nhiều phường có hơn một thành phần liên thông (Mục~IV). Trong mã nguồn, trường này vẫn tên là \texttt{district}.
+
+\subsection{Tích hợp: lập một Trip}
+
+Hàm \texttt{plan\_trip} (\texttt{core/trip.py}) không chứa giải thuật mới, chỉ nối các module (Thuật toán~\ref{alg:trip}). Đầu vào gồm Hub $h$, các Parcel với Delivery Point, khối lượng nguyên (đơn vị 0,1~kg) và cước, tải trọng $C$ và số điểm giao tối đa $K\le 15$, vì Held-Karp nhận tối đa 16 đỉnh.
+
+\begin{algorithm}[t]
+\caption{PlanTrip$(G,h,P,W,F,C,K)$}
+\label{alg:trip}
+\begin{algorithmic}[1]
+\State gom Parcel theo Delivery Point (mảng \texttt{slot} cỡ $V$), cộng cước từng điểm
+\State giữ tối đa $K$ điểm có tổng cước lớn nhất; $P' \gets$ các Parcel tại các điểm đó \Comment{$O(n\log n)$}
+\State $S \gets$ \textsc{KnapsackDP}$(W|_{P'},F|_{P'},C)$; các điểm dừng là Delivery Point của $S$ \Comment{$O(nC)$}
+\If{không còn điểm nào} \Return Trip rỗng $[h,h]$ \EndIf
+\State $N \gets [h]$ nối các điểm; $D \gets$ \textsc{DistanceMatrix}$(G,N)$
+\State $(T,\tau) \gets$ \textsc{HeldKarp}$(D,0)$ \Comment{$O(K^2 2^K)$}
+\For{mỗi cặp liên tiếp $(a,b)$ trong $\tau$}
+  \State nối dãy cạnh của \textsc{Dijkstra}$(G,a,b)$ vào tuyến
+\EndFor
+\State \Return Trip$(S,\tau,T,\text{tuyến})$
+\end{algorithmic}
+\end{algorithm}
+
+Do có đường một chiều, $D$ không đối xứng và bài toán là TSP bất đối xứng; Held-Karp vẫn đúng~\cite{heldkarp1962}. Gọi $p$ là số Delivery Point ứng viên, $k\le K$ là số điểm dừng sau Knapsack. Thời gian là $O(nC + V + p\log p + k(V+E)\log V + k^2 2^k)$, bộ nhớ $O(nC)$ byte cho bảng truy vết Knapsack cộng $O(C+V+k2^k)$. Hàm chạy $2(k+1)$ lần Dijkstra: $k+1$ lần đầy đủ để dựng $D$ và $k+1$ lần dừng sớm để lấy dãy cạnh từng chặng, vì \texttt{distance\_matrix} không giữ mảng cha. Trên đồ thị thật với 13 đỉnh, dựng $D$ mất khoảng 1,6~s còn Held-Karp khoảng 0,06~s, nên chi phí chính nằm ở Dijkstra.
+
+Thứ tự các bước là một quyết định thiết kế. Phiên bản đầu chạy Knapsack trước rồi mới cắt về $K$ điểm; khi đó tải trọng vừa được giải phóng bị bỏ trống (trong demo, xe chỉ còn 21\% tải trọng). Chọn điểm trước rồi chạy Knapsack trên các Parcel tại đó bảo đảm kết quả Knapsack được dùng trọn: với xe 400~kg trong demo, sáu chuyến của sáu cụm đạt 359--399~kg (90--100\% tải trọng) và 10--12 điểm dừng. Tuy vậy, chọn điểm theo tổng cước và chọn kiện theo tải trọng vẫn là hai bước tách rời. Tối ưu đồng thời tập kiện, tập điểm và tuyến là bài toán dạng orienteering hoặc VRP, ngoài phạm vi đề tài.
+
+\subsection{Ứng dụng demo}
+
+\texttt{app/server.py} dùng \texttt{http.server} của thư viện chuẩn, nạp CSV khi khởi động, chọn 24 Hub là Intersection gần tâm mỗi phường nhất và sinh 400 Parcel quanh sáu điểm nóng với seed cố định. Server trả JSON cho các thao tác: tìm Route giữa hai điểm, gây Congestion hoặc Closure trên hay ngoài tuyến rồi Reroute, vẽ Backbone, phân cụm Parcel, lập Trip cho một cụm và lập bảng liên thông theo phường. \texttt{app/index.html} dùng Leaflet đặt sẵn trong repo với \texttt{preferCanvas}; bản đồ nền là tùy chọn, nên khi không có mạng trang vẫn vẽ các Road Segment trên nền trống.

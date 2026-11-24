@@ -56,9 +56,12 @@ def haversine(lat1, lon1, lat2, lon2) -> float:
 
 def speed_kmh(tags: dict) -> float:
     try:
-        return float(tags.get("maxspeed", "").split()[0])
+        v = float(tags.get("maxspeed", "").split()[0])
+        if v >= 5:   # vài tuyến OSM ghi maxspeed=2 (lỗi nhập liệu) → dùng mặc định
+            return v
     except (ValueError, IndexError):
-        return SPEED.get(tags["highway"].removesuffix("_link"), 30)
+        pass
+    return SPEED.get(tags["highway"].removesuffix("_link"), 30)
 
 
 def largest_scc(n: int, adj: list[list[int]]) -> list[int]:

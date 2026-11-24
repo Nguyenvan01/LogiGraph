@@ -23,7 +23,7 @@ Trọng số dùng để định tuyến của một Road Segment, tính bằng 
 _Avoid_: Cost, weight (trong tài liệu nghiệp vụ)
 
 **District**:
-Đơn vị hành chính quận/huyện mà mỗi Intersection thuộc về.
+Đơn vị phân vùng hành chính mà mỗi Intersection thuộc về. Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện, nên dữ liệu dùng phường mới (OSM `admin_level=6`); tên trong code vẫn là `district`.
 _Avoid_: Zone, area, region
 
 ### Sự cố và định tuyến

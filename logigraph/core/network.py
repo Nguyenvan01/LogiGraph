@@ -95,7 +95,9 @@ def hub_backbone(dist: list[list[float]]) -> tuple[float, list[tuple[int, int, f
 
     Đồ thị Hub vô hướng đầy đủ có trọng số (d[i][j] + d[j][i]) / 2; cặp nào có một chiều
     không đi được (inf) thì bỏ qua. Trả về (tổng, các tuyến (i, j, w)).
-    Đồ thị dày nên dùng Prim mảng: thời gian O(H²), bộ nhớ O(H²) với H = số Hub.
+    Dùng Kruskal + Union-Find như đề yêu cầu: O(H² log H) với H = số Hub, bộ nhớ O(H²).
+    Về lý thuyết Prim mảng O(H²) tốt hơn trên đồ thị đầy đủ, nhưng benchmark cho thấy Kruskal
+    vẫn nhanh hơn khoảng 2 lần ở H ≤ 400 vì bước sắp xếp chạy bằng C (xem bench/results/mst_dense.csv).
     """
     h = len(dist)
     for row in dist:
@@ -106,7 +108,7 @@ def hub_backbone(dist: list[list[float]]) -> tuple[float, list[tuple[int, int, f
         for j in range(i + 1, h):
             if dist[i][j] != math.inf and dist[j][i] != math.inf:
                 edges.append(((dist[i][j] + dist[j][i]) / 2, i, j))
-    total, chosen = prim_mst_array(h, edges)
+    total, chosen = kruskal_mst(h, edges)
     return total, [(edges[c][1], edges[c][2], edges[c][0]) for c in chosen]
 
 
