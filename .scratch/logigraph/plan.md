@@ -1,6 +1,12 @@
 # Kế hoạch chuyển dự án sang Đề tài 4: LogiGraph
 
-Status: ready-for-human. D1–D7 đã chốt ngày 2026-11-24, nhóm 5 người, P0 xong. Còn chờ ngày bảo vệ và vùng bản đồ (R1).
+Status: ready-for-human. Bảo vệ 26/11/2026, nên lộ trình 7 tuần ở mục 6 được nén thành 2 ngày.
+
+## Tiến độ thực tế (cập nhật 24/11)
+- [x] P0 chuyển khung · [x] lõi M1–M4 + `trip.py` (81 test) · [x] dữ liệu OSM 24 phường (38.604 đỉnh / 69.411 cạnh)
+- [x] web demo `app/` · [x] benchmark `bench/results` + biểu đồ · [x] báo cáo `report/` (chưa biên dịch: cần Overleaf, pdfLaTeX)
+- [x] phiếu vấn đáp `docs/vandap/tv1..tv5` · [ ] slide `slides/` · [ ] điền tên thành viên · [ ] tập dượt demo offline
+- Thay đổi so với kế hoạch: phân vùng theo phường (bỏ cấp quận 01/07/2025); backbone dùng Kruskal; `plan_trip` chọn điểm trước Knapsack; dữ liệu lấy bằng Overpass + urllib (không dùng osmnx).
 
 Nguồn đề bài: `../De_Tai_Nhom_Thi_Ket_Thuc_HP_CTDL_GT_Nang_Cao.pdf`, Đề tài 4 — *Hệ thống tối ưu hóa mạng lưới giao hàng logistics và định tuyến vận tải đô thị*.
 
