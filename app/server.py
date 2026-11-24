@@ -81,9 +81,35 @@ class State:
 
     # ---------- API ----------
     def network(self, _q) -> dict:
+        """Chỉ phục vụ vẽ: gộp các chuỗi đỉnh bậc 2 thành polyline dài để trình duyệt vẽ ít đối tượng hơn."""
         g = self.g
-        segs = [[g.tail[e], g.head[e]] for e in range(g.m) if g.tail[e] < g.head[e] or g.find_edge(g.head[e], g.tail[e]) == -1]
-        return {"lat": [round(x, 5) for x in g.lat], "lon": [round(x, 5) for x in g.lon], "segs": segs,
+        nb = [[] for _ in range(g.n)]                       # láng giềng vô hướng, không trùng
+        for e in range(g.m):
+            u, v = g.tail[e], g.head[e]
+            if v not in nb[u]:
+                nb[u].append(v)
+                nb[v].append(u)
+        seen = set()                                        # app/ nằm ngoài lõi nên được dùng set
+        lines = []
+
+        def walk(a: int, b: int) -> None:
+            line = [a]
+            while True:
+                seen.add((min(a, b), max(a, b)))
+                line.append(b)
+                if len(nb[b]) != 2:
+                    break
+                c = nb[b][0] if nb[b][1] == a else nb[b][1]
+                if (min(b, c), max(b, c)) in seen:
+                    break
+                a, b = b, c
+            lines.append([[round(g.lat[u], 5), round(g.lon[u], 5)] for u in line])
+
+        for start in [u for u in range(g.n) if len(nb[u]) != 2] + list(range(g.n)):   # sau cùng: các vòng kín
+            for b in nb[start]:
+                if (min(start, b), max(start, b)) not in seen:
+                    walk(start, b)
+        return {"lat": [round(x, 5) for x in g.lat], "lon": [round(x, 5) for x in g.lon], "lines": lines,
                 "n": g.n, "m": g.m, "districts": len(g.district_names)}
 
     def route(self, q) -> dict:
