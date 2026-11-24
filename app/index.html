@@ -2,91 +2,242 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LogiGraph — Định tuyến giao hàng nội thành Hà Nội</title>
+<link rel="stylesheet" href="/vendor/be-vietnam-pro.css">
 <link rel="stylesheet" href="/vendor/leaflet.css">
 <style>
-  :root { --ink:#1d2433; --muted:#5b6475; --line:#d9dde5; --accent:#1f5fbf; --bad:#c62828; --ok:#2e7d32; }
-  * { box-sizing:border-box; }
-  body { margin:0; font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); display:grid; grid-template-columns:340px 1fr; height:100vh; }
-  aside { overflow:auto; padding:16px; border-right:1px solid var(--line); background:#fafbfc; }
-  h1 { font-size:17px; margin:0 0 2px; } .sub { color:var(--muted); font-size:12px; margin-bottom:12px; }
-  section { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff; }
-  h2 { font-size:13px; margin:0 0 6px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
-  button { font:inherit; padding:5px 9px; margin:2px 2px 2px 0; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
-  button:hover { border-color:var(--accent); color:var(--accent); }
-  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
-  input[type=number] { width:56px; font:inherit; padding:4px; }
-  .stat { font-variant-numeric:tabular-nums; margin-top:6px; color:var(--muted); white-space:pre-line; }
-  .tag { display:inline-block; padding:1px 6px; border-radius:4px; font-size:12px; color:#fff; }
-  table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; } td,th { padding:2px 4px; border-bottom:1px solid var(--line); text-align:right; } td:first-child,th:first-child { text-align:left; }
-  #map { height:100vh; background:#eef1f5; }
+  :root {
+    --bg: #FFFFFF;
+    --ink: #0F172A;          /* tiêu đề */
+    --text: #334155;         /* nội dung */
+    --muted: #64748B;        /* chú thích */
+    --line: #E5E7EB;         /* viền siêu mỏng */
+    --blue: #1D4ED8;         /* hành động chính */
+    --blue-hover: #1E40AF;
+    --blue-soft: #EFF6FF;
+    --blue-ring: rgba(29, 78, 216, .28);
+    --danger: #DC2626;
+    --ok: #15803D;
+    --radius-card: 16px;
+    --radius-ctl: 12px;
+    /* đổ bóng đa lớp: viền tiếp xúc + bóng gần + bóng xa */
+    --depth-1: 0 1px 2px rgba(15, 23, 42, .04), 0 2px 6px rgba(15, 23, 42, .04), 0 12px 28px -6px rgba(15, 23, 42, .06);
+    --depth-2: 0 1px 2px rgba(15, 23, 42, .05), 0 6px 16px rgba(15, 23, 42, .06), 0 24px 48px -12px rgba(15, 23, 42, .10);
+    --lift: 0 1px 2px rgba(29, 78, 216, .30), 0 4px 12px rgba(29, 78, 216, .22);
+    --lift-hover: 0 2px 4px rgba(29, 78, 216, .30), 0 8px 20px rgba(29, 78, 216, .26);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 400 14px/1.55 "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "tnum" 1;          /* chữ số đều chiều để quét số liệu */
+    display: grid; grid-template-columns: 400px 1fr; grid-template-rows: minmax(0, 1fr); gap: 24px; padding: 24px; height: 100vh;
+  }
+
+  /* ---------- thanh bên ---------- */
+  aside { display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding: 4px 8px 24px 4px; min-height: 0; }
+  .brand h1 { margin: 0; font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); }
+  .brand p { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .fact { border: 1px solid var(--line); border-radius: var(--radius-ctl); padding: 10px 12px; box-shadow: var(--depth-1); }
+  .fact b { display: block; font-size: 17px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .fact span { font-size: 12px; color: var(--muted); }
+
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px; box-shadow: var(--depth-1); }
+  .card header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .step { flex: none; width: 24px; height: 24px; border-radius: 8px; background: var(--blue-soft); color: var(--blue); font-weight: 700; font-size: 12.5px; display: grid; place-items: center; transform: translateY(3px); }
+  .card h2 { margin: 0; font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+  .card .hint { margin: 2px 0 14px 34px; color: var(--muted); font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: grid; gap: 8px; }
+  .stack button { text-align: left; }
+
+  /* ---------- điều khiển ---------- */
+  button {
+    font: inherit; font-weight: 500; font-size: 13.5px; cursor: pointer;
+    border-radius: var(--radius-ctl); padding: 9px 14px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink);
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+  button:hover { border-color: #CBD5E1; background: #F8FAFC; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; box-shadow: var(--lift); }
+  button.primary:hover { background: var(--blue-hover); border-color: var(--blue-hover); box-shadow: var(--lift-hover); transform: translateY(-1px); }
+  button.primary:active { transform: translateY(0); box-shadow: var(--lift); }
+  button.danger-soft:hover { border-color: #FCA5A5; color: var(--danger); background: #FEF2F2; }
+  button[disabled] { opacity: .55; cursor: progress; transform: none; }
+  button:focus-visible, input:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--blue-ring); border-color: var(--blue); }
+  .field { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 13.5px; }
+  input[type=number] {
+    width: 72px; font: inherit; color: var(--ink); padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: var(--radius-ctl); background: var(--bg);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input[type=number]:hover { border-color: #CBD5E1; }
+
+  /* ---------- kết quả ---------- */
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; margin: 16px 0 0; }
+  .stats:empty { display: none; }
+  .stats div { min-width: 0; }
+  .stats dt { font-size: 12px; color: var(--muted); }
+  .stats dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .note { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .note:empty { display: none; }
+  .error { color: var(--danger); }
+
+  /* điểm nhấn: so sánh giữ tuyến và tính lại tuyến */
+  .verdict { margin-top: 16px; border-radius: var(--radius-ctl); padding: 14px 16px; border: 1px solid var(--line); }
+  .verdict:empty { display: none; }
+  .verdict.kept { background: #F0FDF4; border-color: #BBF7D0; }
+  .verdict.rerouted { background: var(--blue-soft); border-color: #BFDBFE; }
+  .verdict strong { display: block; font-size: 14.5px; color: var(--ink); font-weight: 600; }
+  .verdict p { margin: 2px 0 0; font-size: 13px; color: var(--text); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .compare div { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .compare b { display: block; font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
+  .compare span { font-size: 12px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  thead th { position: sticky; top: 0; background: var(--bg); font-weight: 600; color: var(--muted); font-size: 12px; }
+  th, td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  td.split { color: var(--blue); font-weight: 600; }
+  .scroll { max-height: 260px; overflow-y: auto; }
+
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+  /* ---------- bản đồ ---------- */
+  .stage { position: relative; min-height: 0; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; box-shadow: var(--depth-2); }
+  #map { position: absolute; inset: 0; background: #F8FAFC; }
+  .float { position: absolute; z-index: 500; background: rgba(255, 255, 255, .96); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--depth-2); padding: 12px 14px; }
+  .layers { top: 16px; right: 16px; display: grid; gap: 8px; font-size: 13px; }
+  .layers label { display: flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink); }
+  .layers input { accent-color: var(--blue); width: 16px; height: 16px; }
+  .legend { left: 16px; bottom: 16px; display: grid; gap: 6px; font-size: 12.5px; color: var(--text); }
+  .legend i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+  .legend i.dot { width: 10px; height: 10px; border-radius: 50%; margin: 0 12px 0 4px; }
+  .pick { top: 16px; left: 16px; font-size: 13px; color: var(--ink); }
+  .pick:empty { display: none; }
+  .leaflet-container { font-family: inherit; }
+  .stop-badge { background: #0891B2; color: #fff; font: 600 12px/1 "Be Vietnam Pro", sans-serif; padding: 5px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(8, 145, 178, .35); white-space: nowrap; }
+
+  @media (max-width: 960px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 70vh; height: auto; padding: 16px; }
+    aside { overflow: visible; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <aside>
-  <h1>LogiGraph</h1>
-  <div class="sub" id="meta">Đang nạp mạng đường…</div>
+  <div class="brand">
+    <h1>LogiGraph</h1>
+    <p>Định tuyến giao hàng và quy hoạch mạng lưới kho trên bản đồ thật nội thành Hà Nội.</p>
+    <div class="facts" aria-live="polite">
+      <div class="fact"><b id="fN">…</b><span>Intersection</span></div>
+      <div class="fact"><b id="fM">…</b><span>Road Segment</span></div>
+      <div class="fact"><b id="fD">…</b><span>phường</span></div>
+    </div>
+  </div>
 
-  <section>
-    <h2>1 · Định tuyến (Dijkstra + APQ)</h2>
-    <div>Bấm 2 điểm trên bản đồ, hoặc:</div>
-    <button id="rnd">Chọn ngẫu nhiên</button>
-    <div class="stat" id="routeStat"></div>
+  <section class="card" aria-labelledby="h1">
+    <header><span class="step">1</span><h2 id="h1">Tìm tuyến ngắn nhất</h2></header>
+    <p class="hint">Bấm điểm đi rồi điểm đến trên bản đồ. Dijkstra dùng Adaptable Priority Queue.</p>
+    <div class="row"><button type="button" class="primary" id="rnd">Chọn hai điểm ngẫu nhiên</button></div>
+    <dl class="stats" id="routeStat" aria-live="polite"></dl>
   </section>
 
-  <section>
-    <h2>2 · Traffic Incident → Reroute</h2>
-    <button data-k="jam_on">Tắc trên tuyến ×10</button>
-    <button data-k="close_on">Cấm đường trên tuyến</button>
-    <button data-k="jam_off">Tắc ngoài tuyến</button>
-    <div class="stat" id="incStat"></div>
+  <section class="card" aria-labelledby="h2">
+    <header><span class="step">2</span><h2 id="h2">Gây sự cố giao thông</h2></header>
+    <p class="hint">Xe đã đi được một phần tư tuyến. Sự cố nằm ngoài tuyến thì tuyến cũ vẫn tối ưu.</p>
+    <div class="stack">
+      <button type="button" class="primary" data-k="jam_on">Tắc đường trên tuyến</button>
+      <button type="button" class="danger-soft" data-k="close_on">Cấm đường trên tuyến</button>
+      <button type="button" data-k="jam_off">Tắc đường ngoài tuyến</button>
+    </div>
+    <div id="incStat" aria-live="polite"></div>
   </section>
 
-  <section>
-    <h2>3 · Mạng xương sống (Kruskal/Prim)</h2>
-    <button id="bb">Vẽ Backbone giữa các Hub</button>
-    <div class="stat" id="bbStat"></div>
+  <section class="card" aria-labelledby="h3">
+    <header><span class="step">3</span><h2 id="h3">Mạng xương sống giữa các kho</h2></header>
+    <p class="hint">Mỗi phường một Hub. Kruskal và Union-Find nối tất cả với tổng thời gian nhỏ nhất.</p>
+    <div class="row"><button type="button" class="primary" id="bb">Vẽ mạng xương sống</button></div>
+    <dl class="stats" id="bbStat" aria-live="polite"></dl>
   </section>
 
-  <section>
-    <h2>4 · Phân cụm & lập chuyến</h2>
-    k = <input type="number" id="k" value="6" min="1" max="30"> <button id="cl">Phân cụm (DSU)</button><br>
-    Cụm <input type="number" id="c" value="0" min="0"> <button id="tr">Lập Trip (Knapsack + Held-Karp)</button>
-    <div class="stat" id="trStat"></div>
+  <section class="card" aria-labelledby="h4">
+    <header><span class="step">4</span><h2 id="h4">Phân cụm và lập chuyến xe</h2></header>
+    <p class="hint">Chia 400 đơn hàng thành cụm, rồi chọn kiện cho xe van 400 kg và sắp thứ tự giao.</p>
+    <div class="row">
+      <label class="field">Số cụm <input type="number" id="k" value="6" min="1" max="30"></label>
+      <button type="button" id="cl">Phân cụm</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="field">Cụm số <input type="number" id="c" value="0" min="0"></label>
+      <button type="button" class="primary" id="tr">Lập chuyến</button>
+    </div>
+    <p class="note" id="clNote"></p>
+    <dl class="stats" id="trStat" aria-live="polite"></dl>
   </section>
 
-  <section>
-    <h2>5 · Liên thông theo phường</h2>
-    <button id="dc">Kiểm tra (DSU)</button>
+  <section class="card" aria-labelledby="h5">
+    <header><span class="step">5</span><h2 id="h5">Liên thông trong từng phường</h2></header>
+    <p class="hint">Union-Find chỉ trên các đoạn đường nằm trong cùng một phường.</p>
+    <div class="row"><button type="button" class="primary" id="dc">Kiểm tra liên thông</button></div>
     <div id="dcOut"></div>
   </section>
 
-  <section>
-    <button id="reset">Khôi phục mạng đường</button>
-    <label><input type="checkbox" id="tiles" checked> Bản đồ nền (cần mạng)</label><br>
-    <label><input type="checkbox" id="netbox"> Lớp mạng đường (đồ thị)</label>
-  </section>
+  <div class="foot">
+    <button type="button" id="reset">Khôi phục mạng đường</button>
+    <span class="note" style="margin:0">Dữ liệu © OpenStreetMap</span>
+  </div>
 </aside>
-<div id="map" role="application" aria-label="Bản đồ mạng đường"></div>
+
+<main class="stage">
+  <div id="map" role="application" aria-label="Bản đồ mạng đường nội thành Hà Nội"></div>
+  <div class="float pick" id="pick" aria-live="polite"></div>
+  <div class="float layers">
+    <label><input type="checkbox" id="tiles" checked> Bản đồ nền</label>
+    <label><input type="checkbox" id="netbox"> Lớp mạng đường</label>
+  </div>
+  <div class="float legend" aria-label="Chú thích">
+    <div><i style="background:#1D4ED8"></i>Tuyến đang đi</div>
+    <div><i style="background:#DC2626"></i>Đoạn có sự cố</div>
+    <div><i class="dot" style="background:#F59E0B"></i>Vị trí xe</div>
+    <div><i style="background:repeating-linear-gradient(90deg,#1E293B 0 6px,transparent 6px 10px)"></i>Mạng xương sống</div>
+    <div><i style="background:#0891B2"></i>Chuyến xe</div>
+  </div>
+</main>
 
 <script src="/vendor/leaflet.js"></script>
 <script>
-const map = L.map('map', { preferCanvas: true }).setView([21.02, 105.835], 14);
+const map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([21.02, 105.835], 14);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 const layers = { route: L.layerGroup().addTo(map), inc: L.layerGroup().addTo(map), bb: L.layerGroup().addTo(map), cl: L.layerGroup().addTo(map), trip: L.layerGroup().addTo(map) };
-const COLORS = ['#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#17becf','#8c564b','#e377c2','#7f7f7f','#bcbd22'];
-let net = null, picks = [], netLayer = null;
+const CLUSTER = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+let net = null, picks = [], netLayer = null, lastKeep = null, lastReroute = null;
 
 const $ = id => document.getElementById(id);
-const api = async (p) => { const r = await fetch(p); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; };
-const fmt = s => s == null ? 'không tới được' : (s / 60).toFixed(1) + ' phút';
+const api = async p => { const r = await fetch(p); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; };
+const fmt = s => s == null ? 'không tới được' : (s / 60).toFixed(1).replace('.', ',') + ' phút';
+const num = (x, d = 0) => Number(x).toLocaleString('vi-VN', { minimumFractionDigits: d, maximumFractionDigits: d });
+const stats = (el, pairs) => { $(el).innerHTML = pairs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join(''); };
+
+// Bấm nút: khóa nút trong lúc chờ server, báo lỗi ngay trong thẻ.
+async function busy(btn, outId, fn) {
+  btn.disabled = true;
+  try { await fn(); } catch (e) { $(outId).innerHTML = `<p class="note error">${e.message}</p>`; }
+  finally { btn.disabled = false; }
+}
 
 api('/api/network').then(d => {
   net = d;
+  $('fN').textContent = num(d.n); $('fM').textContent = num(d.m); $('fD').textContent = d.districts;
   // Các chuỗi đỉnh bậc 2 đã được server gộp thành polyline dài; smoothFactor lược bớt điểm khi zoom xa.
-  netLayer = L.polyline(d.lines, { color: '#8a94a6', weight: 1, opacity: .6, interactive: false, smoothFactor: 2 });
+  netLayer = L.polyline(d.lines, { color: '#94A3B8', weight: 1, opacity: .7, interactive: false, smoothFactor: 2 });
   syncNet();
-  $('meta').textContent = `${d.n.toLocaleString()} Intersection · ${d.m.toLocaleString()} Road Segment · ${d.districts} phường (OSM)`;
 });
 
 function nearest(lat, lon) {   // tìm Intersection gần nhất (duyệt tuyến tính phía client)
@@ -95,71 +246,88 @@ function nearest(lat, lon) {   // tìm Intersection gần nhất (duyệt tuyế
   return best;
 }
 
+const pin = (p, color) => L.circleMarker(p, { radius: 7, color: '#fff', weight: 3, fillColor: color, fillOpacity: 1 });
 function drawRoute(d) {
   layers.route.clearLayers();
-  if (d.path.length > 1) L.polyline(d.path, { color: '#1f5fbf', weight: 5 }).addTo(layers.route);
-  L.circleMarker(d.path[0], { radius: 7, color: '#2e7d32', fillOpacity: 1 }).addTo(layers.route);
-  L.circleMarker(d.path[d.path.length - 1], { radius: 7, color: '#c62828', fillOpacity: 1 }).addTo(layers.route);
+  if (d.path.length > 1) L.polyline(d.path, { color: '#1D4ED8', weight: 5, opacity: .9 }).addTo(layers.route);
+  pin(d.path[0], '#15803D').addTo(layers.route);
+  pin(d.path[d.path.length - 1], '#1D4ED8').addTo(layers.route);
 }
 
 async function route(s, t) {
   const d = await api(`/api/route?s=${s}&t=${t}`);
   layers.inc.clearLayers(); drawRoute(d);
-  $('routeStat').textContent = `${fmt(d.total_s)} · ${(d.length_m / 1000).toFixed(2)} km · ${d.path.length} Intersection\nDijkstra: ${d.ms.toFixed(1)} ms`;
-  $('incStat').textContent = '';
+  stats('routeStat', [['Thời gian', fmt(d.total_s)], ['Quãng đường', num(d.length_m / 1000, 2) + ' km'],
+                      ['Số Intersection', num(d.path.length)], ['Dijkstra chạy', num(d.ms, 1) + ' ms']]);
+  $('incStat').innerHTML = ''; lastKeep = lastReroute = null; $('pick').textContent = '';
 }
 
 map.on('click', e => {
   if (!net) return;
   picks.push(nearest(e.latlng.lat, e.latlng.lng));
-  if (picks.length === 2) { route(picks[0], picks[1]); picks = []; }
+  if (picks.length === 1) $('pick').textContent = 'Đã chọn điểm đi. Bấm điểm đến.';
+  else { route(picks[0], picks[1]); picks = []; }
 });
-$('rnd').onclick = () => net && route(Math.floor(Math.random() * net.n), Math.floor(Math.random() * net.n));
+$('rnd').onclick = e => net && busy(e.currentTarget, 'routeStat', () => route(Math.floor(Math.random() * net.n), Math.floor(Math.random() * net.n)));
 
-document.querySelectorAll('[data-k]').forEach(b => b.onclick = async () => {
-  try {
-    const d = await api('/api/incident?kind=' + b.dataset.k);
-    drawRoute(d);
-    L.polyline(d.incident.segment, { color: '#c62828', weight: 10, opacity: .8 }).addTo(layers.inc);
-    L.circleMarker(d.path[0], { radius: 6, color: '#ff9800', fillOpacity: 1 }).bindTooltip('Vị trí xe').addTo(layers.inc);
-    $('incStat').innerHTML = (d.rerouted ? '<span class="tag" style="background:var(--bad)">Đã tính lại tuyến</span>'
-                                         : '<span class="tag" style="background:var(--ok)">Giữ tuyến cũ (sự cố ngoài tuyến)</span>')
-      + `<br>Còn lại: ${fmt(d.total_s)} · ${d.ms.toFixed(1)} ms\nTính lại: ${d.recomputes} · Bỏ qua: ${d.skips}`;
-  } catch (e) { $('incStat').textContent = e.message; }
-});
+document.querySelectorAll('[data-k]').forEach(b => b.onclick = () => busy(b, 'incStat', async () => {
+  const d = await api('/api/incident?kind=' + b.dataset.k);
+  drawRoute(d);
+  L.polyline(d.incident.segment, { color: '#DC2626', weight: 11, opacity: .85 }).addTo(layers.inc);
+  L.circleMarker(d.path[0], { radius: 7, color: '#fff', weight: 3, fillColor: '#F59E0B', fillOpacity: 1 }).bindTooltip('Vị trí xe').addTo(layers.inc);
+  if (d.rerouted) lastReroute = d.ms; else lastKeep = d.ms;
+  const cell = (v, label) => `<div><b>${v == null ? '–' : num(v, 1) + ' ms'}</b><span>${label}</span></div>`;
+  $('incStat').innerHTML = `<div class="verdict ${d.rerouted ? 'rerouted' : 'kept'}">
+      <strong>${d.rerouted ? 'Đã tính lại tuyến từ vị trí xe' : 'Giữ nguyên tuyến cũ'}</strong>
+      <p>${d.rerouted ? 'Sự cố nằm trên tuyến, phải chạy lại Dijkstra.' : 'Sự cố nằm ngoài tuyến nên tuyến cũ vẫn ngắn nhất.'} Còn lại ${fmt(d.total_s)}.</p>
+      <div class="compare">${cell(lastKeep, 'Giữ tuyến')}${cell(lastReroute, 'Tính lại tuyến')}</div>
+      <p style="margin-top:10px">Số đo lần gần nhất. Đã tính lại ${d.recomputes} lần, bỏ qua ${d.skips} lần.</p></div>`;
+}));
 
-$('bb').onclick = async () => {
-  $('bbStat').textContent = 'Đang tính ma trận khoảng cách giữa các Hub…';
+$('bb').onclick = e => busy(e.currentTarget, 'bbStat', async () => {
+  stats('bbStat', [['Trạng thái', 'Đang tính khoảng cách giữa các Hub…']]);
   const d = await api('/api/backbone');
   layers.bb.clearLayers();
-  d.links.forEach(l => L.polyline(l.path, { color: '#6a1b9a', weight: 4, opacity: .85 }).addTo(layers.bb));
-  d.hubs.forEach((h, i) => L.circleMarker(h, { radius: 6, color: '#6a1b9a', fillColor: '#fff', fillOpacity: 1 }).bindTooltip('Hub ' + d.names[i]).addTo(layers.bb));
-  $('bbStat').textContent = `${d.hubs.length} Hub · ${d.links.length} tuyến · tổng ${fmt(d.total_s)}\n${d.ms.toFixed(0)} ms (gồm ${d.hubs.length} lần Dijkstra)`;
-};
+  d.links.forEach(l => L.polyline(l.path, { color: '#1E293B', weight: 3.5, opacity: .85, dashArray: '8 6' }).addTo(layers.bb));
+  d.hubs.forEach((h, i) => L.circleMarker(h, { radius: 7, color: '#1E293B', weight: 3, fillColor: '#fff', fillOpacity: 1 }).bindTooltip('Hub ' + d.names[i]).addTo(layers.bb));
+  stats('bbStat', [['Số Hub', d.hubs.length], ['Số tuyến', d.links.length], ['Tổng thời gian', fmt(d.total_s)], ['Thời gian tính', num(d.ms) + ' ms']]);
+});
 
-$('cl').onclick = async () => {
+$('cl').onclick = e => busy(e.currentTarget, 'clNote', async () => {
   const d = await api('/api/clusters?k=' + $('k').value);
   layers.cl.clearLayers();
-  d.points.forEach((p, i) => L.circleMarker(p, { radius: 4, color: COLORS[d.labels[i] % 10], fillOpacity: .9, weight: 1 }).addTo(layers.cl));
+  d.points.forEach((p, i) => L.circleMarker(p, { radius: 5, color: '#fff', weight: 1.5, fillColor: CLUSTER[d.labels[i] % CLUSTER.length], fillOpacity: 1 }).addTo(layers.cl));
   $('c').max = d.k - 1;
-  $('trStat').textContent = `${d.points.length} Parcel → ${d.k} Delivery Cluster (single-linkage, ${d.ms.toFixed(0)} ms)`;
-};
+  const sizes = Array.from({ length: d.k }, (_, i) => d.labels.filter(x => x === i).length);
+  $('clNote').textContent = `${d.points.length} đơn hàng chia thành ${d.k} cụm (${sizes.join(', ')} đơn), mất ${num(d.ms)} ms.`;
+});
 
-$('tr').onclick = async () => {
+$('tr').onclick = e => busy(e.currentTarget, 'trStat', async () => {
   const d = await api('/api/trip?c=' + $('c').value);
   layers.trip.clearLayers();
-  L.polyline(d.path, { color: '#00897b', weight: 5 }).addTo(layers.trip);
-  d.stops.forEach((p, i) => L.marker(p, { icon: L.divIcon({ html: `<b style="background:#00897b;color:#fff;padding:2px 5px;border-radius:9px">${i === 0 || i === d.stops.length - 1 ? 'H' : i}</b>`, className: '' }) }).addTo(layers.trip));
-  $('trStat').textContent = `Chọn ${d.parcels}/${d.candidates} Parcel · ${d.weight_kg} kg · cước ${d.fee} nghìn đ\n${d.stops.length - 2} điểm giao · vòng ${fmt(d.total_s)} · ${d.ms.toFixed(0)} ms`;
-};
+  L.polyline(d.path, { color: '#0891B2', weight: 5, opacity: .9 }).addTo(layers.trip);
+  d.stops.forEach((p, i) => L.marker(p, { icon: L.divIcon({ html: `<span class="stop-badge">${i === 0 || i === d.stops.length - 1 ? 'Hub' : i}</span>`, className: '', iconSize: null }) }).addTo(layers.trip));
+  stats('trStat', [['Kiện được chọn', `${d.parcels} / ${d.candidates}`], ['Khối lượng', num(d.weight_kg, 1) + ' kg'],
+                   ['Cước thu', num(d.fee) + ' nghìn đ'], ['Điểm giao', d.stops.length - 2],
+                   ['Thời gian vòng', fmt(d.total_s)], ['Thời gian tính', num(d.ms) + ' ms']]);
+});
 
-$('dc').onclick = async () => {
+$('dc').onclick = e => busy(e.currentTarget, 'dcOut', async () => {
   const d = await api('/api/districts');
-  $('dcOut').innerHTML = `<div class="stat">Thành phần liên thông yếu toàn mạng: ${d.weak_components}</div><table><tr><th>Phường</th><th>Đỉnh</th><th>TP</th><th>Lớn nhất</th></tr>`
-    + d.rows.map(r => `<tr><td>${r.name}</td><td>${r.nodes}</td><td>${r.components}</td><td>${r.largest}</td></tr>`).join('') + '</table>';
-};
+  const whole = d.rows.filter(r => r.components === 1).length;
+  $('dcOut').innerHTML = `<p class="note">Toàn mạng có ${d.weak_components} thành phần liên thông. ${whole} trên ${d.rows.length} phường tự liên thông bằng đường nội bộ.</p>
+    <div class="scroll"><table><thead><tr><th>Phường</th><th>Đỉnh</th><th>Mảnh</th><th>Lớn nhất</th></tr></thead><tbody>`
+    + d.rows.map(r => `<tr><td>${r.name}</td><td>${num(r.nodes)}</td><td class="${r.components > 1 ? 'split' : ''}">${r.components}</td><td>${num(r.largest)}</td></tr>`).join('')
+    + '</tbody></table></div>';
+});
 
-$('reset').onclick = async () => { await api('/api/reset'); Object.values(layers).forEach(l => l.clearLayers()); ['routeStat','incStat'].forEach(i => $(i).textContent = ''); };
+$('reset').onclick = e => busy(e.currentTarget, 'routeStat', async () => {
+  await api('/api/reset');
+  Object.values(layers).forEach(l => l.clearLayers());
+  ['routeStat', 'incStat', 'bbStat', 'trStat', 'dcOut', 'clNote'].forEach(i => $(i).innerHTML = '');
+  lastKeep = lastReroute = null;
+});
+
 // Có bản đồ nền thì mặc định ẩn lớp mạng đường (vẽ hàng chục nghìn đoạn làm kéo/zoom chậm); offline thì tự bật.
 function syncNet() { if (netLayer) $('netbox').checked ? netLayer.addTo(map) : map.removeLayer(netLayer); }
 $('tiles').onchange = e => {

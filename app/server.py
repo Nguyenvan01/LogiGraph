@@ -195,16 +195,20 @@ class State:
 STATE: State | None = None
 ROUTES = {"/api/network": "network", "/api/route": "route", "/api/incident": "incident", "/api/backbone": "backbone",
           "/api/clusters": "clusters", "/api/trip": "trip", "/api/districts": "districts", "/api/reset": "reset_api"}
-STATIC = {"/": ("index.html", "text/html"), "/vendor/leaflet.js": ("vendor/leaflet.js", "text/javascript"),
-          "/vendor/leaflet.css": ("vendor/leaflet.css", "text/css")}
+VENDOR = APP / "vendor"
+CTYPES = {".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".png": "image/png"}
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         url = urlparse(self.path)
-        if url.path in STATIC:
-            name, ctype = STATIC[url.path]
-            return self._send(200, (APP / name).read_bytes(), ctype)
+        if url.path == "/":
+            return self._send(200, (APP / "index.html").read_bytes(), "text/html")
+        if url.path.startswith("/vendor/"):
+            f = (VENDOR / url.path.removeprefix("/vendor/")).resolve()
+            if not f.is_relative_to(VENDOR.resolve()) or not f.is_file() or f.suffix not in CTYPES:   # chặn ../
+                return self._send(404, b"not found", "text/plain")
+            return self._send(200, f.read_bytes(), CTYPES[f.suffix])
         if url.path not in ROUTES:
             return self._send(404, b"not found", "text/plain")
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
